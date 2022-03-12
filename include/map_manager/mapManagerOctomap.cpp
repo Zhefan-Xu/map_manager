@@ -18,7 +18,7 @@ namespace mapManager{
 		// start collision checking server:
 		this->collisionServer_ = this->nh_.advertiseService("check_collision_octomap", &mapManagerOctomap::checkCollision, this);
 		// start random sample server:
-		this->sampleServer_ = this->nh_.advertiseService("randome_sample_octomap", &mapManagerOctomap::randomSample, this);
+		this->sampleServer_ = this->nh_.advertiseService("random_sample_octomap", &mapManagerOctomap::randomSample, this);
 
 		ros::spin();
 	}
@@ -99,7 +99,7 @@ namespace mapManager{
 			this->updateMap();
 		}
 		bool hasCollision = this->checkCollision(octomap::point3d(px, py, pz), xsize, ysize, zsize, ignoreUnknown);
-		res.hasCollision = hasCollision;
+		res.has_collision = hasCollision;
 		return true;
 	}
 

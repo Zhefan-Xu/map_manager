@@ -7,4 +7,4 @@ float64 zsize
 bool update_map
 bool ignore_unknown
 ---
-bool hasCollision
+bool has_collision
