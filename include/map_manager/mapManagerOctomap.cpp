@@ -77,7 +77,7 @@ namespace mapManager{
 		for (xID=0; xID<=xNum; ++xID){
 			for (yID=0; yID<=yNum; ++yID){
 				for (zID=0; zID<=zNum; ++zID){
-					if (this->checkCollisionPoint(octomap::point3d(xmin+xID*this->mapRes_, ymin+yID*this->mapRes_, zmin+zID*this->mapRes_), false)){
+					if (this->checkCollisionPoint(octomap::point3d(xmin+xID*this->mapRes_, ymin+yID*this->mapRes_, zmin+zID*this->mapRes_), ignoreUnknown)){
 						return true;
 					}
 				}

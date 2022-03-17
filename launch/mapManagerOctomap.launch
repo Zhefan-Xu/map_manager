@@ -3,5 +3,5 @@
 
 	<arg name="map_location" default="$(find map_manager)/map/square.bt"/>
 	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server_node" args="$(arg map_location)" output="log" />
-	<node pkg="map_manager" type="mapManagerOctomapNode" name="mapManagerOctomapNode" output="screen"/>
+	<node pkg="map_manager" type="mapManagerOctomap" name="mapManagerOctomap" output="screen"/>
 </launch>
