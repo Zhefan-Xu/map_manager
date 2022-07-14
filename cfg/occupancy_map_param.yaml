@@ -1,0 +1,2 @@
+depth_image_topic: /camera/depth/image_raw
+pose_topic: /CERLAB/quadcopter/pose

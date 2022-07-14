@@ -126,7 +126,8 @@ include_directories(
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/map_manager.cpp
 # )
-add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp)
+add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp
+                            include/${PROJECT_NAME}/occupancyMap.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -138,6 +139,7 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp)
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/map_manager_node.cpp)
 add_executable(mapManagerOctomap src/mapManagerOctomapNode.cpp)
+add_executable(occupancy_map_node src/occupancy_map_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -158,6 +160,7 @@ add_dependencies(mapManagerOctomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_
 # )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(mapManagerOctomap ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 #############
 ## Install ##
