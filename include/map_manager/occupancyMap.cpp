@@ -222,7 +222,7 @@ namespace mapManager{
 
 	void occMap::updateOccupancyCB(const ros::TimerEvent& ){
 		// cout << "update occupancy map" << endl;
-		
+		ros::Time startTime = ros::Time::now();
 		// project 3D points from depth map
 		this->projectDepthImage();
 
@@ -231,7 +231,8 @@ namespace mapManager{
 		// clear local map
 
 		// infalte map
-
+		ros::Time endTime = ros::Time::now();
+		cout << "[OccMap]: Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
 	}
 
 
