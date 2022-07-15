@@ -1,2 +1,24 @@
 depth_image_topic: /camera/depth/image_raw
 pose_topic: /CERLAB/quadcopter/pose
+
+# Camera Parameters
+depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy
+depth_scale_factor: 10
+depth_min_value: 0.2
+depth_max_value: 5.0
+depth_filter_margin: 5 # filter
+depth_skip_pixel: 2 # filter
+image_cols: 640
+image_rows: 480
+body_to_camera: [0.0,  0.0,  1.0,  0.09,
+                -1.0,  0.0,  0.0,  0.0 ,   
+                 0.0, -1.0,  0.0,  0.095,
+                 0.0,  0.0,  0.0,  1.0]
+
+# Raycasting
+raycast_max_length: 5.0
+
+
+# Map
+map_resolution: 0.1
+map_size: [20, 20, 3] # meter. in x y z direction
