@@ -109,7 +109,7 @@ namespace mapManager{
 		else{
 			cout << "[OccMap]: Depth image rows: " << this->imgRows_ << endl;
 		}
-		this->projPoints_.resize(this->imgCols_ * imgRows_ / (this->skipPixel_ * skipPixel_));
+		this->projPoints_.resize(this->imgCols_ * this->imgRows_ / (this->skipPixel_ * this->skipPixel_));
 		// ------------------------------------------------------------------------------------
 
 
@@ -221,8 +221,12 @@ namespace mapManager{
 	}
 
 	void occMap::updateOccupancyCB(const ros::TimerEvent& ){
+		if (not this->occNeedUpdate_){
+			return;
+		}
 		// cout << "update occupancy map" << endl;
-		ros::Time startTime = ros::Time::now();
+		ros::Time startTime, endTime;
+		startTime = ros::Time::now();
 		// project 3D points from depth map
 		this->projectDepthImage();
 
@@ -231,44 +235,45 @@ namespace mapManager{
 		// clear local map
 
 		// infalte map
-		ros::Time endTime = ros::Time::now();
+		endTime = ros::Time::now();
 		cout << "[OccMap]: Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
+		this->occNeedUpdate_ = false;
 	}
 
 
 	void occMap::projectDepthImage(){
-		this->projPointsNum_ = 0;
+		int projPointsNum = 0;
 
-		uint16_t* rowPtr;
 		int cols = this->depthImage_.cols;
 		int rows = this->depthImage_.rows;
 
+
 		Eigen::Vector3d currPointCam, currPointMap;
 		double depth;
+
 		// iterate through each pixel in the depth image
 		for (int v=this->depthFilterMargin_; v<rows-this->depthFilterMargin_; v+=this->skipPixel_){ // row
 			for (int u=this->depthFilterMargin_; u<cols-this->depthFilterMargin_; u+=this->skipPixel_){ // column
 				depth = this->depthImage_.at<uint16_t>(v, u) / this->depthScale_;
 
-				// filter depth value
-				if (depth <= 0 or depth > this->depthMaxValue_){
+				// // filter depth value
+				if (depth == 0 or depth > this->depthMaxValue_){
 					depth = this->raycastMaxLength_ + 0.1; // dummy point for raycasting
 				}
 				else if (depth < this->depthMinValue_){
 					continue; // ignore too close points
 				}
 
-				// get 3D point in camera frame
+				// // // // get 3D point in camera frame
 				currPointCam(0) = (u - this->cx_) * depth/this->fx_;
 				currPointCam(1) = (v - this->cy_) * depth/this->fy_;
 				currPointCam(2) = depth;
 				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
-				// cout << currPointCam << endl;
-				// store current point
-				this->projPoints_[projPointsNum_] = currPointMap;
-				++this->projPointsNum_;
+				// // // // store current point
+				this->projPoints_[projPointsNum++] = currPointMap;
 			}
 		}
+		this->projPointsNum_ = projPointsNum;
 	}
 
 
@@ -285,7 +290,7 @@ namespace mapManager{
 	}
 
 	void occMap::visCB(const ros::TimerEvent& ){
-		this->publishProjPoints();
+		// this->publishProjPoints();
 	}
 
 	void occMap::publishProjPoints(){

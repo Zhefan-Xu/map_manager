@@ -4,7 +4,7 @@ pose_topic: /CERLAB/quadcopter/pose
 # Camera Parameters
 depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy
 depth_scale_factor: 10
-depth_min_value: 0.2
+depth_min_value: 0.3
 depth_max_value: 5.0
 depth_filter_margin: 5 # filter
 depth_skip_pixel: 2 # filter

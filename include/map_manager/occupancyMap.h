@@ -6,7 +6,8 @@
 #ifndef MAPMANAGER_OCCUPANCYMAP
 #define MAPMANAGER_OCCUPANCYMAP
 #include <ros/ros.h>
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Eigen>
+#include <Eigen/StdVector>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 #include <geometry_msgs/PoseStamped.h>
