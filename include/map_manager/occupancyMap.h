@@ -77,7 +77,6 @@ namespace mapManager{
 
 		// ------------------------------------------------------------------
 
-
 	public:
 		occMap(); // empty constructor
 		void initMap(const ros::NodeHandle& nh);
