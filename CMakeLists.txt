@@ -134,7 +134,8 @@ include_directories(
 #   src/${PROJECT_NAME}/map_manager.cpp
 # )
 add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp
-                            include/${PROJECT_NAME}/occupancyMap.cpp)
+                            include/${PROJECT_NAME}/occupancyMap.cpp
+                            include/${PROJECT_NAME}/raycast.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

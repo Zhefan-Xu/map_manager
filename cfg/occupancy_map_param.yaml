@@ -17,8 +17,14 @@ body_to_camera: [0.0,  0.0,  1.0,  0.09,
 
 # Raycasting
 raycast_max_length: 5.0
+p_hit: 0.70
+p_miss: 0.35
+p_min: 0.12
+p_max: 0.97
+p_occ: 0.80
 
 
 # Map
 map_resolution: 0.1
+ground_height: 0.0 # m
 map_size: [20, 20, 3] # meter. in x y z direction

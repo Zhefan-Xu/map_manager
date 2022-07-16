@@ -8,6 +8,7 @@
 #include <ros/ros.h>
 #include <Eigen/Eigen>
 #include <Eigen/StdVector>
+#include <queue>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -18,6 +19,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <map_manager/raycast.h>
 
 using std::cout; using std::endl;
 namespace mapManager{
@@ -50,9 +52,12 @@ namespace mapManager{
 
 		// RAYCASTING
 		double raycastMaxLength_;
+		double pHitLog_, pMissLog_, pMinLog_, pMaxLog_, pOccLog_; 
 
 		// MAP
+		double UNKNOWN_FLAG_ = 0.01;
 		double mapRes_;
+		double groundHeight_; // ground height in z axis
 		Eigen::Vector3d mapSize_, mapSizeMin_, mapSizeMax_; // reserved min/max map size
 		Eigen::Vector3i mapVoxelMin_, mapVoxelMax_; // reserved min/max map size in voxel
 		// -----------------------------------------------------------------
@@ -69,10 +74,18 @@ namespace mapManager{
 
 		// MAP DATA
 		int projPointsNum_ = 0;
-		std::vector<Eigen::Vector3d> projPoints_;
+		std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
+		std::vector<int> countHitMiss_;
+		std::vector<int> countHit_;
+		std::queue<Eigen::Vector3i> updateVoxelCache_;
+		std::vector<double> occupancy_; // occupancy log data
+		std::vector<char> occupancyInflated_; // inflated occupancy data 
 
 		// STATUS
 		bool occNeedUpdate_ = false;
+
+		// Raycaster
+		RayCaster raycaster_;
 
 
 		// ------------------------------------------------------------------
@@ -97,8 +110,19 @@ namespace mapManager{
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
 		void publishProjPoints();
+
+
+		// helper functions
 		bool isInMap(const Eigen::Vector3d& pos);
 		bool isInMap(const Eigen::Vector3i& idx);
+		void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx);
+		void indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos);
+		int posToAddress(const Eigen::Vector3d& idx);
+		int indexToAddress(const Eigen::Vector3i& idx);
+		Eigen::Vector3d adjustPointInMap(const Eigen::Vector3d& point);
+		Eigen::Vector3d adjustPointRayLength(const Eigen::Vector3d& point);
+		void updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);
+		double logit(double x);
 		void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
 	};
 }
