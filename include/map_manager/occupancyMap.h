@@ -36,6 +36,7 @@ namespace mapManager{
 		ros::Timer occTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher depthCloudPub_;
+		ros::Publisher mapVisPub_;
 
 		std::string depthTopicName_; // depth image topic
 		std::string poseTopicName_;  // pose topic
@@ -60,6 +61,13 @@ namespace mapManager{
 		double groundHeight_; // ground height in z axis
 		Eigen::Vector3d mapSize_, mapSizeMin_, mapSizeMax_; // reserved min/max map size
 		Eigen::Vector3i mapVoxelMin_, mapVoxelMax_; // reserved min/max map size in voxel
+		Eigen::Vector3d localUpdateRange_; // self defined local update range
+		Eigen::Vector3d localMapSize_;
+		Eigen::Vector3i localMapVoxel_; // voxel representation of local map size
+		double localBoundInflate_;
+
+		// VISUALZATION
+		double maxVisHeight_;
 		// -----------------------------------------------------------------
 
 
@@ -70,6 +78,7 @@ namespace mapManager{
 		cv::Mat depthImage_;
 		Eigen::Vector3d position_; // current position
 		Eigen::Matrix3d orientation_; // current orientation
+		Eigen::Vector3i localBoundMin_, localBoundMax_; // sensor data range
 
 
 		// MAP DATA
@@ -79,13 +88,19 @@ namespace mapManager{
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
 		std::vector<double> occupancy_; // occupancy log data
-		std::vector<char> occupancyInflated_; // inflated occupancy data 
+		std::vector<char> occupancyInflated_; // inflated occupancy data
+		int raycastNum_ = 0; 
+		std::vector<char> flagTraverse_, flagRayend_;
+
+		
 
 		// STATUS
 		bool occNeedUpdate_ = false;
 
 		// Raycaster
 		RayCaster raycaster_;
+
+
 
 
 		// ------------------------------------------------------------------
@@ -107,9 +122,18 @@ namespace mapManager{
 		void cleanLocalMap();
 		void inflateLocalMap();
 
+		// user functions
+		bool isOccupied(const Eigen::Vector3d& pos);
+		bool isOccupied(const Eigen::Vector3i& idx); // does not count for unknown
+		bool isFree(const Eigen::Vector3d& pos);
+		bool isFree(const Eigen::Vector3i& idx);
+		bool isUnknown(const Eigen::Vector3d& pos);
+		bool isUnknown(const Eigen::Vector3i& idx);
+
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
 		void publishProjPoints();
+		void publishMap();
 
 
 		// helper functions
@@ -119,6 +143,9 @@ namespace mapManager{
 		void indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos);
 		int posToAddress(const Eigen::Vector3d& idx);
 		int indexToAddress(const Eigen::Vector3i& idx);
+		void boundIndex(Eigen::Vector3i& idx);
+		bool isInLocalUpdateRange(const Eigen::Vector3d& pos);
+		bool isInLocalUpdateRange(const Eigen::Vector3i& idx);
 		Eigen::Vector3d adjustPointInMap(const Eigen::Vector3d& point);
 		Eigen::Vector3d adjustPointRayLength(const Eigen::Vector3d& point);
 		void updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);

@@ -229,9 +229,9 @@ namespace mapManager{
 			this->mapSizeMin_(2) = this->groundHeight_; this->mapSizeMax_(2) = this->groundHeight_ + mapSizeVec[2];
 			
 			// min max for voxel
-			this->mapVoxelMin_(0) = 0; this->mapVoxelMin_(0) = ceil(mapSizeVec[0]/this->mapRes_);
-			this->mapVoxelMin_(1) = 0; this->mapVoxelMin_(1) = ceil(mapSizeVec[1]/this->mapRes_);
-			this->mapVoxelMin_(2) = 0; this->mapVoxelMin_(2) = ceil(mapSizeVec[2]/this->mapRes_);
+			this->mapVoxelMin_(0) = 0; this->mapVoxelMax_(0) = ceil(mapSizeVec[0]/this->mapRes_);
+			this->mapVoxelMin_(1) = 0; this->mapVoxelMax_(1) = ceil(mapSizeVec[1]/this->mapRes_);
+			this->mapVoxelMin_(2) = 0; this->mapVoxelMax_(2) = ceil(mapSizeVec[2]/this->mapRes_);
 
 			// reserve vector for variables
 			int reservedSize = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
@@ -239,9 +239,54 @@ namespace mapManager{
 			this->countHit_.resize(reservedSize, 0);
 			this->occupancy_.resize(reservedSize, this->pMinLog_-this->UNKNOWN_FLAG_);
 			this->occupancyInflated_.resize(reservedSize, 0);
+			this->flagTraverse_.resize(reservedSize, -1);
+			this->flagRayend_.resize(reservedSize, -1);
 
 			cout << "[OccMap]: Map size: " << "[" << mapSizeVec[0] << ", " << mapSizeVec[1] << ", " << mapSizeVec[2] << "]" << endl;
-		}		
+		}
+
+		// local update range
+		std::vector<double> localUpdateRangeVec;
+		if (not this->nh_.getParam("occupancy_map/local_update_range", localUpdateRangeVec)){
+			localUpdateRangeVec = std::vector<double>{5.0, 5.0, 3.0};
+			cout << "[OccMap]: No local update range. Use default: [5.0, 5.0, 3.0] m." << endl;
+		}
+		else{
+			cout << "[OccMap]: Local update range: " << "[" << localUpdateRangeVec[0] << ", " << localUpdateRangeVec[1] << ", " << localUpdateRangeVec[2] << "]" << endl;
+		}
+		this->localUpdateRange_(0) = localUpdateRangeVec[0]; this->localUpdateRange_(1) = localUpdateRangeVec[1]; this->localUpdateRange_(2) = localUpdateRangeVec[2];
+
+
+		// local map size
+		std::vector<double> localMapSizeVec;
+		if (not this->nh_.getParam("occupancy_map/local_map_size", localMapSizeVec)){
+			localMapSizeVec = std::vector<double>{6.0, 6.0, 2.0};
+			cout << "[OccMap]: No local map size. Use default: [6.0, 6.0, 2.0] m." << endl;
+		}
+		else{
+			cout << "[OccMap]: Local map size: " << "[" << localMapSizeVec[0] << ", " << localMapSizeVec[1] << ", " << localMapSizeVec[2] << "]" << endl;
+		}
+		this->localMapSize_(0) = localUpdateRangeVec[0]; this->localMapSize_(1) = localUpdateRangeVec[1]; this->localMapSize_(2) = localUpdateRangeVec[2];
+		this->localMapVoxel_(0) = int(ceil(localUpdateRangeVec[0]/this->mapRes_)); this->localMapVoxel_(1) = int(ceil(localUpdateRangeVec[1]/this->mapRes_)); this->localMapVoxel_(2) = int(ceil(localUpdateRangeVec[2]/this->mapRes_));
+
+		// local bound inflate factor
+		if (not this->nh_.getParam("occupancy_map/local_bound_inflation", this->localBoundInflate_)){
+			this->localBoundInflate_ = 0.0;
+			cout << "[OccMap]: No local bound inflate. Use default: 0.0 m." << endl;
+		}
+		else{
+			cout << "[OccMap]: Local bound inflate: " << this->localBoundInflate_ << endl;
+		}
+
+		// max vis height
+		if (not this->nh_.getParam("occupancy_map/max_height_visualization", this->maxVisHeight_)){
+			this->maxVisHeight_ = 3.0;
+			cout << "[OccMap]: No max visualization height. Use default: 3.0 m." << endl;
+		}
+		else{
+			cout << "[OccMap]: Max visualization height: " << this->maxVisHeight_ << endl;
+		}
+
 
 	}
 
@@ -261,6 +306,7 @@ namespace mapManager{
 
 	void occMap::registerPub(){
 		this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>("/occupancy_map/depth_cloud", 10);
+		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>("/occupancy_map/voxel_map", 10);
 	}
 
 
@@ -303,6 +349,7 @@ namespace mapManager{
 		this->projectDepthImage();
 
 		// raycasting and update occupancy
+		this->raycastUpdate();
 
 		// clear local map
 
@@ -354,6 +401,13 @@ namespace mapManager{
 		if (this->projPointsNum_ == 0){
 			return;
 		}
+		this->raycastNum_ += 1;
+
+		// record local bound of update
+		double xmin, xmax, ymin, ymax, zmin, zmax;
+		xmin = xmax = this->position_(0);
+		ymin = ymax = this->position_(1);
+		zmin = zmax = this->position_(2);
 
 		// iterate through each projected points, perform raycasting and update occupancy
 		Eigen::Vector3d currPoint;
@@ -373,11 +427,30 @@ namespace mapManager{
 				pointAdjusted = true;
 			}
 
+
+			// update local bound
+			if (currPoint(0) < xmin){xmin = currPoint(0);}
+			if (currPoint(1) < ymin){ymin = currPoint(1);}
+			if (currPoint(2) < zmin){zmin = currPoint(2);}
+			if (currPoint(0) > xmax){xmax = currPoint(0);}
+			if (currPoint(1) > ymax){ymax = currPoint(1);}
+			if (currPoint(2) > zmax){zmax = currPoint(2);}
+
+			// check whether the voxel has already been updated, so no raycasting needed
+			int rayendVoxelID = this->posToAddress(currPoint);
+			if (this->flagRayend_[rayendVoxelID] == this->raycastNum_){
+				continue; // skip
+			}
+			else{
+				this->flagRayend_[rayendVoxelID] = this->raycastNum_;
+			}
+
 			// update occupancy itself update information
 			this->updateOccupancyInfo(currPoint, not pointAdjusted); // point adjusted is free, not is occupied
-			
+
+
 			// raycasting for update occupancy
-			this->raycaster_.setInput(this->position_/this->mapRes_, currPoint/this->mapRes_);
+			this->raycaster_.setInput(currPoint/this->mapRes_, this->position_/this->mapRes_);
 			Eigen::Vector3d rayPoint, actualPoint;
 			while (this->raycaster_.step(rayPoint)){
 				actualPoint = rayPoint;
@@ -386,9 +459,25 @@ namespace mapManager{
 				actualPoint(2) += 0.5;
 				actualPoint *= this->mapRes_;
 				this->updateOccupancyInfo(actualPoint, false);
+
+				int raycastVoxelID = this->posToAddress(rayPoint);
+				if (this->flagTraverse_[raycastVoxelID] == this->raycastNum_){
+					break;
+				}
+				else{
+					this->flagTraverse_[raycastVoxelID] = this->raycastNum_;
+				}
+
 			}
 		}
 
+		// store local bound and inflate local bound (inflate is for ESDF update)
+		this->posToIndex(Eigen::Vector3d (xmin, ymin, zmin), this->localBoundMin_);
+		this->posToIndex(Eigen::Vector3d (xmax, ymax, zmax), this->localBoundMax_);
+		this->localBoundMin_ -= int(ceil(this->localBoundInflate_/this->mapRes_)) * Eigen::Vector3i(1, 1, 0); // inflate in x y direction
+		this->localBoundMax_ += int(ceil(this->localBoundInflate_/this->mapRes_)) * Eigen::Vector3i(1, 1, 0); 
+		this->boundIndex(this->localBoundMin_); // since inflated, need to bound if not in reserved range
+		this->boundIndex(this->localBoundMax_);
 
 		// update occupancy in the cache
 		double logUpdateValue;
@@ -399,6 +488,11 @@ namespace mapManager{
 
 			int hit = this->countHit_[cacheAddress];
 			int miss = this->countHitMiss_[cacheAddress] - hit;
+
+			// if (hit == 0 and miss == 0){
+			// 	continue; // this has been updated. repeated points
+			// }
+
 			if (hit >= miss){
 				logUpdateValue = this->pHitLog_;
 			}
@@ -407,6 +501,11 @@ namespace mapManager{
 			}
 			this->countHit_[cacheAddress] = 0; // clear hit
 			this->countHitMiss_[cacheAddress] = 0; // clear hit and miss
+
+			// check whether point is in the local update range
+			if (not this->isInLocalUpdateRange(cacheIdx)){
+				continue; // do not update if not in the range
+			}
 
 			// update occupancy info
 			if ((logUpdateValue >= 0) and (this->occupancy_[cacheAddress] >= this->pMaxLog_)){
@@ -432,8 +531,42 @@ namespace mapManager{
 
 	}
 
+	bool occMap::isOccupied(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isOccupied(idx);
+	}
+
+	bool occMap::isOccupied(const Eigen::Vector3i& idx){
+		int address = this->indexToAddress(idx);
+		return this->occupancy_[address] >= this->pOccLog_;
+	}
+
+	bool occMap::isFree(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isFree(idx);
+	}
+
+	bool occMap::isFree(const Eigen::Vector3i& idx){
+		int address = this->indexToAddress(idx);
+		return (this->occupancy_[address] < this->pOccLog_) and (this->occupancy_[address] >= this->pMinLog_);
+	}
+
+	bool occMap::isUnknown(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isUnknown(idx);
+	}
+
+	bool occMap::isUnknown(const Eigen::Vector3i& idx){
+		int address = this->indexToAddress(idx);
+		return this->occupancy_[address] < this->pMinLog_;		
+	}
+
 	void occMap::visCB(const ros::TimerEvent& ){
 		// this->publishProjPoints();
+		this->publishMap();
 	}
 
 	void occMap::publishProjPoints(){
@@ -455,6 +588,48 @@ namespace mapManager{
 		sensor_msgs::PointCloud2 cloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
 		this->depthCloudPub_.publish(cloudMsg);
+	}
+
+
+	void occMap::publishMap(){
+		pcl::PointXYZ pt;
+		pcl::PointCloud<pcl::PointXYZ> cloud;
+
+		Eigen::Vector3d minRange = this->position_ - localMapSize_;
+		Eigen::Vector3d maxRange = this->position_ + localMapSize_;
+		Eigen::Vector3i minRangeIdx, maxRangeIdx;
+		this->posToIndex(minRange, minRangeIdx);
+		this->posToIndex(maxRange, maxRangeIdx);
+		this->boundIndex(minRangeIdx);
+		this->boundIndex(maxRangeIdx);
+
+		for (int x=minRangeIdx(0); x<maxRangeIdx(0); ++x){
+			for (int y=minRangeIdx(1); y<maxRangeIdx(1); ++y){
+				for (int z=minRangeIdx(2); z<maxRangeIdx(2); ++z){
+					Eigen::Vector3i pointIdx (x, y, z);
+					if (this->isOccupied(pointIdx)){
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						if (point(2) <= this->maxVisHeight_){
+							pt.x = point(0);
+							pt.y = point(1);
+							pt.z = point(2);
+							cloud.push_back(pt);
+						}
+					}
+				}
+			}
+		}
+
+
+		cloud.width = cloud.points.size();
+		cloud.height = 1;
+		cloud.is_dense = true;
+		cloud.header.frame_id = "map";
+
+		sensor_msgs::PointCloud2 cloudMsg;
+		pcl::toROSMsg(cloud, cloudMsg);
+		this->mapVisPub_.publish(cloudMsg);
 	}
 
 
@@ -500,6 +675,37 @@ namespace mapManager{
 
 	int occMap::indexToAddress(const Eigen::Vector3i& idx){
 		return idx(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2) + idx(1) * this->mapVoxelMax_(2) + idx(2);
+	}
+
+	void occMap::boundIndex(Eigen::Vector3i& idx){
+		Eigen::Vector3i temp;
+		temp(0) = std::max(std::min(idx(0), this->mapVoxelMax_(0)), this->mapVoxelMin_(0));
+		temp(1) = std::max(std::min(idx(1), this->mapVoxelMax_(1)), this->mapVoxelMin_(1));
+		temp(2) = std::max(std::min(idx(2), this->mapVoxelMax_(2)), this->mapVoxelMin_(2));
+		idx = temp;
+	}
+
+	bool occMap::isInLocalUpdateRange(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isInLocalUpdateRange(idx);
+	}
+
+	bool occMap::isInLocalUpdateRange(const Eigen::Vector3i& idx){
+		Eigen::Vector3d rangeMin = this->position_ - this->localUpdateRange_;
+		Eigen::Vector3d rangeMax = this->position_ + this->localUpdateRange_;
+		
+		Eigen::Vector3i rangeMinIdx, rangeMaxIdx;
+		this->posToIndex(rangeMin, rangeMinIdx);
+		this->posToIndex(rangeMax, rangeMaxIdx);
+
+		this->boundIndex(rangeMinIdx);
+		this->boundIndex(rangeMaxIdx);
+
+		bool inRange = (idx(0) >= rangeMinIdx(0)) and (idx(0) <= rangeMaxIdx(0)) and
+					   (idx(1) >= rangeMinIdx(1)) and (idx(1) <= rangeMaxIdx(1)) and
+					   (idx(2) >= rangeMinIdx(2)) and (idx(2) <= rangeMaxIdx(2));
+		return inRange;
 	}
 
 	Eigen::Vector3d occMap::adjustPointInMap(const Eigen::Vector3d& point){
