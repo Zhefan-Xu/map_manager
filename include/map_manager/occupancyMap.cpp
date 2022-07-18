@@ -349,7 +349,7 @@ namespace mapManager{
 		this->projectDepthImage();
 
 		// raycasting and update occupancy
-		this->raycastUpdate();
+		// this->raycastUpdate();
 
 		// clear local map
 
@@ -361,39 +361,119 @@ namespace mapManager{
 
 
 	void occMap::projectDepthImage(){
-		int projPointsNum = 0;
+		// int projPointsNum = 0;
 
-		int cols = this->depthImage_.cols;
-		int rows = this->depthImage_.rows;
+		// int cols = this->depthImage_.cols;
+		// int rows = this->depthImage_.rows;
 
 
-		Eigen::Vector3d currPointCam, currPointMap;
-		double depth;
+		// Eigen::Vector3d currPointCam, currPointMap;
+		// double depth;
 
-		// iterate through each pixel in the depth image
-		for (int v=this->depthFilterMargin_; v<rows-this->depthFilterMargin_; v+=this->skipPixel_){ // row
-			for (int u=this->depthFilterMargin_; u<cols-this->depthFilterMargin_; u+=this->skipPixel_){ // column
-				depth = this->depthImage_.at<uint16_t>(v, u) / this->depthScale_;
+		// // iterate through each pixel in the depth image
+		// for (int v=this->depthFilterMargin_; v<rows-this->depthFilterMargin_; v+=this->skipPixel_){ // row
+		// 	for (int u=this->depthFilterMargin_; u<cols-this->depthFilterMargin_; u+=this->skipPixel_){ // column
+		// 		depth = this->depthImage_.at<uint16_t>(v, u) / this->depthScale_;
 
-				// // filter depth value
-				if ((depth == 0) or (depth > this->depthMaxValue_)){
-					depth = this->raycastMaxLength_ + 0.1; // dummy point for raycasting
-				}
-				else if (depth < this->depthMinValue_){
-					continue; // ignore too close points
-				}
+		// 		// // filter depth value
+		// 		if ((depth == 0) or (depth > this->depthMaxValue_)){
+		// 			depth = this->raycastMaxLength_ + 0.1; // dummy point for raycasting
+		// 		}
+		// 		else if (depth < this->depthMinValue_){
+		// 			continue; // ignore too close points
+		// 		}
 
-				// get 3D point in camera frame
-				currPointCam(0) = (u - this->cx_) * depth/this->fx_;
-				currPointCam(1) = (v - this->cy_) * depth/this->fy_;
-				currPointCam(2) = depth;
-				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
+		// 		// get 3D point in camera frame
+		// 		currPointCam(0) = (u - this->cx_) * depth/this->fx_;
+		// 		currPointCam(1) = (v - this->cy_) * depth/this->fy_;
+		// 		currPointCam(2) = depth;
+		// 		currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 
-				// store current point
-				this->projPoints_[projPointsNum++] = currPointMap;
-			}
-		}
-		this->projPointsNum_ = projPointsNum;
+		// 		// store current point
+		// 		this->projPoints_[projPointsNum++] = currPointMap;
+		// 	}
+		// }
+		// this->projPointsNum_ = projPointsNum;
+
+
+
+		  this->projPointsNum_ = 0;
+		  uint16_t* row_ptr;
+		  // int cols = current_img_.cols, rows = current_img_.rows;
+		  int cols = this->depthImage_.cols;
+		  int rows = this->depthImage_.rows;
+		  // cout << "cols: " << cols << " rows: " << rows << endl;
+
+		  double depth;
+
+		  Eigen::Matrix3d camera_r = this->orientation_;
+
+		  // cout << "rotate: " << md_.camera_q_.toRotationMatrix() << endl;
+		  // std::cout << "pos in proj: " << this->position_ << std::endl;
+
+		  if (false) {
+		    for (int v = 0; v < rows; v++) {
+		      row_ptr = this->depthImage_.ptr<uint16_t>(v);
+
+		    }
+		  }
+		  /* use depth filter */
+		  else {
+
+		    if (false){
+
+		    }
+		    else {
+		      Eigen::Vector3d pt_cur, pt_world, pt_reproj;
+
+		      Eigen::Matrix3d last_camera_r_inv;
+		      last_camera_r_inv = this->orientation_;
+		      const double inv_factor = 1.0 / this->depthScale_;
+
+		      for (int v = this->depthFilterMargin_; v < rows - this->depthFilterMargin_; v += this->skipPixel_) {
+		        row_ptr = this->depthImage_.ptr<uint16_t>(v) + this->depthFilterMargin_;
+
+		        for (int u = this->depthFilterMargin_; u < cols - this->depthFilterMargin_;
+		             u += this->skipPixel_) {
+
+		          depth = (*row_ptr) * inv_factor;
+		          row_ptr = row_ptr + this->skipPixel_;
+
+		          // filter depth
+		          // depth += rand_noise_(eng_);
+		          // if (depth > 0.01) depth += rand_noise2_(eng_);
+
+		          if (*row_ptr == 0) {
+		            depth = this->raycastMaxLength_ + 0.1;
+		          } else if (depth < this->depthMinValue_) {
+		            continue;
+		          } else if (depth > this->depthMaxValue_) {
+		            depth = this->raycastMaxLength_ + 0.1;
+		          }
+
+		          // project to world frame
+		          pt_cur(0) = (u - this->cx_) * depth / this->fx_;
+		          pt_cur(1) = (v - this->cy_) * depth / this->fy_;
+		          pt_cur(2) = depth;
+
+		          // pt_cur(0) = depth;
+		          // pt_cur(1) = -(u - mp_.cx_) * depth / mp_.fx_;
+		          // pt_cur(2) = -(v - mp_.cy_) * depth / mp_.fy_;
+
+		          pt_world = camera_r * pt_cur + this->position_;
+		          // if (!isInMap(pt_world)) {
+		          //   pt_world = closetPointInMap(pt_world, this->position_);
+		          // }
+
+		          this->projPoints_[this->projPointsNum_++] = pt_world;
+		          // cout << "point: " << pt_world << endl;
+
+		          // check consistency with last image, disabled...
+
+		        }
+		      }
+		    }
+		  }
 	}
 
 
@@ -570,7 +650,7 @@ namespace mapManager{
 	}
 
 	void occMap::visCB(const ros::TimerEvent& ){
-		// this->publishProjPoints();
+		this->publishProjPoints();
 		this->publishMap();
 	}
 
