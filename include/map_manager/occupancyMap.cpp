@@ -411,6 +411,8 @@ namespace mapManager{
 
 		// iterate through each projected points, perform raycasting and update occupancy
 		Eigen::Vector3d currPoint;
+		int rayendVoxelID;
+		double length;
 		for (int i=0; i<this->projPointsNum_; ++i){
 			currPoint = this->projPoints_[i];
 
@@ -422,7 +424,8 @@ namespace mapManager{
 			}
 
 			// check whether the point exceeds the maximum raycasting length
-			if ((currPoint - this->position_).norm() > this->raycastMaxLength_){
+			length = (currPoint - this->position_).norm();
+			if (length > this->raycastMaxLength_){
 				currPoint = this->adjustPointRayLength(currPoint);
 				pointAdjusted = true;
 			}
@@ -437,7 +440,7 @@ namespace mapManager{
 			if (currPoint(2) > zmax){zmax = currPoint(2);}
 
 			// check whether the voxel has already been updated, so no raycasting needed
-			int rayendVoxelID = this->posToAddress(currPoint);
+			rayendVoxelID = this->posToAddress(currPoint);
 			if (this->flagRayend_[rayendVoxelID] == this->raycastNum_){
 				continue; // skip
 			}
