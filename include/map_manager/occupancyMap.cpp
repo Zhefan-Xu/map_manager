@@ -411,12 +411,13 @@ namespace mapManager{
 
 		// iterate through each projected points, perform raycasting and update occupancy
 		Eigen::Vector3d currPoint;
-		int rayendVoxelID;
+		bool pointAdjusted;
+		int rayendVoxelID, raycastVoxelID;
 		double length;
 		for (int i=0; i<this->projPointsNum_; ++i){
 			currPoint = this->projPoints_[i];
 
-			bool pointAdjusted = false;
+			pointAdjusted = false;
 			// check whether the point is in reserved map range
 			if (not this->isInMap(currPoint)){
 				currPoint = this->adjustPointInMap(currPoint);
@@ -463,7 +464,7 @@ namespace mapManager{
 				actualPoint *= this->mapRes_;
 				this->updateOccupancyInfo(actualPoint, false);
 
-				int raycastVoxelID = this->posToAddress(rayPoint);
+				raycastVoxelID = this->posToAddress(rayPoint);
 				if (this->flagTraverse_[raycastVoxelID] == this->raycastNum_){
 					break;
 				}
@@ -484,13 +485,14 @@ namespace mapManager{
 
 		// update occupancy in the cache
 		double logUpdateValue;
+		int cacheAddress, hit, miss;
 		while (not this->updateVoxelCache_.empty()){
 			Eigen::Vector3i cacheIdx = this->updateVoxelCache_.front();
 			this->updateVoxelCache_.pop();
-			int cacheAddress = this->indexToAddress(cacheIdx);
+			cacheAddress = this->indexToAddress(cacheIdx);
 
-			int hit = this->countHit_[cacheAddress];
-			int miss = this->countHitMiss_[cacheAddress] - hit;
+			hit = this->countHit_[cacheAddress];
+			miss = this->countHitMiss_[cacheAddress] - hit;
 
 			// if (hit == 0 and miss == 0){
 			// 	continue; // this has been updated. repeated points
