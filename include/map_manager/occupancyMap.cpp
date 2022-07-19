@@ -349,7 +349,7 @@ namespace mapManager{
 		this->projectDepthImage();
 
 		// raycasting and update occupancy
-		// this->raycastUpdate();
+		this->raycastUpdate();
 
 		// clear local map
 
@@ -400,6 +400,85 @@ namespace mapManager{
 				this->projPointsNum_ = this->projPointsNum_ + 1;
 			}
 		} 
+
+
+		 // this->projPointsNum_ = 0;
+		 //  uint16_t* row_ptr;
+		 //  // int cols = current_img_.cols, rows = current_img_.rows;
+		 //  int cols = this->depthImage_.cols;
+		 //  int rows = this->depthImage_.rows;
+		 //  // cout << "cols: " << cols << " rows: " << rows << endl;
+
+		 //  double depth;
+
+		 //  Eigen::Matrix3d camera_r = this->orientation_;
+
+		 //  // cout << "rotate: " << md_.camera_q_.toRotationMatrix() << endl;
+		 //  // std::cout << "pos in proj: " << this->position_ << std::endl;
+
+		 //  if (false) {
+		 //    for (int v = 0; v < rows; v++) {
+		 //      row_ptr = this->depthImage_.ptr<uint16_t>(v);
+
+		 //    }
+		 //  }
+		 //  /* use depth filter */
+		 //  else {
+
+		 //    if (false){
+
+		 //    }
+		 //    else {
+		 //      Eigen::Vector3d pt_cur, pt_world, pt_reproj;
+
+		 //      Eigen::Matrix3d last_camera_r_inv;
+		 //      last_camera_r_inv = this->orientation_;
+		 //      const double inv_factor = 1.0 / this->depthScale_;
+
+		 //      for (int v = this->depthFilterMargin_; v < rows - this->depthFilterMargin_; v += this->skipPixel_) {
+		 //        row_ptr = this->depthImage_.ptr<uint16_t>(v) + this->depthFilterMargin_;
+
+		 //        for (int u = this->depthFilterMargin_; u < cols - this->depthFilterMargin_;
+		 //             u += this->skipPixel_) {
+
+		 //          depth = (*row_ptr) * inv_factor;
+		 //          row_ptr = row_ptr + this->skipPixel_;
+
+		 //          // filter depth
+		 //          // depth += rand_noise_(eng_);
+		 //          // if (depth > 0.01) depth += rand_noise2_(eng_);
+
+		 //          if (*row_ptr == 0) {
+		 //            depth = this->raycastMaxLength_ + 0.1;
+		 //          } else if (depth < this->depthMinValue_) {
+		 //            continue;
+		 //          } else if (depth > this->depthMaxValue_) {
+		 //            depth = this->raycastMaxLength_ + 0.1;
+		 //          }
+
+		 //          // project to world frame
+		 //          pt_cur(0) = (u - this->cx_) * depth / this->fx_;
+		 //          pt_cur(1) = (v - this->cy_) * depth / this->fy_;
+		 //          pt_cur(2) = depth;
+
+		 //          // pt_cur(0) = depth;
+		 //          // pt_cur(1) = -(u - mp_.cx_) * depth / mp_.fx_;
+		 //          // pt_cur(2) = -(v - mp_.cy_) * depth / mp_.fy_;
+
+		 //          pt_world = camera_r * pt_cur + this->position_;
+		 //          // if (!isInMap(pt_world)) {
+		 //          //   pt_world = closetPointInMap(pt_world, this->position_);
+		 //          // }
+
+		 //          this->projPoints_[this->projPointsNum_++] = pt_world;
+		 //          // cout << "point: " << pt_world << endl;
+
+		 //          // check consistency with last image, disabled...
+
+		 //        }
+		 //      }
+		 //    }
+		 //  }
 	}
 
 
@@ -446,8 +525,11 @@ namespace mapManager{
 			if (currPoint(1) > ymax){ymax = currPoint(1);}
 			if (currPoint(2) > zmax){zmax = currPoint(2);}
 
+			// update occupancy itself update information
+			rayendVoxelID = this->updateOccupancyInfo(currPoint, not pointAdjusted); // point adjusted is free, not is occupied
+
 			// check whether the voxel has already been updated, so no raycasting needed
-			rayendVoxelID = this->posToAddress(currPoint);
+			// rayendVoxelID = this->posToAddress(currPoint);
 			if (this->flagRayend_[rayendVoxelID] == this->raycastNum_){
 				continue; // skip
 			}
@@ -455,8 +537,6 @@ namespace mapManager{
 				this->flagRayend_[rayendVoxelID] = this->raycastNum_;
 			}
 
-			// update occupancy itself update information
-			this->updateOccupancyInfo(currPoint, not pointAdjusted); // point adjusted is free, not is occupied
 
 
 			// raycasting for update occupancy
@@ -468,9 +548,9 @@ namespace mapManager{
 				actualPoint(1) += 0.5;
 				actualPoint(2) += 0.5;
 				actualPoint *= this->mapRes_;
-				this->updateOccupancyInfo(actualPoint, false);
+				raycastVoxelID = this->updateOccupancyInfo(actualPoint, false);
 
-				raycastVoxelID = this->posToAddress(rayPoint);
+				// raycastVoxelID = this->posToAddress(actualPoint);
 				if (this->flagTraverse_[raycastVoxelID] == this->raycastNum_){
 					break;
 				}
@@ -532,6 +612,157 @@ namespace mapManager{
 
 			this->occupancy_[cacheAddress] = std::min(std::max(this->occupancy_[cacheAddress]+logUpdateValue, this->pMinLog_), this->pMaxLog_);
 		}
+
+		// =======================================================================================================================================
+		// if (this->projPointsNum_ == 0) return;
+
+		// ros::Time t1, t2;
+
+		// this->raycastNum_ += 1;
+
+		// int vox_idx;
+		// double length;
+
+		// // bounding box of updated region
+		// double min_x = this->mapVoxelMax_(0);
+		// double min_y = this->mapVoxelMax_(1);
+		// double min_z = this->mapVoxelMax_(2);
+
+		// double max_x = this->mapVoxelMin_(0);
+		// double max_y = this->mapVoxelMin_(1);
+		// double max_z = this->mapVoxelMin_(2);
+
+		// RayCaster raycaster;
+		// Eigen::Vector3d half = Eigen::Vector3d(0.5, 0.5, 0.5);
+		// Eigen::Vector3d ray_pt, pt_w;
+
+		// for (int i = 0; i < this->projPointsNum_; ++i) {
+		// pt_w = this->projPoints_[i];
+
+		// // set flag for projected point
+
+		// if (!isInMap(pt_w)) {
+		//   pt_w = closetPointInMap(pt_w, this->position_);
+
+		//   length = (pt_w - this->position_).norm();
+		//   if (length > this->raycastMaxLength_) {
+		//     pt_w = (pt_w - this->position_) / length * this->raycastMaxLength_ + this->position_;
+		//   }
+		//   vox_idx = setCacheOccupancy(pt_w, 0);
+
+		// } else {
+		//   length = (pt_w - this->position_).norm();
+
+		//   if (length > this->raycastMaxLength_) {
+		//     pt_w = (pt_w - this->position_) / length * this->raycastMaxLength_ + this->position_;
+		//     vox_idx = setCacheOccupancy(pt_w, 0);
+		//   } else {
+		//     vox_idx = setCacheOccupancy(pt_w, 1);
+		//   }
+		// }
+
+		// max_x = std::max(max_x, pt_w(0));
+		// max_y = std::max(max_y, pt_w(1));
+		// max_z = std::max(max_z, pt_w(2));
+
+		// min_x = std::min(min_x, pt_w(0));
+		// min_y = std::min(min_y, pt_w(1));
+		// min_z = std::min(min_z, pt_w(2));
+
+		// // raycasting between camera center and point
+
+		//   if (this->flagRayend_[vox_idx] == this->raycastNum_) {
+		//     continue;
+		//   } else {
+		//     this->flagRayend_[vox_idx] = this->raycastNum_;
+		//   }
+		
+
+		// raycaster.setInput(pt_w / this->mapRes_, this->position_ / this->mapRes_);
+
+		// while (raycaster.step(ray_pt)) {
+		//   Eigen::Vector3d tmp = (ray_pt + half) * this->mapRes_;
+		//   length = (tmp - this->position_).norm();
+
+		//   // if (length < mp_.min_ray_length_) break;
+
+		//   vox_idx = setCacheOccupancy(tmp, 0);
+
+		//     if (this->flagTraverse_[vox_idx] == this->raycastNum_) {
+		//       break;
+		//     } else {
+		//       this->flagTraverse_[vox_idx] = this->raycastNum_;
+		//     }
+		  
+		// }
+		// }
+
+		// // determine the local bounding box for updating ESDF
+		// min_x = std::min(min_x, this->position_(0));
+		// min_y = std::min(min_y, this->position_(1));
+		// min_z = std::min(min_z, this->position_(2));
+
+		// max_x = std::max(max_x, this->position_(0));
+		// max_y = std::max(max_y, this->position_(1));
+		// max_z = std::max(max_z, this->position_(2));
+		// max_z = std::max(max_z, this->groundHeight_);
+
+		// posToIndex(Eigen::Vector3d(max_x, max_y, max_z), this->localBoundMax_);
+		// posToIndex(Eigen::Vector3d(min_x, min_y, min_z), this->localBoundMin_);
+
+		// int esdf_inf = ceil(this->localBoundInflate_ / this->mapRes_);
+		// this->localBoundMax_ += esdf_inf * Eigen::Vector3i(1, 1, 0);
+		// this->localBoundMin_ -= esdf_inf * Eigen::Vector3i(1, 1, 0);
+		// boundIndex(this->localBoundMax_);
+		// boundIndex(this->localBoundMin_);
+
+		// // this-> = true;
+
+		// // update occupancy cached in queue
+		// Eigen::Vector3d local_range_min = this->position_ - this->localUpdateRange_;
+		// Eigen::Vector3d local_range_max = this->position_ + this->localUpdateRange_;
+
+		// Eigen::Vector3i min_id, max_id;
+		// posToIndex(local_range_min, min_id);
+		// posToIndex(local_range_max, max_id);
+		// boundIndex(min_id);
+		// boundIndex(max_id);
+
+		// // std::cout << "cache all: " << this->updateVoxelCache_.size() << std::endl;
+
+		// while (!this->updateVoxelCache_.empty()) {
+
+		// Eigen::Vector3i idx = this->updateVoxelCache_.front();
+		// int idx_ctns = indexToAddress(idx);
+		// this->updateVoxelCache_.pop();
+
+		// double log_odds_update =
+		//     this->countHit_[idx_ctns] >= this->countHitMiss_[idx_ctns] - this->countHit_[idx_ctns] ?
+		//     this->pHitLog_ :
+		//     this->pMissLog_;
+
+		// this->countHit_[idx_ctns] = this->countHitMiss_[idx_ctns] = 0;
+
+		// if (log_odds_update >= 0 && this->occupancy_[idx_ctns] >= this->pMaxLog_) {
+		//   continue;
+		// } else if (log_odds_update <= 0 && this->occupancy_[idx_ctns] <= this->pMinLog_) {
+		//   this->occupancy_[idx_ctns] = this->pMinLog_;
+		//   continue;
+		// }
+
+		// bool in_local = idx(0) >= min_id(0) && idx(0) <= max_id(0) && idx(1) >= min_id(1) &&
+		//     idx(1) <= max_id(1) && idx(2) >= min_id(2) && idx(2) <= max_id(2);
+		// if (!in_local) {
+		//   this->occupancy_[idx_ctns] = this->pMinLog_;
+		// }
+
+		// this->occupancy_[idx_ctns] =
+		//     std::min(std::max(this->occupancy_[idx_ctns] + log_odds_update, this->pMinLog_),
+		//              this->pMaxLog_);
+		// // cout << "update occupancy" << std::min(std::max(this->occupancy_[idx_ctns] + log_odds_update, this->pMinLog_),
+		// //              this->pMaxLog_) << endl;
+
+		// }
 	}
 
 	void occMap::cleanLocalMap(){
@@ -618,6 +849,7 @@ namespace mapManager{
 			for (int y=minRangeIdx(1); y<maxRangeIdx(1); ++y){
 				for (int z=minRangeIdx(2); z<maxRangeIdx(2); ++z){
 					Eigen::Vector3i pointIdx (x, y, z);
+					// if (this->occupancy_[this->indexToAddress(pointIdx)] > this->pMinLog_){
 					if (this->isOccupied(pointIdx)){
 						Eigen::Vector3d point;
 						this->indexToPos(pointIdx, point);
@@ -749,15 +981,18 @@ namespace mapManager{
 		return (point - this->position_) * (this->raycastMaxLength_/length) + this->position_;
 	}
 
-	void occMap::updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied){
+	int occMap::updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied){
 		Eigen::Vector3i idx;
 		this->posToIndex(point, idx);
 		int voxelID = this->indexToAddress(idx);
 		this->countHitMiss_[voxelID] += 1;
-		this->updateVoxelCache_.push(idx);
+		if (this->countHitMiss_[voxelID] == 1){
+			this->updateVoxelCache_.push(idx);
+		}
 		if (isOccupied){ // if not adjusted set it to occupied, otherwise it is free
 			this->countHit_[voxelID] += 1;
 		}
+		return voxelID;
 	}
 
 	double occMap::logit(double x){
@@ -779,5 +1014,43 @@ namespace mapManager{
 
 		camPoseMatrix = map2body * this->body2Cam_;
 	}
+
+	int occMap::setCacheOccupancy(Eigen::Vector3d pos, int occ) {
+
+	  Eigen::Vector3i id;
+	  posToIndex(pos, id);
+	  int idx_ctns = indexToAddress(id);
+
+	  this->countHitMiss_[idx_ctns] += 1;
+
+	  if (this->countHitMiss_[idx_ctns] == 1) {
+	    this->updateVoxelCache_.push(id);
+	  }
+
+	  if (occ == 1) this->countHit_[idx_ctns] += 1;
+
+	  return idx_ctns;
+	}
+
+	Eigen::Vector3d occMap::closetPointInMap(const Eigen::Vector3d& pt, const Eigen::Vector3d& camera_pt) {
+		  Eigen::Vector3d diff = pt - camera_pt;
+		  Eigen::Vector3d max_tc = this->mapSizeMax_ - camera_pt;
+		  Eigen::Vector3d min_tc = this->mapSizeMin_ - camera_pt;
+
+		  double min_t = 1000000;
+
+		  for (int i = 0; i < 3; ++i) {
+		    if (fabs(diff[i]) > 0) {
+
+		      double t1 = max_tc[i] / diff[i];
+		      if (t1 > 0 && t1 < min_t) min_t = t1;
+
+		      double t2 = min_tc[i] / diff[i];
+		      if (t2 > 0 && t2 < min_t) min_t = t2;
+		    }
+		  }
+
+		  return camera_pt + (min_t - 1e-3) * diff;
+		}
 
 }

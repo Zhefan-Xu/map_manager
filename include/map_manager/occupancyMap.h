@@ -89,7 +89,7 @@ namespace mapManager{
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
 		std::vector<double> occupancy_; // occupancy log data
 		std::vector<char> occupancyInflated_; // inflated occupancy data
-		int raycastNum_ = 0; 
+		char raycastNum_ = 0; 
 		std::vector<char> flagTraverse_, flagRayend_;
 
 		
@@ -148,9 +148,12 @@ namespace mapManager{
 		bool isInLocalUpdateRange(const Eigen::Vector3i& idx);
 		Eigen::Vector3d adjustPointInMap(const Eigen::Vector3d& point);
 		Eigen::Vector3d adjustPointRayLength(const Eigen::Vector3d& point);
-		void updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);
+		int updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);
 		double logit(double x);
 		void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
+	
+		int setCacheOccupancy(Eigen::Vector3d pos, int occ);
+		Eigen::Vector3d closetPointInMap(const Eigen::Vector3d& pt, const Eigen::Vector3d& camera_pt);
 	};
 }
 
