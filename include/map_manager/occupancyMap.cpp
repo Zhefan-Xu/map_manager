@@ -375,22 +375,19 @@ namespace mapManager{
 
 
 		// iterate through each pixel in the depth image
-		for (int v=this->depthFilterMargin_; v<rows-this->depthFilterMargin_; v+=this->skipPixel_){ // row
+		for (int v=this->depthFilterMargin_; v<rows-this->depthFilterMargin_; v=v+this->skipPixel_){ // row
 			rowPtr = this->depthImage_.ptr<uint16_t>(v) + this->depthFilterMargin_;
-			for (int u=this->depthFilterMargin_; u<cols-this->depthFilterMargin_; u+=this->skipPixel_){ // column
+			for (int u=this->depthFilterMargin_; u<cols-this->depthFilterMargin_; u=u+this->skipPixel_){ // column
 				depth = (*rowPtr) * inv_factor;
 				
-				// depth = this->depthImage_.at<uint16_t>(v, u) * inv_factor;
-
-
 				if (*rowPtr == 0) {
 					depth = this->raycastMaxLength_ + 0.1;
-				} else if (*rowPtr < this->depthMinValue_) {
+				} else if (depth < this->depthMinValue_) {
 					continue;
-				} else if (*rowPtr > this->depthMaxValue_) {
+				} else if (depth > this->depthMaxValue_) {
 					depth = this->raycastMaxLength_ + 0.1;
 				}
-				rowPtr += this->skipPixel_;
+				rowPtr =  rowPtr + this->skipPixel_;
 
 				// get 3D point in camera frame
 				currPointCam(0) = (u - this->cx_) * depth * inv_fx;
@@ -399,57 +396,10 @@ namespace mapManager{
 				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 
 				// store current point
-				this->projPoints_[this->projPointsNum_++] = currPointMap;
+				this->projPoints_[this->projPointsNum_] = currPointMap;
+				this->projPointsNum_ = this->projPointsNum_ + 1;
 			}
-		}
-
-
-
-
-		// this->projPointsNum_ = 0;
-		// uint16_t* rowPtr;
-		// int cols = this->depthImage_.cols;
-		// int rows = this->depthImage_.rows;
-		// double depth;
-		// Eigen::Matrix3d camera_r = this->orientation_;
-
-
-		// Eigen::Vector3d pt_cur, pt_world;
-
-		// Eigen::Matrix3d last_camera_r_inv;
-		// last_camera_r_inv = this->orientation_;
-		// const double inv_factor = 1.0 / this->depthScale_;
-		// const double inv_fx = 1.0 / this->fx_;
-		// const double inv_fy = 1.0 / this->fy_;
-
-		// for (int v = this->depthFilterMargin_; v < rows - this->depthFilterMargin_; v += this->skipPixel_){
-		// 	rowPtr = this->depthImage_.ptr<uint16_t>(v) + this->depthFilterMargin_;
-
-		// 	for (int u = this->depthFilterMargin_; u < cols - this->depthFilterMargin_; u += this->skipPixel_) {
-		// 		depth = (*rowPtr) * inv_factor;
-
-		// 		if (*rowPtr == 0) {
-		// 			depth = this->raycastMaxLength_ + 0.1;
-		// 		} else if (*rowPtr < this->depthMinValue_) {
-		// 			continue;
-		// 		} else if (*rowPtr > this->depthMaxValue_) {
-		// 			depth = this->raycastMaxLength_ + 0.1;
-		// 		}
-		// 		rowPtr = rowPtr + this->skipPixel_;
-
-
-		// 		// project to world frame
-		// 		pt_cur(0) = (u - this->cx_) * depth * inv_fx;
-		// 		pt_cur(1) = (v - this->cy_) * depth * inv_fy;
-		// 		pt_cur(2) = depth;
-
-
-		// 		pt_world = camera_r * pt_cur + this->position_;
-
-		// 		this->projPoints_[this->projPointsNum_++] = pt_world;
-		// 	}
-		// }
-		  
+		} 
 	}
 
 
