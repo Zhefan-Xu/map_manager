@@ -12,6 +12,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -33,16 +34,25 @@ namespace mapManager{
 		std::shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> poseSub_;
 		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped> depthPoseSync;
 		std::shared_ptr<message_filters::Synchronizer<depthPoseSync>> depthPoseSync_;
+		std::shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odomSub_;
+		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry> depthOdomSync;
+		std::shared_ptr<message_filters::Synchronizer<depthOdomSync>> depthOdomSync_;
 		ros::Timer occTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher depthCloudPub_;
 		ros::Publisher mapVisPub_;
+		ros::Publisher inflatedMapVisPub_;
 
+		int localizationMode_;
 		std::string depthTopicName_; // depth image topic
 		std::string poseTopicName_;  // pose topic
+		std::string odomTopicName_; // odom topic 
 
 		// parameters
 		// -----------------------------------------------------------------
+		// ROBOT SIZE
+		Eigen::Vector3d robotSize_;
+
 		// CAMERA
 		double fx_, fy_, cx_, cy_; // depth camera intrinsics
 		double depthScale_; // value / depthScale
@@ -62,12 +72,14 @@ namespace mapManager{
 		Eigen::Vector3d mapSize_, mapSizeMin_, mapSizeMax_; // reserved min/max map size
 		Eigen::Vector3i mapVoxelMin_, mapVoxelMax_; // reserved min/max map size in voxel
 		Eigen::Vector3d localUpdateRange_; // self defined local update range
-		Eigen::Vector3d localMapSize_;
-		Eigen::Vector3i localMapVoxel_; // voxel representation of local map size
 		double localBoundInflate_;
+		bool cleanLocalMap_; 
 
 		// VISUALZATION
 		double maxVisHeight_;
+		Eigen::Vector3d localMapSize_;
+		Eigen::Vector3i localMapVoxel_; // voxel representation of local map size
+		bool visGlobalMap_;
 		// -----------------------------------------------------------------
 
 
@@ -88,9 +100,9 @@ namespace mapManager{
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
 		std::vector<double> occupancy_; // occupancy log data
-		std::vector<char> occupancyInflated_; // inflated occupancy data
-		char raycastNum_ = 0; 
-		std::vector<char> flagTraverse_, flagRayend_;
+		std::vector<bool> occupancyInflated_; // inflated occupancy data
+		int raycastNum_ = 0; 
+		std::vector<int> flagTraverse_, flagRayend_;
 
 		
 
@@ -99,9 +111,6 @@ namespace mapManager{
 
 		// Raycaster
 		RayCaster raycaster_;
-
-
-
 
 		// ------------------------------------------------------------------
 
@@ -114,6 +123,7 @@ namespace mapManager{
 
 		// callback
 		void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
+		void depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
 		void updateOccupancyCB(const ros::TimerEvent& );
 
 		// core function
@@ -125,6 +135,8 @@ namespace mapManager{
 		// user functions
 		bool isOccupied(const Eigen::Vector3d& pos);
 		bool isOccupied(const Eigen::Vector3i& idx); // does not count for unknown
+		bool isInflatedOccupied(const Eigen::Vector3d& pos);
+		bool isInflatedOccupied(const Eigen::Vector3i& idx);
 		bool isFree(const Eigen::Vector3d& pos);
 		bool isFree(const Eigen::Vector3i& idx);
 		bool isUnknown(const Eigen::Vector3d& pos);
@@ -134,6 +146,7 @@ namespace mapManager{
 		void visCB(const ros::TimerEvent& );
 		void publishProjPoints();
 		void publishMap();
+		void publishInflatedMap();
 
 
 		// helper functions
@@ -150,10 +163,7 @@ namespace mapManager{
 		Eigen::Vector3d adjustPointRayLength(const Eigen::Vector3d& point);
 		int updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);
 		double logit(double x);
-		void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
-	
-		int setCacheOccupancy(Eigen::Vector3d pos, int occ);
-		Eigen::Vector3d closetPointInMap(const Eigen::Vector3d& pt, const Eigen::Vector3d& camera_pt);
+		void getCameraPose(const geometry_msgs::Pose& pose, Eigen::Matrix4d& camPoseMatrix);
 	};
 }
 
