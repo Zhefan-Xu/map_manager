@@ -335,7 +335,7 @@ namespace mapManager{
 		else{
 			cout << "[OccMap]: Visualize map option. local (0)/global (1): " << this->visGlobalMap_ << endl;
 			if (this->visGlobalMap_){
-				this->localMapSize_(0) = this->mapSizeMax_(0); this->localMapSize_(1) = this->mapSizeMax_(1); this->localMapSize_(2) = this->mapSizeMax_(1);
+				this->localMapSize_(0) = this->mapSizeMax_(0); this->localMapSize_(1) = this->mapSizeMax_(1); this->localMapSize_(2) = this->mapSizeMax_(2);
 				this->localMapVoxel_(0) = int(ceil(this->localMapSize_(0)/(2*this->mapRes_))); this->localMapVoxel_(1) = int(ceil(this->localMapSize_(1)/(2*this->mapRes_))); this->localMapVoxel_(2) = int(ceil(this->localMapSize_(2)/(2*this->mapRes_)));
 			}
 		}
@@ -454,11 +454,14 @@ namespace mapManager{
 		
 		cout << "[OccMap]: Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
 		this->occNeedUpdate_ = false;
+		this->mapNeedInflate = true;
 	}
 
 	void occMap::inflateMapCB(const ros::TimerEvent& ){
 		// inflate local map:
-		this->inflateLocalMap();
+		if (this->mapNeedInflate){
+			this->inflateLocalMap();
+		}
 	}
 
 
@@ -587,10 +590,7 @@ namespace mapManager{
 		// store local bound and inflate local bound (inflate is for ESDF update)
 		this->posToIndex(Eigen::Vector3d (xmin, ymin, zmin), this->localBoundMin_);
 		this->posToIndex(Eigen::Vector3d (xmax, ymax, zmax), this->localBoundMax_);
-		this->localBoundMin_ -= int(ceil(this->localBoundInflate_/this->mapRes_)) * Eigen::Vector3i(1, 1, 0); // inflate in x y direction
-		this->localBoundMax_ += int(ceil(this->localBoundInflate_/this->mapRes_)) * Eigen::Vector3i(1, 1, 0); 
-		this->boundIndex(this->localBoundMin_); // since inflated, need to bound if not in reserved range
-		this->boundIndex(this->localBoundMax_);
+
 
 		// update occupancy in the cache
 		double logUpdateValue;

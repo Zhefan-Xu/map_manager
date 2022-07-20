@@ -109,6 +109,7 @@ namespace mapManager{
 
 		// STATUS
 		bool occNeedUpdate_ = false;
+		bool mapNeedInflate = false;
 
 		// Raycaster
 		RayCaster raycaster_;
