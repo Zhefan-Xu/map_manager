@@ -1,4 +1,4 @@
-localization_mode: 1 # 0: pose (default) 1: odom
+localization_mode: 0 # 0: pose (default) 1: odom
 depth_image_topic: /camera/depth/image_raw
 pose_topic: /CERLAB/quadcopter/pose
 odom_topic: /CERLAB/quadcopter/odom
@@ -31,13 +31,13 @@ p_occ: 0.80
 
 # Map
 map_resolution: 0.1
-ground_height: 0.1 # m
+ground_height: -0.1 # m
 map_size: [40, 40, 3] # meter. in x y z direction (reserved size)
 local_update_range: [5, 5, 3]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: true
 
 # visualziation
-local_map_size: [15, 15, 4] # meter. in x y z direction (only for visualization)
+local_map_size: [20, 20, 3] # meter. in x y z direction (only for visualization)
 max_height_visualization: 3.0 # m
 visualize_global_map: false

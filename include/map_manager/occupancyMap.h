@@ -163,7 +163,9 @@ namespace mapManager{
 		Eigen::Vector3d adjustPointRayLength(const Eigen::Vector3d& point);
 		int updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);
 		double logit(double x);
-		void getCameraPose(const geometry_msgs::Pose& pose, Eigen::Matrix4d& camPoseMatrix);
+		void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
+		void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix);
+
 	};
 }
 

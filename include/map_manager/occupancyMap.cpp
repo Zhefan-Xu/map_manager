@@ -385,7 +385,7 @@ namespace mapManager{
 
 		// store current position and orientation (camera)
 		Eigen::Matrix4d camPoseMatrix;
-		this->getCameraPose(pose->pose, camPoseMatrix);
+		this->getCameraPose(pose, camPoseMatrix);
 
 		this->position_(0) = camPoseMatrix(0, 3);
 		this->position_(1) = camPoseMatrix(1, 3);
@@ -410,7 +410,7 @@ namespace mapManager{
 
 		// store current position and orientation (camera)
 		Eigen::Matrix4d camPoseMatrix;
-		this->getCameraPose(odom->pose.pose, camPoseMatrix);
+		this->getCameraPose(odom, camPoseMatrix);
 
 		this->position_(0) = camPoseMatrix(0, 3);
 		this->position_(1) = camPoseMatrix(1, 3);
@@ -431,22 +431,23 @@ namespace mapManager{
 		}
 		// cout << "update occupancy map" << endl;
 		ros::Time startTime, endTime;
-		startTime = ros::Time::now();
+		
 		// project 3D points from depth map
 		this->projectDepthImage();
 
 		// raycasting and update occupancy
 		this->raycastUpdate();
 
+
 		// clear local map
 		if (this->cleanLocalMap_){
 			this->cleanLocalMap();
 		}
-
+		startTime = ros::Time::now();
 		// infalte map
 		this->inflateLocalMap();
-
 		endTime = ros::Time::now();
+		
 		cout << "[OccMap]: Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
 		this->occNeedUpdate_ = false;
 	}
@@ -677,11 +678,13 @@ namespace mapManager{
 	}
 
 	void occMap::inflateLocalMap(){
+		Eigen::Vector3i clearIndex;
 		// clear previous data in current data range
 		for (int x=this->localBoundMin_(0); x<=this->localBoundMax_(0); ++x){
 			for (int y=this->localBoundMin_(1); y<=this->localBoundMax_(1); ++y){
 				for (int z=this->localBoundMin_(2); z<=this->localBoundMax_(2); ++z){
-					this->occupancyInflated_[this->indexToAddress(Eigen::Vector3i (x, y, z))] = false;
+					clearIndex(0) = x; clearIndex(1) = y; clearIndex(2) = z;
+					this->occupancyInflated_[this->indexToAddress(clearIndex)] = false;
 				}
 			}
 		}
@@ -693,6 +696,7 @@ namespace mapManager{
 		// inflate based on current occupancy
 		Eigen::Vector3i pointIndex, inflateIndex;
 		int inflateAddress;
+		const int  maxIndex = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
 		for (int x=this->localBoundMin_(0); x<=this->localBoundMax_(0); ++x){
 			for (int y=this->localBoundMin_(1); y<=this->localBoundMax_(1); ++y){
 				for (int z=this->localBoundMin_(2); z<=this->localBoundMax_(2); ++z){
@@ -705,7 +709,7 @@ namespace mapManager{
 									inflateIndex(1) = pointIndex(1) + iy;
 									inflateIndex(2) = pointIndex(2) + iz;
 									inflateAddress = this->indexToAddress(inflateIndex);
-									if ((inflateAddress < 0) or (inflateAddress > this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2))){
+									if ((inflateAddress < 0) or (inflateAddress > maxIndex)){
 										continue; // those points are not in the reserved map
 									} 
 									this->occupancyInflated_[inflateAddress] = true;
@@ -996,17 +1000,33 @@ namespace mapManager{
 		return log(x/(1-x));
 	}
 
-	inline void occMap::getCameraPose(const geometry_msgs::Pose& pose, Eigen::Matrix4d& camPoseMatrix){
+	inline void occMap::getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix){
 		Eigen::Quaterniond quat;
-		quat = Eigen::Quaterniond(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+		quat = Eigen::Quaterniond(pose->pose.orientation.w, pose->pose.orientation.x, pose->pose.orientation.y, pose->pose.orientation.z);
 		Eigen::Matrix3d rot = quat.toRotationMatrix();
 
 		// convert body pose to camera pose
 		Eigen::Matrix4d map2body; map2body.setZero();
 		map2body.block<3, 3>(0, 0) = rot;
-		map2body(0, 3) = pose.position.x; 
-		map2body(1, 3) = pose.position.y;
-		map2body(2, 3) = pose.position.z;
+		map2body(0, 3) = pose->pose.position.x; 
+		map2body(1, 3) = pose->pose.position.y;
+		map2body(2, 3) = pose->pose.position.z;
+		map2body(3, 3) = 1.0;
+
+		camPoseMatrix = map2body * this->body2Cam_;
+	}
+
+	inline void occMap::getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix){
+		Eigen::Quaterniond quat;
+		quat = Eigen::Quaterniond(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x, odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
+		Eigen::Matrix3d rot = quat.toRotationMatrix();
+
+		// convert body pose to camera pose
+		Eigen::Matrix4d map2body; map2body.setZero();
+		map2body.block<3, 3>(0, 0) = rot;
+		map2body(0, 3) = odom->pose.pose.position.x; 
+		map2body(1, 3) = odom->pose.pose.position.y;
+		map2body(2, 3) = odom->pose.pose.position.z;
 		map2body(3, 3) = 1.0;
 
 		camPoseMatrix = map2body * this->body2Cam_;
