@@ -38,6 +38,7 @@ namespace mapManager{
 		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry> depthOdomSync;
 		std::shared_ptr<message_filters::Synchronizer<depthOdomSync>> depthOdomSync_;
 		ros::Timer occTimer_;
+		ros::Timer inflateTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher depthCloudPub_;
 		ros::Publisher mapVisPub_;
@@ -125,6 +126,7 @@ namespace mapManager{
 		void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
 		void depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
 		void updateOccupancyCB(const ros::TimerEvent& );
+		void inflateMapCB(const ros::TimerEvent& );
 
 		// core function
 		void projectDepthImage();

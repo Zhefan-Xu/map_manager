@@ -364,6 +364,9 @@ namespace mapManager{
 		// occupancy update callback
 		this->occTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::updateOccupancyCB, this);
 
+		// map inflation callback
+		this->inflateTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::inflateMapCB, this);
+
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, this);
 	}
@@ -432,6 +435,7 @@ namespace mapManager{
 		// cout << "update occupancy map" << endl;
 		ros::Time startTime, endTime;
 		
+		startTime = ros::Time::now();
 		// project 3D points from depth map
 		this->projectDepthImage();
 
@@ -443,13 +447,18 @@ namespace mapManager{
 		if (this->cleanLocalMap_){
 			this->cleanLocalMap();
 		}
-		startTime = ros::Time::now();
+		
 		// infalte map
-		this->inflateLocalMap();
+		// this->inflateLocalMap();
 		endTime = ros::Time::now();
 		
 		cout << "[OccMap]: Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
 		this->occNeedUpdate_ = false;
+	}
+
+	void occMap::inflateMapCB(const ros::TimerEvent& ){
+		// inflate local map:
+		this->inflateLocalMap();
 	}
 
 
