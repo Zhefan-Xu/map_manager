@@ -160,6 +160,83 @@ namespace mapManager{
 		return this->esdfDistance_[this->indexToAddress(idx1)];
 	}
 
+	inline double ESDFMap::getDistanceTrilinear(const Eigen::Vector3d& pos){
+		if (not this->isInMap(pos)){
+			return 0;
+		}
+		Eigen::Vector3d posMinus = pos - 0.5 * this->mapRes_ * Eigen::Vector3d::Ones();
+		Eigen::Vector3i idxMinus;
+		Eigen::Vector3d idxMinusPos, diff;
+		this->posToIndex(posMinus, idxMinus);
+		this->indexToPos(idxMinus, idxMinusPos);
+
+		diff = (pos - idxMinusPos) * this->mapRes_;
+
+		double values[2][2][2];
+		for (int x=0; x<2; ++x){
+			for (int y=0; y<2; ++y){
+				for (int z=0; z<2; ++z){
+					Eigen::Vector3i currIdx = idxMinus + Eigen::Vector3i(x, y, z);
+					values[x][y][z] = this->getDistance(currIdx);
+				}
+			}
+		}
+
+		// interpolation for distance
+		double v00 = (1 - diff[0]) * values[0][0][0] + diff[0] * values[1][0][0];
+		double v01 = (1 - diff[0]) * values[0][0][1] + diff[0] * values[1][0][1];
+		double v10 = (1 - diff[0]) * values[0][1][0] + diff[0] * values[1][1][0];
+		double v11 = (1 - diff[0]) * values[0][1][1] + diff[0] * values[1][1][1];
+		double v0 = (1 - diff[1]) * v00 + diff[1] * v10;
+		double v1 = (1 - diff[1]) * v01 + diff[1] * v11;
+		double dist = (1 - diff[2]) * v0 + diff[2] * v1;
+		return dist;		
+	}
+
+	inline double ESDFMap::getDistanceWithGradTrilinear(const Eigen::Vector3d& pos, Eigen::Vector3d& grad){
+		if (not this->isInMap(pos)){
+			return 0;
+		}
+		Eigen::Vector3d posMinus = pos - 0.5 * this->mapRes_ * Eigen::Vector3d::Ones();
+		Eigen::Vector3i idxMinus;
+		Eigen::Vector3d idxMinusPos, diff;
+		this->posToIndex(posMinus, idxMinus);
+		this->indexToPos(idxMinus, idxMinusPos);
+
+		diff = (pos - idxMinusPos) * this->mapRes_;
+
+		double values[2][2][2];
+		for (int x=0; x<2; ++x){
+			for (int y=0; y<2; ++y){
+				for (int z=0; z<2; ++z){
+					Eigen::Vector3i currIdx = idxMinus + Eigen::Vector3i(x, y, z);
+					values[x][y][z] = this->getDistance(currIdx);
+				}
+			}
+		}
+
+		// interpolation for distance
+		double v00 = (1 - diff[0]) * values[0][0][0] + diff[0] * values[1][0][0];
+		double v01 = (1 - diff[0]) * values[0][0][1] + diff[0] * values[1][0][1];
+		double v10 = (1 - diff[0]) * values[0][1][0] + diff[0] * values[1][1][0];
+		double v11 = (1 - diff[0]) * values[0][1][1] + diff[0] * values[1][1][1];
+		double v0 = (1 - diff[1]) * v00 + diff[1] * v10;
+		double v1 = (1 - diff[1]) * v01 + diff[1] * v11;
+		double dist = (1 - diff[2]) * v0 + diff[2] * v1;
+
+		// intepolation for gradient
+		double mapResInv = 1.0/this->mapRes_;
+		grad(2) = (v1 - v0) * mapResInv;
+		grad(1) = ((1 - diff[2]) * (v10 - v00) + diff[2] * (v11 - v01)) * mapResInv;
+		grad(0) = (1 - diff[2]) * (1 - diff[1]) * (values[1][0][0] - values[0][0][0]);
+		grad(0) += (1 - diff[2]) * diff[1] * (values[1][1][0] - values[0][1][0]);
+		grad(0) += diff[2] * (1 - diff[1]) * (values[1][0][1] - values[0][0][1]);
+		grad(0) += diff[2] * diff[1] * (values[1][1][1] - values[0][1][1]);
+		grad(0) *= mapResInv;
+
+		return dist;
+	}
+
 	void ESDFMap::ESDFPubCB(const ros::TimerEvent& ){
 		this->publishESDF();
 	}
@@ -208,39 +285,61 @@ namespace mapManager{
 
 
 	// inline functions
-	inline void occMap::posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx){
+	inline bool ESDFMap::isInMap(const Eigen::Vector3d& pos){
+		if ((pos(0) >= this->mapSizeMin_(0)) and (pos(0) <= this->mapSizeMax_(0)) and 
+			(pos(1) >= this->mapSizeMin_(1)) and (pos(1) <= this->mapSizeMax_(1)) and 
+			(pos(2) >= this->mapSizeMin_(2)) and (pos(2) <= this->mapSizeMax_(2))){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+
+	inline bool ESDFMap::isInMap(const Eigen::Vector3i& idx){
+		if ((idx(0) >= this->mapVoxelMin_(0)) and (idx(0) <= this->mapVoxelMax_(0)) and
+		    (idx(1) >= this->mapVoxelMin_(1)) and (idx(1) <= this->mapVoxelMax_(1)) and 
+		    (idx(2) >= this->mapVoxelMin_(2)) and (idx(2) <= this->mapVoxelMax_(2))){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	
+	inline void ESDFMap::posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx){
 		idx(0) = floor( (pos(0) - this->mapSizeMin_(0) ) / this->mapRes_ );
 		idx(1) = floor( (pos(1) - this->mapSizeMin_(1) ) / this->mapRes_ );
 		idx(2) = floor( (pos(2) - this->mapSizeMin_(2) ) / this->mapRes_ );
 	}
 
-	inline void occMap::indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos){
+	inline void ESDFMap::indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos){
 		pos(0) = (idx(0) + 0.5) * this->mapRes_ + this->mapSizeMin_(0); 
 		pos(1) = (idx(1) + 0.5) * this->mapRes_ + this->mapSizeMin_(1);
 		pos(2) = (idx(2) + 0.5) * this->mapRes_ + this->mapSizeMin_(2);
 	}
 
-	inline int occMap::posToAddress(const Eigen::Vector3d& pos){
+	inline int ESDFMap::posToAddress(const Eigen::Vector3d& pos){
 		Eigen::Vector3i idx;
 		this->posToIndex(pos, idx);
 		return this->indexToAddress(idx);
 	}
 
-	inline int occMap::posToAddress(double x, double y, double z){
+	inline int ESDFMap::posToAddress(double x, double y, double z){
 		Eigen::Vector3d pos (x, y, z);
 		return this->posToAddress(pos);
 	}
 
-	inline int occMap::indexToAddress(const Eigen::Vector3i& idx){
+	inline int ESDFMap::indexToAddress(const Eigen::Vector3i& idx){
 		return idx(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2) + idx(1) * this->mapVoxelMax_(2) + idx(2);
 	}
 
-	inline int occMap::indexToAddress(int x, int y, int z){
+	inline int ESDFMap::indexToAddress(int x, int y, int z){
 		Eigen::Vector3i idx (x, y, z);
 		return this->indexToAddress(idx);
 	}
 
-	inline void occMap::boundIndex(Eigen::Vector3i& idx){
+	inline void ESDFMap::boundIndex(Eigen::Vector3i& idx){
 		Eigen::Vector3i temp;
 		temp(0) = std::max(std::min(idx(0), this->mapVoxelMax_(0)), this->mapVoxelMin_(0));
 		temp(1) = std::max(std::min(idx(1), this->mapVoxelMax_(1)), this->mapVoxelMin_(1));
