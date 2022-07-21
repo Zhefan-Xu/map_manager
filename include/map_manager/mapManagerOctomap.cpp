@@ -106,8 +106,7 @@ namespace mapManager{
 
 	octomap::point3d mapManagerOctomap::randomSample(double xsize, double ysize, double zsize, bool ignoreUnknown){
 		bool valid = false;
-		double x, y, z;
-		static octomap::point3d p;
+		octomap::point3d p;
 		while (not valid){
 			p.x() = randomNumber(this->sampleRegion_[0], this->sampleRegion_[1]);
 			p.y() = randomNumber(this->sampleRegion_[2], this->sampleRegion_[3]);

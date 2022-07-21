@@ -8,6 +8,7 @@ Panels:
         - /Status1
         - /Grid1
         - /PointCloud23
+        - /PointCloud24
       Splitter Ratio: 0.5
     Tree Height: 1079
   - Class: rviz/Selection
@@ -134,8 +135,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 1.75
-        Min Value: 0.15000000596046448
+        Max Value: 1.149999976158142
+        Min Value: -0.05000000074505806
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -154,7 +155,35 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.10000000149011612
       Style: Flat Squares
-      Topic: /occupancy_map/inflated_voxel_map
+      Topic: /esdf_mapinflated_voxel_map
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.10000000149011612
+      Style: Flat Squares
+      Topic: /esdf_map/esdf
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -187,7 +216,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 44.117919921875
+      Distance: 30.065126419067383
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -203,9 +232,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8347970247268677
+      Pitch: 1.1897966861724854
       Target Frame: <Fixed Frame>
-      Yaw: 5.205446720123291
+      Yaw: 4.850441932678223
     Saved: ~
 Window Geometry:
   Displays:

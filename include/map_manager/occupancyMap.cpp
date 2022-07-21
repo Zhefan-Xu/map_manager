@@ -6,7 +6,10 @@
 #include <map_manager/occupancyMap.h>
 
 namespace mapManager{
-	occMap::occMap(){}
+	occMap::occMap(){
+		this->ns_ = "occupancy_map";
+		this->hint_ = "[OccMap]";
+	}
 
 	void occMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
@@ -17,128 +20,129 @@ namespace mapManager{
 
 	void occMap::initParam(){
 		// localization mode
-		if (not this->nh_.getParam("occupancy_map/localization_mode", this->localizationMode_)){
+		if (not this->nh_.getParam(this->ns_ + "/localization_mode", this->localizationMode_)){
 			this->localizationMode_ = 0;
-			cout << "[OccMap]: No localization mode option. Use default: pose" << endl;
+			cout << this->hint_ << ": No localization mode option. Use default: pose" << endl;
 		}
 		else{
-			cout << "[OccMap]: Localizaiton mode: pose (0)/odom (1). Your option: : " << this->localizationMode_ << endl;
+			cout << this->hint_ << ": Localizaiton mode: pose (0)/odom (1). Your option: : " << this->localizationMode_ << endl;
 		}
 
 		// depth topic name
-		if (not this->nh_.getParam("occupancy_map/depth_image_topic", this->depthTopicName_)){
+		if (not this->nh_.getParam(this->ns_ + "/depth_image_topic", this->depthTopicName_)){
 			this->depthTopicName_ = "/camera/depth/image_raw";
-			cout << "[OccMap]: No depth image topic name. Use default: /camera/depth/image_raw" << endl;
+			cout << this->hint_ << ": No depth image topic name. Use default: /camera/depth/image_raw" << endl;
 		}
 		else{
-			cout << "[OccMap]: Depth topic: " << this->depthTopicName_ << endl;
+			cout << this->hint_ << ": Depth topic: " << this->depthTopicName_ << endl;
 		}
 
 		if (this->localizationMode_ == 0){
-			// pose topic name
-			if (not this->nh_.getParam("occupancy_map/pose_topic", this->poseTopicName_)){
+			// odom topic name
+			if (not this->nh_.getParam(this->ns_ + "/pose_topic", this->poseTopicName_)){
 				this->poseTopicName_ = "/CERLAB/quadcopter/pose";
-				cout << "[OccMap]: No pose topic name. Use default: /CERLAB/quadcopter/pose" << endl;
+				cout << this->hint_ << ": No pose topic name. Use default: /CERLAB/quadcopter/pose" << endl;
 			}
 			else{
-				cout << "[OccMap]: Pose topic: " << this->poseTopicName_ << endl;
+				cout << this->hint_ << ": Pose topic: " << this->poseTopicName_ << endl;
 			}			
 		}
 
 		if (this->localizationMode_ == 1){
 			// pose topic name
-			if (not this->nh_.getParam("occupancy_map/odom_topic", this->odomTopicName_)){
+			if (not this->nh_.getParam(this->ns_ + "/odom_topic", this->odomTopicName_)){
 				this->odomTopicName_ = "/CERLAB/quadcopter/odom";
-				cout << "[OccMap]: No odom topic name. Use default: /CERLAB/quadcopter/odom" << endl;
+				cout << this->hint_ << ": No odom topic name. Use default: /CERLAB/quadcopter/odom" << endl;
 			}
 			else{
-				cout << "[OccMap]: Odom topic: " << this->odomTopicName_ << endl;
+				cout << this->hint_ << ": Odom topic: " << this->odomTopicName_ << endl;
 			}
 		}
 
 		std::vector<double> robotSizeVec (3);
-		if (not this->nh_.getParam("occupancy_map/robot_size", robotSizeVec)){
+		if (not this->nh_.getParam(this->ns_ + "/robot_size", robotSizeVec)){
 			robotSizeVec = std::vector<double>{0.5, 0.5, 0.3};
 		}
 		else{
-			cout << "[OccMap]: robot size: " << "[" << robotSizeVec[0]  << ", " << robotSizeVec[1] << ", "<< robotSizeVec[2] << "]" << endl;
+			cout << this->hint_ << ": robot size: " << "[" << robotSizeVec[0]  << ", " << robotSizeVec[1] << ", "<< robotSizeVec[2] << "]" << endl;
 		}
 		this->robotSize_(0) = robotSizeVec[0]; this->robotSize_(1) = robotSizeVec[1]; this->robotSize_(2) = robotSizeVec[2];
 
 		std::vector<double> depthIntrinsics (4);
-		if (not this->nh_.getParam("occupancy_map/depth_intrinsics", depthIntrinsics)){
-			ROS_ERROR("[OccMap]: Please check camera intrinsics!");
+		if (not this->nh_.getParam(this->ns_ + "/depth_intrinsics", depthIntrinsics)){
+			cout << this->hint_ << ": Please check camera intrinsics!" << endl;
+			exit(0);
 		}
 		else{
 			this->fx_ = depthIntrinsics[0];
 			this->fy_ = depthIntrinsics[1];
 			this->cx_ = depthIntrinsics[2];
 			this->cy_ = depthIntrinsics[3];
-			cout << "[OccMap]: fx, fy, cx, cy: " << "["  << this->fx_ << ", " << this->fy_  << ", " << this->cx_ << ", "<< this->cy_ << "]" << endl;
+			cout << this->hint_ << ": fx, fy, cx, cy: " << "["  << this->fx_ << ", " << this->fy_  << ", " << this->cx_ << ", "<< this->cy_ << "]" << endl;
 		}
 
 		// depth scale factor
-		if (not this->nh_.getParam("occupancy_map/depth_scale_factor", this->depthScale_)){
+		if (not this->nh_.getParam(this->ns_ + "/depth_scale_factor", this->depthScale_)){
 			this->depthScale_ = 1000.0;
-			cout << "[OccMap]: No depth scale factor. Use default: 1000." << endl;
+			cout << this->hint_ << ": No depth scale factor. Use default: 1000." << endl;
 		}
 		else{
-			cout << "[OccMap]: Depth scale factor: " << this->depthScale_ << endl;
+			cout << this->hint_ << ": Depth scale factor: " << this->depthScale_ << endl;
 		}
 
 		// depth min value
-		if (not this->nh_.getParam("occupancy_map/depth_min_value", this->depthMinValue_)){
+		if (not this->nh_.getParam(this->ns_ + "/depth_min_value", this->depthMinValue_)){
 			this->depthMinValue_ = 0.2;
-			cout << "[OccMap]: No depth min value. Use default: 0.2 m." << endl;
+			cout << this->hint_ << ": No depth min value. Use default: 0.2 m." << endl;
 		}
 		else{
-			cout << "[OccMap]: Depth min value: " << this->depthMinValue_ << endl;
+			cout << this->hint_ << ": Depth min value: " << this->depthMinValue_ << endl;
 		}
 
 		// depth max value
-		if (not this->nh_.getParam("occupancy_map/depth_max_value", this->depthMaxValue_)){
+		if (not this->nh_.getParam(this->ns_ + "/depth_max_value", this->depthMaxValue_)){
 			this->depthMaxValue_ = 5.0;
-			cout << "[OccMap]: No depth max value. Use default: 5.0 m." << endl;
+			cout << this->hint_ << ": No depth max value. Use default: 5.0 m." << endl;
 		}
 		else{
-			cout << "[OccMap]: Depth depth max value: " << this->depthMaxValue_ << endl;
+			cout << this->hint_ << ": Depth depth max value: " << this->depthMaxValue_ << endl;
 		}
 
 		// depth filter margin
-		if (not this->nh_.getParam("occupancy_map/depth_filter_margin", this->depthFilterMargin_)){
+		if (not this->nh_.getParam(this->ns_ + "/depth_filter_margin", this->depthFilterMargin_)){
 			this->depthFilterMargin_ = 0;
-			cout << "[OccMap]: No depth filter margin. Use default: 0." << endl;
+			cout << this->hint_ << ": No depth filter margin. Use default: 0." << endl;
 		}
 		else{
-			cout << "[OccMap]: Depth filter margin: " << this->depthFilterMargin_ << endl;
+			cout << this->hint_ << ": Depth filter margin: " << this->depthFilterMargin_ << endl;
 		}
 
 		// depth skip pixel
-		if (not this->nh_.getParam("occupancy_map/depth_skip_pixel", this->skipPixel_)){
+		if (not this->nh_.getParam(this->ns_ + "/depth_skip_pixel", this->skipPixel_)){
 			this->skipPixel_ = 1;
-			cout << "[OccMap]: No depth skip pixel. Use default: 1." << endl;
+			cout << this->hint_ << ": No depth skip pixel. Use default: 1." << endl;
 		}
 		else{
-			cout << "[OccMap]: Depth skip pixel: " << this->skipPixel_ << endl;
+			cout << this->hint_ << ": Depth skip pixel: " << this->skipPixel_ << endl;
 		}
 
 		// ------------------------------------------------------------------------------------
 		// depth image columns
-		if (not this->nh_.getParam("occupancy_map/image_cols", this->imgCols_)){
+		if (not this->nh_.getParam(this->ns_ + "/image_cols", this->imgCols_)){
 			this->imgCols_ = 640;
-			cout << "[OccMap]: No depth image columns. Use default: 640." << endl;
+			cout << this->hint_ << ": No depth image columns. Use default: 640." << endl;
 		}
 		else{
-			cout << "[OccMap]: Depth image columns: " << this->imgCols_ << endl;
+			cout << this->hint_ << ": Depth image columns: " << this->imgCols_ << endl;
 		}
 
 		// depth skip pixel
-		if (not this->nh_.getParam("occupancy_map/image_rows", this->imgRows_)){
+		if (not this->nh_.getParam(this->ns_ + "/image_rows", this->imgRows_)){
 			this->imgRows_ = 480;
-			cout << "[OccMap]: No depth image rows. Use default: 480." << endl;
+			cout << this->hint_ << ": No depth image rows. Use default: 480." << endl;
 		}
 		else{
-			cout << "[OccMap]: Depth image rows: " << this->imgRows_ << endl;
+			cout << this->hint_ << ": Depth image rows: " << this->imgRows_ << endl;
 		}
 		this->projPoints_.resize(this->imgCols_ * this->imgRows_ / (this->skipPixel_ * this->skipPixel_));
 		// ------------------------------------------------------------------------------------
@@ -146,7 +150,7 @@ namespace mapManager{
 
 		// transform matrix: body to camera
 		std::vector<double> body2CamVec (16);
-		if (not this->nh_.getParam("occupancy_map/body_to_camera", body2CamVec)){
+		if (not this->nh_.getParam(this->ns_ + "/body_to_camera", body2CamVec)){
 			ROS_ERROR("[OccMap]: Please check body to camera matrix!");
 		}
 		else{
@@ -155,99 +159,99 @@ namespace mapManager{
 					this->body2Cam_(i, j) = body2CamVec[i * 4 + j];
 				}
 			}
-			// cout << "[OccMap]: from body to camera: " << endl;
+			// cout << this->hint_ << ": from body to camera: " << endl;
 			// cout << this->body2Cam_ << endl;
 		}
 
 		// Raycast max length
-		if (not this->nh_.getParam("occupancy_map/raycast_max_length", this->raycastMaxLength_)){
+		if (not this->nh_.getParam(this->ns_ + "/raycast_max_length", this->raycastMaxLength_)){
 			this->raycastMaxLength_ = 5.0;
-			cout << "[OccMap]: No raycast max length. Use default: 5.0." << endl;
+			cout << this->hint_ << ": No raycast max length. Use default: 5.0." << endl;
 		}
 		else{
-			cout << "[OccMap]: Raycast max length: " << this->raycastMaxLength_ << endl;
+			cout << this->hint_ << ": Raycast max length: " << this->raycastMaxLength_ << endl;
 		}
 
 		// p hit
 		double pHit;
-		if (not this->nh_.getParam("occupancy_map/p_hit", pHit)){
+		if (not this->nh_.getParam(this->ns_ + "/p_hit", pHit)){
 			pHit = 0.70;
-			cout << "[OccMap]: No p hit. Use default: 0.70." << endl;
+			cout << this->hint_ << ": No p hit. Use default: 0.70." << endl;
 		}
 		else{
-			cout << "[OccMap]: P hit: " << pHit << endl;
+			cout << this->hint_ << ": P hit: " << pHit << endl;
 		}
 		this->pHitLog_ = this->logit(pHit);
 
 		// p miss
 		double pMiss;
-		if (not this->nh_.getParam("occupancy_map/p_miss", pMiss)){
+		if (not this->nh_.getParam(this->ns_ + "/p_miss", pMiss)){
 			pMiss = 0.35;
-			cout << "[OccMap]: No p miss. Use default: 0.35." << endl;
+			cout << this->hint_ << ": No p miss. Use default: 0.35." << endl;
 		}
 		else{
-			cout << "[OccMap]: P miss: " << pMiss << endl;
+			cout << this->hint_ << ": P miss: " << pMiss << endl;
 		}
 		this->pMissLog_ = this->logit(pMiss);
 
 		// p min
 		double pMin;
-		if (not this->nh_.getParam("occupancy_map/p_min", pMin)){
+		if (not this->nh_.getParam(this->ns_ + "/p_min", pMin)){
 			pHit = 0.12;
-			cout << "[OccMap]: No p min. Use default: 0.12." << endl;
+			cout << this->hint_ << ": No p min. Use default: 0.12." << endl;
 		}
 		else{
-			cout << "[OccMap]: P min: " << pMin << endl;
+			cout << this->hint_ << ": P min: " << pMin << endl;
 		}
 		this->pMinLog_ = this->logit(pMin);
 
 		// p max
 		double pMax;
-		if (not this->nh_.getParam("occupancy_map/p_max", pMax)){
+		if (not this->nh_.getParam(this->ns_ + "/p_max", pMax)){
 			pMax = 0.97;
-			cout << "[OccMap]: No p max. Use default: 0.97." << endl;
+			cout << this->hint_ << ": No p max. Use default: 0.97." << endl;
 		}
 		else{
-			cout << "[OccMap]: P max: " << pMax << endl;
+			cout << this->hint_ << ": P max: " << pMax << endl;
 		}
 		this->pMaxLog_ = this->logit(pMax);
 
 		// p occ
 		double pOcc;
-		if (not this->nh_.getParam("occupancy_map/p_occ", pOcc)){
+		if (not this->nh_.getParam(this->ns_ + "/p_occ", pOcc)){
 			pOcc = 0.80;
-			cout << "[OccMap]: No p occ. Use default: 0.80." << endl;
+			cout << this->hint_ << ": No p occ. Use default: 0.80." << endl;
 		}
 		else{
-			cout << "[OccMap]: P occ: " << pOcc << endl;
+			cout << this->hint_ << ": P occ: " << pOcc << endl;
 		}
 		this->pOccLog_ = this->logit(pOcc);
 
 
 		// map resolution
-		if (not this->nh_.getParam("occupancy_map/map_resolution", this->mapRes_)){
+		if (not this->nh_.getParam(this->ns_ + "/map_resolution", this->mapRes_)){
 			this->mapRes_ = 0.1;
-			cout << "[OccMap]: No map resolution. Use default: 0.1." << endl;
+			cout << this->hint_ << ": No map resolution. Use default: 0.1." << endl;
 		}
 		else{
-			cout << "[OccMap]: Map resolution: " << this->mapRes_ << endl;
+			cout << this->hint_ << ": Map resolution: " << this->mapRes_ << endl;
 		}
 
 		// ground height
-		if (not this->nh_.getParam("occupancy_map/ground_height", this->groundHeight_)){
+		if (not this->nh_.getParam(this->ns_ + "/ground_height", this->groundHeight_)){
 			this->groundHeight_ = 0.0;
-			cout << "[OccMap]: No ground height. Use default: 0.0." << endl;
+			cout << this->hint_ << ": No ground height. Use default: 0.0." << endl;
 		}
 		else{
-			cout << "[OccMap]: Ground height: " << this->groundHeight_ << endl;
+			cout << this->hint_ << ": Ground height: " << this->groundHeight_ << endl;
 		}
 
 
 		// map size
 		std::vector<double> mapSizeVec (3);
-		if (not this->nh_.getParam("occupancy_map/map_size", mapSizeVec)){
+		if (not this->nh_.getParam(this->ns_ + "/map_size", mapSizeVec)){
 			mapSizeVec[0] = 20; mapSizeVec[1] = 20; mapSizeVec[2] = 3;
-			cout << "[OccMap]: No map size. Use default: [20, 20, 3]." << endl;
+			cout << this->hint_ << ": No map size. Use default: [20, 20, 3]." << endl;
 		}
 		else{
 			this->mapSize_(0) = mapSizeVec[0];
@@ -273,67 +277,67 @@ namespace mapManager{
 			this->flagTraverse_.resize(reservedSize, -1);
 			this->flagRayend_.resize(reservedSize, -1);
 
-			cout << "[OccMap]: Map size: " << "[" << mapSizeVec[0] << ", " << mapSizeVec[1] << ", " << mapSizeVec[2] << "]" << endl;
+			cout << this->hint_ << ": Map size: " << "[" << mapSizeVec[0] << ", " << mapSizeVec[1] << ", " << mapSizeVec[2] << "]" << endl;
 		}
 
 		// local update range
 		std::vector<double> localUpdateRangeVec;
-		if (not this->nh_.getParam("occupancy_map/local_update_range", localUpdateRangeVec)){
+		if (not this->nh_.getParam(this->ns_ + "/local_update_range", localUpdateRangeVec)){
 			localUpdateRangeVec = std::vector<double>{5.0, 5.0, 3.0};
-			cout << "[OccMap]: No local update range. Use default: [5.0, 5.0, 3.0] m." << endl;
+			cout << this->hint_ << ": No local update range. Use default: [5.0, 5.0, 3.0] m." << endl;
 		}
 		else{
-			cout << "[OccMap]: Local update range: " << "[" << localUpdateRangeVec[0] << ", " << localUpdateRangeVec[1] << ", " << localUpdateRangeVec[2] << "]" << endl;
+			cout << this->hint_ << ": Local update range: " << "[" << localUpdateRangeVec[0] << ", " << localUpdateRangeVec[1] << ", " << localUpdateRangeVec[2] << "]" << endl;
 		}
 		this->localUpdateRange_(0) = localUpdateRangeVec[0]; this->localUpdateRange_(1) = localUpdateRangeVec[1]; this->localUpdateRange_(2) = localUpdateRangeVec[2];
 
 
 		// local bound inflate factor
-		if (not this->nh_.getParam("occupancy_map/local_bound_inflation", this->localBoundInflate_)){
+		if (not this->nh_.getParam(this->ns_ + "/local_bound_inflation", this->localBoundInflate_)){
 			this->localBoundInflate_ = 0.0;
-			cout << "[OccMap]: No local bound inflate. Use default: 0.0 m." << endl;
+			cout << this->hint_ << ": No local bound inflate. Use default: 0.0 m." << endl;
 		}
 		else{
-			cout << "[OccMap]: Local bound inflate: " << this->localBoundInflate_ << endl;
+			cout << this->hint_ << ": Local bound inflate: " << this->localBoundInflate_ << endl;
 		}
 
 		// whether to clean local map
-		if (not this->nh_.getParam("occupancy_map/clean_local_map", this->cleanLocalMap_)){
+		if (not this->nh_.getParam(this->ns_ + "/clean_local_map", this->cleanLocalMap_)){
 			this->cleanLocalMap_ = true;
-			cout << "[OccMap]: No clean local map option. Use default: true." << endl;
+			cout << this->hint_ << ": No clean local map option. Use default: true." << endl;
 		}
 		else{
-			cout << "[OccMap]: Clean local map option is set to: " << this->cleanLocalMap_ << endl; 
+			cout << this->hint_ << ": Clean local map option is set to: " << this->cleanLocalMap_ << endl; 
 		}
 
 		// local map size (visualization)
 		std::vector<double> localMapSizeVec;
-		if (not this->nh_.getParam("occupancy_map/local_map_size", localMapSizeVec)){
+		if (not this->nh_.getParam(this->ns_ + "/local_map_size", localMapSizeVec)){
 			localMapSizeVec = std::vector<double>{10.0, 10.0, 2.0};
-			cout << "[OccMap]: No local map size. Use default: [10.0, 10.0, 3.0] m." << endl;
+			cout << this->hint_ << ": No local map size. Use default: [10.0, 10.0, 3.0] m." << endl;
 		}
 		else{
-			cout << "[OccMap]: Local map size: " << "[" << localMapSizeVec[0] << ", " << localMapSizeVec[1] << ", " << localMapSizeVec[2] << "]" << endl;
+			cout << this->hint_ << ": Local map size: " << "[" << localMapSizeVec[0] << ", " << localMapSizeVec[1] << ", " << localMapSizeVec[2] << "]" << endl;
 		}
 		this->localMapSize_(0) = localMapSizeVec[0]/2; this->localMapSize_(1) = localMapSizeVec[1]/2; this->localMapSize_(2) = localMapSizeVec[2]/2;
 		this->localMapVoxel_(0) = int(ceil(localMapSizeVec[0]/(2*this->mapRes_))); this->localMapVoxel_(1) = int(ceil(localMapSizeVec[1]/(2*this->mapRes_))); this->localMapVoxel_(2) = int(ceil(localMapSizeVec[2]/(2*this->mapRes_)));
 
 		// max vis height
-		if (not this->nh_.getParam("occupancy_map/max_height_visualization", this->maxVisHeight_)){
+		if (not this->nh_.getParam(this->ns_ + "/max_height_visualization", this->maxVisHeight_)){
 			this->maxVisHeight_ = 3.0;
-			cout << "[OccMap]: No max visualization height. Use default: 3.0 m." << endl;
+			cout << this->hint_ << ": No max visualization height. Use default: 3.0 m." << endl;
 		}
 		else{
-			cout << "[OccMap]: Max visualization height: " << this->maxVisHeight_ << endl;
+			cout << this->hint_ << ": Max visualization height: " << this->maxVisHeight_ << endl;
 		}
 
 		// max vis height
-		if (not this->nh_.getParam("occupancy_map/visualize_global_map", this->visGlobalMap_)){
+		if (not this->nh_.getParam(this->ns_ + "/visualize_global_map", this->visGlobalMap_)){
 			this->visGlobalMap_ = false;
-			cout << "[OccMap]: No visualize map option. Use default: visualize local map." << endl;
+			cout << this->hint_ << ": No visualize map option. Use default: visualize local map." << endl;
 		}
 		else{
-			cout << "[OccMap]: Visualize map option. local (0)/global (1): " << this->visGlobalMap_ << endl;
+			cout << this->hint_ << ": Visualize map option. local (0)/global (1): " << this->visGlobalMap_ << endl;
 			if (this->visGlobalMap_){
 				this->localMapSize_(0) = this->mapSizeMax_(0); this->localMapSize_(1) = this->mapSizeMax_(1); this->localMapSize_(2) = this->mapSizeMax_(2);
 				this->localMapVoxel_(0) = int(ceil(this->localMapSize_(0)/(2*this->mapRes_))); this->localMapVoxel_(1) = int(ceil(this->localMapSize_(1)/(2*this->mapRes_))); this->localMapVoxel_(2) = int(ceil(this->localMapSize_(2)/(2*this->mapRes_)));
@@ -372,9 +376,9 @@ namespace mapManager{
 	}
 
 	void occMap::registerPub(){
-		this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>("/occupancy_map/depth_cloud", 10);
-		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>("/occupancy_map/voxel_map", 10);
-		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>("/occupancy_map/inflated_voxel_map", 10);
+		this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud", 10);
+		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "occupancy_map/voxel_map", 10);
+		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "inflated_voxel_map", 10);
 	}
 
 
@@ -452,15 +456,17 @@ namespace mapManager{
 		// this->inflateLocalMap();
 		endTime = ros::Time::now();
 		
-		cout << "[OccMap]: Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
+		cout << this->hint_ << ": Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
 		this->occNeedUpdate_ = false;
-		this->mapNeedInflate = true;
+		this->mapNeedInflate_ = true;
 	}
 
 	void occMap::inflateMapCB(const ros::TimerEvent& ){
 		// inflate local map:
-		if (this->mapNeedInflate){
+		if (this->mapNeedInflate_){
 			this->inflateLocalMap();
+			this->mapNeedInflate_ = false;
+			this->esdfNeedUpdate_ = true;
 		}
 	}
 
@@ -590,6 +596,10 @@ namespace mapManager{
 		// store local bound and inflate local bound (inflate is for ESDF update)
 		this->posToIndex(Eigen::Vector3d (xmin, ymin, zmin), this->localBoundMin_);
 		this->posToIndex(Eigen::Vector3d (xmax, ymax, zmax), this->localBoundMax_);
+		this->localBoundMin_ -= int(ceil(this->localBoundInflate_/this->mapRes_)) * Eigen::Vector3i(1, 1, 0); // inflate in x y direction
+		this->localBoundMax_ += int(ceil(this->localBoundInflate_/this->mapRes_)) * Eigen::Vector3i(1, 1, 0); 
+		this->boundIndex(this->localBoundMin_); // since inflated, need to bound if not in reserved range
+		this->boundIndex(this->localBoundMax_);
 
 
 		// update occupancy in the cache
@@ -776,8 +786,8 @@ namespace mapManager{
 	}
 
 	void occMap::visCB(const ros::TimerEvent& ){
-		this->publishProjPoints();
-		this->publishMap();
+		// this->publishProjPoints();
+		// this->publishMap();
 		this->publishInflatedMap();
 	}
 
@@ -926,8 +936,18 @@ namespace mapManager{
 		return this->indexToAddress(idx);
 	}
 
+	inline int occMap::posToAddress(double x, double y, double z){
+		Eigen::Vector3d pos (x, y, z);
+		return this->posToAddress(pos);
+	}
+
 	inline int occMap::indexToAddress(const Eigen::Vector3i& idx){
 		return idx(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2) + idx(1) * this->mapVoxelMax_(2) + idx(2);
+	}
+
+	inline int occMap::indexToAddress(int x, int y, int z){
+		Eigen::Vector3i idx (x, y, z);
+		return this->indexToAddress(idx);
 	}
 
 	inline void occMap::boundIndex(Eigen::Vector3i& idx){

@@ -28,6 +28,9 @@ namespace mapManager{
 	private:
 
 	protected:
+		std::string ns_;
+		std::string hint_;
+
 		// ROS
 		ros::NodeHandle nh_;
 		std::shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> depthSub_;
@@ -73,7 +76,7 @@ namespace mapManager{
 		Eigen::Vector3d mapSize_, mapSizeMin_, mapSizeMax_; // reserved min/max map size
 		Eigen::Vector3i mapVoxelMin_, mapVoxelMax_; // reserved min/max map size in voxel
 		Eigen::Vector3d localUpdateRange_; // self defined local update range
-		double localBoundInflate_;
+		double localBoundInflate_; // inflate local map for some distance
 		bool cleanLocalMap_; 
 
 		// VISUALZATION
@@ -109,7 +112,8 @@ namespace mapManager{
 
 		// STATUS
 		bool occNeedUpdate_ = false;
-		bool mapNeedInflate = false;
+		bool mapNeedInflate_ = false;
+		bool esdfNeedUpdate_ = false; // only used in ESDFMap
 
 		// Raycaster
 		RayCaster raycaster_;
@@ -158,7 +162,9 @@ namespace mapManager{
 		void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx);
 		void indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos);
 		int posToAddress(const Eigen::Vector3d& idx);
+		int posToAddress(double x, double y, double z);
 		int indexToAddress(const Eigen::Vector3i& idx);
+		int indexToAddress(int x, int y, int z);
 		void boundIndex(Eigen::Vector3i& idx);
 		bool isInLocalUpdateRange(const Eigen::Vector3d& pos);
 		bool isInLocalUpdateRange(const Eigen::Vector3i& idx);
