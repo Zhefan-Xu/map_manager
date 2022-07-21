@@ -37,5 +37,21 @@ Publish the following topics:
 ### V. C++ Code API
 Example code:
 ```
+#include <map_manager/ESDFMap.h>
+
+int main(){
+  ...
+  map_manager::ESDFMap m;
+  m.initMap(nh);
+  
+  // collision checking given a point
+  Eigen::Vector3d pos (1.0, 1.0, 1.0)
+  bool hasCollision = m.isOccupied(pos);
+  
+  // get distance with gradient
+  Eigen::Vector3d grad;
+  double dist = m.getDistanceWithGradTrilinear(pos, grad);
+  ...
+}
 ```
 
