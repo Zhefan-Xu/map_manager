@@ -54,4 +54,8 @@ int main(){
   ...
 }
 ```
+### VI. Example
+ESDF Map: ![Screenshot from 2022-07-21 15-48-26](https://user-images.githubusercontent.com/55560905/180302896-ee4a9a80-4aac-4cff-8425-7fe42a45b827.png)
+Occupancy Map Video:
+
 
