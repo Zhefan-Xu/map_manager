@@ -59,3 +59,7 @@ ESDF Map: ![Screenshot from 2022-07-21 15-48-26](https://user-images.githubuserc
 Occupancy Map Video:
 
 
+https://user-images.githubusercontent.com/55560905/180305608-402a8e33-f2d6-40fd-9c66-18e610a120ac.mp4
+
+
+
