@@ -8,7 +8,7 @@ git clone https://github.com/Zhefan-Xu/map_manager.git
 cd ~/catkin_ws
 catkin_make
 ```
-### II. Run demo (simulatation)
+### II. Run demo (simulation)
 Please intall package [uav_simulator](https://github.com/Zhefan-Xu/uav_simulator.git), then run the occupancy map launch: 
 ```
 roslaunch uav_simulator start.launch
