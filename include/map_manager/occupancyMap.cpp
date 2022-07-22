@@ -338,10 +338,6 @@ namespace mapManager{
 		}
 		else{
 			cout << this->hint_ << ": Visualize map option. local (0)/global (1): " << this->visGlobalMap_ << endl;
-			if (this->visGlobalMap_){
-				this->localMapSize_(0) = this->mapSizeMax_(0); this->localMapSize_(1) = this->mapSizeMax_(1); this->localMapSize_(2) = this->mapSizeMax_(2);
-				this->localMapVoxel_(0) = int(ceil(this->localMapSize_(0)/(2*this->mapRes_))); this->localMapVoxel_(1) = int(ceil(this->localMapSize_(1)/(2*this->mapRes_))); this->localMapVoxel_(2) = int(ceil(this->localMapSize_(2)/(2*this->mapRes_)));
-			}
 		}
 
 
@@ -377,7 +373,7 @@ namespace mapManager{
 
 	void occMap::registerPub(){
 		this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud", 10);
-		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/occupancy_map/voxel_map", 10);
+		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 	}
 
@@ -786,8 +782,8 @@ namespace mapManager{
 	}
 
 	void occMap::visCB(const ros::TimerEvent& ){
-		// this->publishProjPoints();
-		// this->publishMap();
+		this->publishProjPoints();
+		this->publishMap();
 		this->publishInflatedMap();
 	}
 
@@ -817,17 +813,25 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 
-		Eigen::Vector3d minRange = this->position_ - localMapSize_;
-		Eigen::Vector3d maxRange = this->position_ + localMapSize_;
+		Eigen::Vector3d minRange, maxRange;
+		if (this->visGlobalMap_){
+			minRange = this->mapSizeMin_;
+			maxRange = this->mapSizeMax_;
+		}
+		else{
+			minRange = this->position_ - localMapSize_;
+			maxRange = this->position_ + localMapSize_;
+			minRange(2) = this->groundHeight_;
+		}
 		Eigen::Vector3i minRangeIdx, maxRangeIdx;
 		this->posToIndex(minRange, minRangeIdx);
 		this->posToIndex(maxRange, maxRangeIdx);
 		this->boundIndex(minRangeIdx);
 		this->boundIndex(maxRangeIdx);
 
-		for (int x=minRangeIdx(0); x<maxRangeIdx(0); ++x){
-			for (int y=minRangeIdx(1); y<maxRangeIdx(1); ++y){
-				for (int z=minRangeIdx(2); z<maxRangeIdx(2); ++z){
+		for (int x=minRangeIdx(0); x<=maxRangeIdx(0); ++x){
+			for (int y=minRangeIdx(1); y<=maxRangeIdx(1); ++y){
+				for (int z=minRangeIdx(2); z<=maxRangeIdx(2); ++z){
 					Eigen::Vector3i pointIdx (x, y, z);
 					// if (this->occupancy_[this->indexToAddress(pointIdx)] > this->pMinLog_){
 					if (this->isOccupied(pointIdx)){
@@ -838,6 +842,11 @@ namespace mapManager{
 							pt.y = point(1);
 							pt.z = point(2);
 							cloud.push_back(pt);
+						}
+						if (point(2) > 2.9){
+							cout << "here" << endl;
+							cout << pointIdx << endl;
+							exit(0);
 						}
 					}
 				}
@@ -858,17 +867,25 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 
-		Eigen::Vector3d minRange = this->position_ - localMapSize_;
-		Eigen::Vector3d maxRange = this->position_ + localMapSize_;
+		Eigen::Vector3d minRange, maxRange;
+		if (this->visGlobalMap_){
+			minRange = this->mapSizeMin_;
+			maxRange = this->mapSizeMax_;
+		}
+		else{
+			minRange = this->position_ - localMapSize_;
+			maxRange = this->position_ + localMapSize_;
+			minRange(2) = this->groundHeight_;
+		}
 		Eigen::Vector3i minRangeIdx, maxRangeIdx;
 		this->posToIndex(minRange, minRangeIdx);
 		this->posToIndex(maxRange, maxRangeIdx);
 		this->boundIndex(minRangeIdx);
 		this->boundIndex(maxRangeIdx);
 
-		for (int x=minRangeIdx(0); x<maxRangeIdx(0); ++x){
-			for (int y=minRangeIdx(1); y<maxRangeIdx(1); ++y){
-				for (int z=minRangeIdx(2); z<maxRangeIdx(2); ++z){
+		for (int x=minRangeIdx(0); x<=maxRangeIdx(0); ++x){
+			for (int y=minRangeIdx(1); y<=maxRangeIdx(1); ++y){
+				for (int z=minRangeIdx(2); z<=maxRangeIdx(2); ++z){
 					Eigen::Vector3i pointIdx (x, y, z);
 					// if (this->occupancy_[this->indexToAddress(pointIdx)] > this->pMinLog_){
 					if (this->isInflatedOccupied(pointIdx)){
@@ -908,9 +925,9 @@ namespace mapManager{
 	}
 
 	inline bool occMap::isInMap(const Eigen::Vector3i& idx){
-		if ((idx(0) >= this->mapVoxelMin_(0)) and (idx(0) <= this->mapVoxelMax_(0)) and
-		    (idx(1) >= this->mapVoxelMin_(1)) and (idx(1) <= this->mapVoxelMax_(1)) and 
-		    (idx(2) >= this->mapVoxelMin_(2)) and (idx(2) <= this->mapVoxelMax_(2))){
+		if ((idx(0) >= this->mapVoxelMin_(0)) and (idx(0) < this->mapVoxelMax_(0)) and
+		    (idx(1) >= this->mapVoxelMin_(1)) and (idx(1) < this->mapVoxelMax_(1)) and 
+		    (idx(2) >= this->mapVoxelMin_(2)) and (idx(2) < this->mapVoxelMax_(2))){
 			return true;
 		}
 		else{
@@ -952,9 +969,9 @@ namespace mapManager{
 
 	inline void occMap::boundIndex(Eigen::Vector3i& idx){
 		Eigen::Vector3i temp;
-		temp(0) = std::max(std::min(idx(0), this->mapVoxelMax_(0)), this->mapVoxelMin_(0));
-		temp(1) = std::max(std::min(idx(1), this->mapVoxelMax_(1)), this->mapVoxelMin_(1));
-		temp(2) = std::max(std::min(idx(2), this->mapVoxelMax_(2)), this->mapVoxelMin_(2));
+		temp(0) = std::max(std::min(idx(0), this->mapVoxelMax_(0)-1), this->mapVoxelMin_(0));
+		temp(1) = std::max(std::min(idx(1), this->mapVoxelMax_(1)-1), this->mapVoxelMin_(1));
+		temp(2) = std::max(std::min(idx(2), this->mapVoxelMax_(2)-1), this->mapVoxelMin_(2));
 		idx = temp;
 	}
 

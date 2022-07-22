@@ -8,6 +8,8 @@ Panels:
         - /Status1
         - /Grid1
         - /PointCloud23
+        - /PointCloud23/Status1
+        - /PointCloud23/Autocompute Value Bounds1
         - /PointCloud24
         - /Pose1
       Splitter Ratio: 0.5
@@ -87,7 +89,7 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/RobotModel
       Collision Enabled: false
-      Enabled: true
+      Enabled: false
       Links:
         All Links Enabled: true
         Expand Joint Details: false
@@ -98,7 +100,7 @@ Visualization Manager:
       Robot Description: robot_description
       TF Prefix: ""
       Update Interval: 0
-      Value: true
+      Value: false
       Visual Enabled: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
@@ -131,7 +133,7 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 1.4500000476837158
+        Max Value: 1.9500000476837158
         Min Value: -0.05000000074505806
         Value: true
       Axis: Z
@@ -151,7 +153,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.10000000149011612
       Style: Flat Squares
-      Topic: /occupancy_mapinflated_voxel_map
+      Topic: /esdf_map/inflated_voxel_map
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -228,7 +230,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10.812458038330078
+      Distance: 30.057178497314453
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -236,17 +238,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.2332890033721924
-        Y: 1.3967188596725464
-        Z: 1.0452760457992554
+        X: -7.770884037017822
+        Y: -0.10197202861309052
+        Z: 5.91267204284668
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5147967338562012
+      Pitch: 1.0447964668273926
       Target Frame: <Fixed Frame>
-      Yaw: 2.6772654056549072
+      Yaw: 2.2150208950042725
     Saved: ~
 Window Geometry:
   Displays:

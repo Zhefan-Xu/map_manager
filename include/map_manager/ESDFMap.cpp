@@ -40,14 +40,16 @@ namespace mapManager{
 	}
 
 	void ESDFMap::updateESDFCB(const ros::TimerEvent& ){
+		if (not this->esdfNeedUpdate_){
+			return;
+		}
 		ros::Time startTime, endTime;
 		startTime = ros::Time::now();
-		if (this->esdfNeedUpdate_){
-			this->updateESDF3D();
-			this->esdfNeedUpdate_ = false;
-		}
+		this->updateESDF3D();
 		endTime = ros::Time::now();
 		cout << this->hint_ << ": ESDF update time: " << (endTime - startTime).toSec() << " s." << endl; 
+		this->esdfNeedUpdate_ = false;
+
 	}
 
 	void ESDFMap::updateESDF3D(){
@@ -57,7 +59,7 @@ namespace mapManager{
 		// positive DT
 		for (int x=minRange(0); x<=maxRange(0); ++x){
 			for (int y=minRange(1); y<=maxRange(1); ++y){
-		  		this->fillESDF([&](int z){return this->occupancyInflated_[this->indexToAddress(x, y, z)] == 1 ? 0 : std::numeric_limits<double>::max();},
+		  		this->fillESDF([&](int z){return this->occupancyInflated_[this->indexToAddress(x, y, z)] == true ? 0 : std::numeric_limits<double>::max();},
 		      			 [&](int z, double val) {this->esdfTemp1_[this->indexToAddress(x, y, z)] = val;}, minRange(2), maxRange(2), 2);
 			}
 		}
@@ -79,7 +81,7 @@ namespace mapManager{
 		// negative DT
 		for (int x=minRange(0); x<=maxRange(0); ++x){
 			for (int y=minRange(1); y<=maxRange(1); ++y){
-				this->fillESDF([&](int z){return this->occupancyInflated_[this->indexToAddress(x, y, z)] == 0? 0 : std::numeric_limits<double>::max();},
+				this->fillESDF([&](int z){return this->occupancyInflated_[this->indexToAddress(x, y, z)] == false ? 0 : std::numeric_limits<double>::max();},
 		  		[&](int z, double val){this->esdfTemp1_[this->indexToAddress(x, y, z)]=val;}, minRange(2), maxRange(2), 2);
 			}
 		}
@@ -247,7 +249,7 @@ namespace mapManager{
 		pcl::PointXYZI pt;
 
 		const double minDist = 0.0;
-		const double maxDist = 3.0;
+		const double maxDist = 5.0;
 
 		Eigen::Vector3i minRange = this->localBoundMin_;
 		Eigen::Vector3i maxRange = this->localBoundMax_;
