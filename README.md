@@ -24,12 +24,13 @@ roslaunch map_manager rviz.launch
 ```
 
 ### III. Parameters
-Please find parameters in ```map_manager/cfg/***.param``` files.
+Please find parameters in ```map_manager/cfg/***.yaml``` files.
 
 ### IV. ROS Topics
 Subsribe the following topics for occupancy and ESDF map:
   - Localization topic: ```robot/odometry``` or ```robot/pose``` (please enter the name of your topic in the parameter files)
   - Depth camera topic: ```camera/depth``` (defined in the config file)
+  
 Publish the following topics:
   - occupancy map visualization: ```occupancy_map/inflated_voxel_map```
   - esdf map visualization: ```esdf_map/inflated_voxel_map``` and ```esdf_map/esdf```
