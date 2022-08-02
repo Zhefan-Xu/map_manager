@@ -112,8 +112,8 @@ generate_messages(
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES map_manager
- CATKIN_DEPENDS roscpp rospy std_msgs
-#  DEPENDS system_lib
+ CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge
+ DEPENDS PCL
 )
 
 ###########
