@@ -155,8 +155,8 @@ namespace mapManager{
 		void publishMap();
 		void publishInflatedMap();
 
-
 		// helper functions
+		double logit(double x);
 		bool isInMap(const Eigen::Vector3d& pos);
 		bool isInMap(const Eigen::Vector3i& idx);
 		void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx);
@@ -171,11 +171,221 @@ namespace mapManager{
 		Eigen::Vector3d adjustPointInMap(const Eigen::Vector3d& point);
 		Eigen::Vector3d adjustPointRayLength(const Eigen::Vector3d& point);
 		int updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);
-		double logit(double x);
 		void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
 		void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix);
-
 	};
+	// inline function
+	// user function
+	inline bool occMap::isOccupied(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isOccupied(idx);
+	}
+
+	inline bool occMap::isOccupied(const Eigen::Vector3i& idx){
+		int address = this->indexToAddress(idx);
+		return this->occupancy_[address] >= this->pOccLog_;
+	}
+
+	inline bool occMap::isInflatedOccupied(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isInflatedOccupied(idx);
+	}
+
+	inline bool occMap::isInflatedOccupied(const Eigen::Vector3i& idx){
+		int address = this->indexToAddress(idx);
+		return this->occupancyInflated_[address] == true;
+	}
+
+	inline bool occMap::isFree(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isFree(idx);
+	}
+
+	inline bool occMap::isFree(const Eigen::Vector3i& idx){
+		int address = this->indexToAddress(idx);
+		return (this->occupancy_[address] < this->pOccLog_) and (this->occupancy_[address] >= this->pMinLog_);
+	}
+
+	inline bool occMap::isUnknown(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isUnknown(idx);
+	}
+
+	inline bool occMap::isUnknown(const Eigen::Vector3i& idx){
+		int address = this->indexToAddress(idx);
+		return this->occupancy_[address] < this->pMinLog_;		
+	}
+	// end of user functinos
+
+	// helper functions
+	inline double occMap::logit(double x){
+		return log(x/(1-x));
+	}
+
+	inline bool occMap::isInMap(const Eigen::Vector3d& pos){
+		if ((pos(0) >= this->mapSizeMin_(0)) and (pos(0) <= this->mapSizeMax_(0)) and 
+			(pos(1) >= this->mapSizeMin_(1)) and (pos(1) <= this->mapSizeMax_(1)) and 
+			(pos(2) >= this->mapSizeMin_(2)) and (pos(2) <= this->mapSizeMax_(2))){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+
+	inline bool occMap::isInMap(const Eigen::Vector3i& idx){
+		if ((idx(0) >= this->mapVoxelMin_(0)) and (idx(0) < this->mapVoxelMax_(0)) and
+		    (idx(1) >= this->mapVoxelMin_(1)) and (idx(1) < this->mapVoxelMax_(1)) and 
+		    (idx(2) >= this->mapVoxelMin_(2)) and (idx(2) < this->mapVoxelMax_(2))){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+
+	inline void occMap::posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx){
+		idx(0) = floor( (pos(0) - this->mapSizeMin_(0) ) / this->mapRes_ );
+		idx(1) = floor( (pos(1) - this->mapSizeMin_(1) ) / this->mapRes_ );
+		idx(2) = floor( (pos(2) - this->mapSizeMin_(2) ) / this->mapRes_ );
+	}
+
+	inline void occMap::indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos){
+		pos(0) = (idx(0) + 0.5) * this->mapRes_ + this->mapSizeMin_(0); 
+		pos(1) = (idx(1) + 0.5) * this->mapRes_ + this->mapSizeMin_(1);
+		pos(2) = (idx(2) + 0.5) * this->mapRes_ + this->mapSizeMin_(2);
+	}
+
+	inline int occMap::posToAddress(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->indexToAddress(idx);
+	}
+
+	inline int occMap::posToAddress(double x, double y, double z){
+		Eigen::Vector3d pos (x, y, z);
+		return this->posToAddress(pos);
+	}
+
+	inline int occMap::indexToAddress(const Eigen::Vector3i& idx){
+		return idx(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2) + idx(1) * this->mapVoxelMax_(2) + idx(2);
+	}
+
+	inline int occMap::indexToAddress(int x, int y, int z){
+		Eigen::Vector3i idx (x, y, z);
+		return this->indexToAddress(idx);
+	}
+
+	inline void occMap::boundIndex(Eigen::Vector3i& idx){
+		Eigen::Vector3i temp;
+		temp(0) = std::max(std::min(idx(0), this->mapVoxelMax_(0)-1), this->mapVoxelMin_(0));
+		temp(1) = std::max(std::min(idx(1), this->mapVoxelMax_(1)-1), this->mapVoxelMin_(1));
+		temp(2) = std::max(std::min(idx(2), this->mapVoxelMax_(2)-1), this->mapVoxelMin_(2));
+		idx = temp;
+	}
+
+	inline bool occMap::isInLocalUpdateRange(const Eigen::Vector3d& pos){
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		return this->isInLocalUpdateRange(idx);
+	}
+
+	inline bool occMap::isInLocalUpdateRange(const Eigen::Vector3i& idx){
+		Eigen::Vector3d rangeMin = this->position_ - this->localUpdateRange_;
+		Eigen::Vector3d rangeMax = this->position_ + this->localUpdateRange_;
+		
+		Eigen::Vector3i rangeMinIdx, rangeMaxIdx;
+		this->posToIndex(rangeMin, rangeMinIdx);
+		this->posToIndex(rangeMax, rangeMaxIdx);
+
+		this->boundIndex(rangeMinIdx);
+		this->boundIndex(rangeMaxIdx);
+
+		bool inRange = (idx(0) >= rangeMinIdx(0)) and (idx(0) <= rangeMaxIdx(0)) and
+					   (idx(1) >= rangeMinIdx(1)) and (idx(1) <= rangeMaxIdx(1)) and
+					   (idx(2) >= rangeMinIdx(2)) and (idx(2) <= rangeMaxIdx(2));
+		return inRange;
+	}
+
+	inline Eigen::Vector3d occMap::adjustPointInMap(const Eigen::Vector3d& point){
+		Eigen::Vector3d pos = this->position_;
+		Eigen::Vector3d diff = point - pos;
+		Eigen::Vector3d offsetMin = this->mapSizeMin_ - pos;
+		Eigen::Vector3d offsetMax = this->mapSizeMax_ - pos;
+
+		double minRatio = 10000000;
+		for (int i=0; i<3; ++i){ // each axis
+			if (diff[i] != 0){
+				double ratio1 = offsetMin[i]/diff[i];
+				double ratio2 = offsetMax[i]/diff[i];
+				if ((ratio1 > 0) and (ratio1 < minRatio)){
+					minRatio = ratio1;
+				}
+
+				if ((ratio2 > 0) and (ratio2 < minRatio)){
+					minRatio = ratio2;
+				}
+			}
+		}
+
+		return pos + (minRatio - 1e-3) * diff;
+	}
+
+
+	inline Eigen::Vector3d occMap::adjustPointRayLength(const Eigen::Vector3d& point){
+		double length = (point - this->position_).norm();
+		return (point - this->position_) * (this->raycastMaxLength_/length) + this->position_;
+	}
+
+	inline int occMap::updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied){
+		Eigen::Vector3i idx;
+		this->posToIndex(point, idx);
+		int voxelID = this->indexToAddress(idx);
+		this->countHitMiss_[voxelID] += 1;
+		if (this->countHitMiss_[voxelID] == 1){
+			this->updateVoxelCache_.push(idx);
+		}
+		if (isOccupied){ // if not adjusted set it to occupied, otherwise it is free
+			this->countHit_[voxelID] += 1;
+		}
+		return voxelID;
+	}
+
+	inline void occMap::getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix){
+		Eigen::Quaterniond quat;
+		quat = Eigen::Quaterniond(pose->pose.orientation.w, pose->pose.orientation.x, pose->pose.orientation.y, pose->pose.orientation.z);
+		Eigen::Matrix3d rot = quat.toRotationMatrix();
+
+		// convert body pose to camera pose
+		Eigen::Matrix4d map2body; map2body.setZero();
+		map2body.block<3, 3>(0, 0) = rot;
+		map2body(0, 3) = pose->pose.position.x; 
+		map2body(1, 3) = pose->pose.position.y;
+		map2body(2, 3) = pose->pose.position.z;
+		map2body(3, 3) = 1.0;
+
+		camPoseMatrix = map2body * this->body2Cam_;
+	}
+
+	inline void occMap::getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix){
+		Eigen::Quaterniond quat;
+		quat = Eigen::Quaterniond(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x, odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
+		Eigen::Matrix3d rot = quat.toRotationMatrix();
+
+		// convert body pose to camera pose
+		Eigen::Matrix4d map2body; map2body.setZero();
+		map2body.block<3, 3>(0, 0) = rot;
+		map2body(0, 3) = odom->pose.pose.position.x; 
+		map2body(1, 3) = odom->pose.pose.position.y;
+		map2body(2, 3) = odom->pose.pose.position.z;
+		map2body(3, 3) = 1.0;
+
+		camPoseMatrix = map2body * this->body2Cam_;
+	}
 }
 
 #endif

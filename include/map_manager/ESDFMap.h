@@ -43,17 +43,6 @@ namespace mapManager{
 		// visualization
 		void ESDFPubCB(const ros::TimerEvent& );
 		void publishESDF();
-
-		// inline functions
-		bool isInMap(const Eigen::Vector3d& pos);
-		bool isInMap(const Eigen::Vector3i& idx);
-		void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx);
-		void indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos);
-		int posToAddress(const Eigen::Vector3d& idx);
-		int posToAddress(double x, double y, double z);
-		int indexToAddress(const Eigen::Vector3i& idx);
-		int indexToAddress(int x, int y, int z);
-		void boundIndex(Eigen::Vector3i& idx);
 	};
 }
 
