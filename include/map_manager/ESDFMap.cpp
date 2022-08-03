@@ -47,7 +47,9 @@ namespace mapManager{
 		startTime = ros::Time::now();
 		this->updateESDF3D();
 		endTime = ros::Time::now();
-		cout << this->hint_ << ": ESDF update time: " << (endTime - startTime).toSec() << " s." << endl; 
+		if (this->verbose_){
+			cout << this->hint_ << ": ESDF update time: " << (endTime - startTime).toSec() << " s." << endl; 
+		}
 		this->esdfNeedUpdate_ = false;
 
 	}

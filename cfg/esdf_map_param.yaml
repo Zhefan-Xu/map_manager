@@ -41,3 +41,4 @@ clean_local_map: true
 local_map_size: [20, 20, 6] # meter. in x y z direction (only for visualization)
 max_height_visualization: 2.0 # m
 visualize_global_map: false
+verbose: false

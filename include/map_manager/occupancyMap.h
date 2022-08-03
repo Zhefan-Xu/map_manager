@@ -84,6 +84,7 @@ namespace mapManager{
 		Eigen::Vector3d localMapSize_;
 		Eigen::Vector3i localMapVoxel_; // voxel representation of local map size
 		bool visGlobalMap_;
+		bool verbose_;
 		// -----------------------------------------------------------------
 
 

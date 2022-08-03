@@ -25,7 +25,7 @@ namespace mapManager{
 			cout << this->hint_ << ": No localization mode option. Use default: pose" << endl;
 		}
 		else{
-			cout << this->hint_ << ": Localizaiton mode: pose (0)/odom (1). Your option: : " << this->localizationMode_ << endl;
+			cout << this->hint_ << ": Localizaiton mode: pose (0)/odom (1). Your option: " << this->localizationMode_ << endl;
 		}
 
 		// depth topic name
@@ -331,13 +331,27 @@ namespace mapManager{
 			cout << this->hint_ << ": Max visualization height: " << this->maxVisHeight_ << endl;
 		}
 
-		// max vis height
+		// visualize global map
 		if (not this->nh_.getParam(this->ns_ + "/visualize_global_map", this->visGlobalMap_)){
 			this->visGlobalMap_ = false;
 			cout << this->hint_ << ": No visualize map option. Use default: visualize local map." << endl;
 		}
 		else{
 			cout << this->hint_ << ": Visualize map option. local (0)/global (1): " << this->visGlobalMap_ << endl;
+		}
+
+		// verbose
+		if (not this->nh_.getParam(this->ns_ + "/verbose", this->verbose_)){
+			this->verbose_ = true;
+			cout << this->hint_ << ": No verbose option. Use default: check update info." << endl;
+		}
+		else{
+			if (not this->verbose_){
+				cout << this->hint_ << ": Not display messages" << endl;
+			}
+			else{
+				cout << this->hint_ << ": Display messages" << endl;
+			}
 		}
 
 
@@ -451,8 +465,9 @@ namespace mapManager{
 		// infalte map
 		// this->inflateLocalMap();
 		endTime = ros::Time::now();
-		
-		cout << this->hint_ << ": Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
+		if (this->verbose_){
+			cout << this->hint_ << ": Occupancy update time: " << (endTime - startTime).toSec() << " s." << endl;
+		}
 		this->occNeedUpdate_ = false;
 		this->mapNeedInflate_ = true;
 	}
