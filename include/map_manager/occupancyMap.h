@@ -149,6 +149,7 @@ namespace mapManager{
 		bool isFree(const Eigen::Vector3i& idx);
 		bool isUnknown(const Eigen::Vector3d& pos);
 		bool isUnknown(const Eigen::Vector3i& idx);
+		double getRes();
 
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
@@ -219,6 +220,10 @@ namespace mapManager{
 	inline bool occMap::isUnknown(const Eigen::Vector3i& idx){
 		int address = this->indexToAddress(idx);
 		return this->occupancy_[address] < this->pMinLog_;		
+	}
+
+	inline double occMap::getRes(){
+		return this->mapRes_;
 	}
 	// end of user functinos
 
