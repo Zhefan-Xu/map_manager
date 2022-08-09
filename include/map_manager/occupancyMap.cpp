@@ -389,6 +389,7 @@ namespace mapManager{
 		this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud", 10);
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
+		// this->visWorker_ = std::thread(&occMap::startVisualization, this);
 	}
 
 
@@ -759,6 +760,16 @@ namespace mapManager{
 		this->publishMap();
 		this->publishInflatedMap();
 	}
+
+	// void occMap::startVisualization(){
+	// 	ros::Rate r (10);
+	// 	while (ros::ok()){
+	// 		// this->publishProjPoints();
+	// 		// this->publishMap();
+	// 		this->publishInflatedMap();
+	// 		r.sleep();
+	// 	}
+	// }
 
 	void occMap::publishProjPoints(){
 		pcl::PointXYZ pt;

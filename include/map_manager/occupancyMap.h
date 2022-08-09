@@ -21,6 +21,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/raycast.h>
+#include <thread>
 
 using std::cout; using std::endl;
 namespace mapManager{
@@ -122,6 +123,8 @@ namespace mapManager{
 		// ------------------------------------------------------------------
 
 	public:
+		// std::thread visWorker_;
+
 		occMap(); // empty constructor
 		void initMap(const ros::NodeHandle& nh);
 		void initParam();
@@ -153,6 +156,7 @@ namespace mapManager{
 
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
+		// void startVisualization();
 		void publishProjPoints();
 		void publishMap();
 		void publishInflatedMap();
