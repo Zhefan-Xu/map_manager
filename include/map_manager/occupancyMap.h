@@ -126,6 +126,7 @@ namespace mapManager{
 		// std::thread visWorker_;
 
 		occMap(); // empty constructor
+		occMap(const ros::NodeHandle& nh);
 		void initMap(const ros::NodeHandle& nh);
 		void initParam();
 		void registerCallback();

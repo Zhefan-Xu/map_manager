@@ -24,6 +24,7 @@ namespace mapManager{
 
 	public:
 		ESDFMap(); // empty constructor
+		ESDFMap(const ros::NodeHandle& nh);
 		void initMap(const ros::NodeHandle& nh);
 		void initESDFParam();
 		void registerESDFPub();

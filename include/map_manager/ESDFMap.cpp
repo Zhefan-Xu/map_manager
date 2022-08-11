@@ -11,6 +11,18 @@ namespace mapManager{
 		this->hint_ = "[ESDFMap]";
 	}
 
+	ESDFMap::ESDFMap(const ros::NodeHandle& nh){
+		this->ns_ = "esdf_map";
+		this->hint_ = "[ESDFMap]";
+		this->nh_ = nh;
+		this->initParam();
+		this->initESDFParam();
+		this->registerPub();
+		this->registerESDFPub();
+		this->registerCallback();
+		this->registerESDFCallback();
+	}
+
 	void ESDFMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();

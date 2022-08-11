@@ -11,6 +11,14 @@ namespace mapManager{
 		this->hint_ = "[OccMap]";
 	}
 
+	occMap::occMap(const ros::NodeHandle& nh) : nh_(nh){
+		this->ns_ = "occupancy_map";
+		this->hint_ = "[OccMap]";
+		this->initParam();
+		this->registerPub();
+		this->registerCallback();
+	}
+
 	void occMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();
