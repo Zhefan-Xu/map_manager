@@ -149,11 +149,13 @@ namespace mapManager{
 		bool isOccupied(const Eigen::Vector3i& idx); // does not count for unknown
 		bool isInflatedOccupied(const Eigen::Vector3d& pos);
 		bool isInflatedOccupied(const Eigen::Vector3i& idx);
+		bool isInflatedOccupiedLine(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2);
 		bool isFree(const Eigen::Vector3d& pos);
 		bool isFree(const Eigen::Vector3i& idx);
 		bool isUnknown(const Eigen::Vector3d& pos);
 		bool isUnknown(const Eigen::Vector3i& idx);
 		double getRes();
+		void getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax);
 
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
@@ -190,6 +192,9 @@ namespace mapManager{
 	}
 
 	inline bool occMap::isOccupied(const Eigen::Vector3i& idx){
+		if (not this->isInMap(idx)){
+			return true;
+		}
 		int address = this->indexToAddress(idx);
 		return this->occupancy_[address] >= this->pOccLog_;
 	}
@@ -201,8 +206,33 @@ namespace mapManager{
 	}
 
 	inline bool occMap::isInflatedOccupied(const Eigen::Vector3i& idx){
+		if (not this->isInMap(idx)){
+			return true;
+		}
 		int address = this->indexToAddress(idx);
 		return this->occupancyInflated_[address] == true;
+	}
+
+	inline bool occMap::isInflatedOccupiedLine(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2){		
+		if (this->isInflatedOccupied(pos1) or this->isInflatedOccupied(pos2)){
+			return true;
+		}
+
+		Eigen::Vector3d diff = pos2 - pos1;
+		double dist = diff.norm();
+		Eigen::Vector3d diffUnit = diff/dist;
+		int stepNum = int(dist/this->mapRes_);
+		Eigen::Vector3d pCheck;
+		Eigen::Vector3d unitIncrement = diffUnit * this->mapRes_;
+		bool isOccupied = false;
+		for (int i=1; i<stepNum; ++i){
+			pCheck = pos1 + i * unitIncrement;
+			isOccupied = this->isInflatedOccupied(pCheck);
+			if (isOccupied){
+				return true;
+			}
+		}
+		return false;
 	}
 
 	inline bool occMap::isFree(const Eigen::Vector3d& pos){
@@ -212,6 +242,9 @@ namespace mapManager{
 	}
 
 	inline bool occMap::isFree(const Eigen::Vector3i& idx){
+		if (not this->isInMap(idx)){
+			return false;
+		}
 		int address = this->indexToAddress(idx);
 		return (this->occupancy_[address] < this->pOccLog_) and (this->occupancy_[address] >= this->pMinLog_);
 	}
@@ -229,6 +262,11 @@ namespace mapManager{
 
 	inline double occMap::getRes(){
 		return this->mapRes_;
+	}
+
+	inline void occMap::getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax){
+		mapSizeMin = this->mapSizeMin_;
+		mapSizeMax = this->mapSizeMax_;
 	}
 	// end of user functinos
 
