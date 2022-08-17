@@ -647,6 +647,15 @@ namespace mapManager{
 				continue; // do not update if not in the range
 			}
 
+			if (this->useFreeRegions_){ // current used in simulation, this region will not be updated and directly set to free
+				Eigen::Vector3d pos;
+				this->indexToPos(cacheIdx, pos);
+				if (this->isInFreeRegions(pos)){
+					this->occupancy_[cacheAddress] = this->pMinLog_;
+					continue;
+				}
+			}
+
 			// update occupancy info
 			if ((logUpdateValue >= 0) and (this->occupancy_[cacheAddress] >= this->pMaxLog_)){
 				continue; // not increase p if max clamped
