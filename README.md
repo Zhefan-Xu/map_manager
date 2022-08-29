@@ -1,6 +1,10 @@
 # 3D Mapping For Autonomous Robots
 This repo contains 3D [octomap](https://octomap.github.io/), [occupancy map](https://en.wikipedia.org/wiki/Occupancy_grid_mapping) and ESDF map for autonomous navigation.
 
+```
+sudo ln -s /usr/include/eigen3/Eigen/ /usr/include/Eigen
+```
+
 ### I. Install
 ```
 sudo apt-get install ros-noetic-octomap*
