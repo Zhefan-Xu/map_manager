@@ -163,6 +163,7 @@ namespace mapManager{
 		void updateFreeRegions(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions);
 		double getRes();
 		void getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax);
+		bool castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength=5.0);
 
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
@@ -348,6 +349,22 @@ namespace mapManager{
 	inline void occMap::getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax){
 		mapSizeMin = this->mapSizeMin_;
 		mapSizeMax = this->mapSizeMax_;
+	}
+
+	inline bool occMap::castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength){
+		// return true if raycasting successfully find the endpoint, otherwise return false
+
+		Eigen::Vector3d directionNormalized = direction/direction.norm(); // normalize the direction vector
+		int num = ceil(maxLength/this->mapRes_);
+		for (int i=1; i<num; ++i){
+			Eigen::Vector3d point = this->mapRes_ * directionNormalized * i + start;
+			if (this->isInflatedOccupied(point)){
+				end = point;
+				return true;
+			}
+		}
+		end = start;
+		return false;
 	}
 	// end of user functinos
 
