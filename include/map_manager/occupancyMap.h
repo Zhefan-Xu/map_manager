@@ -358,7 +358,7 @@ namespace mapManager{
 		int num = ceil(maxLength/this->mapRes_);
 		for (int i=1; i<num; ++i){
 			Eigen::Vector3d point = this->mapRes_ * directionNormalized * i + start;
-			if (not ignoreUnknown){
+			if (ignoreUnknown){
 				if (this->isInflatedOccupied(point)){
 					end = point;
 					return true;
