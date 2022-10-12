@@ -24,14 +24,13 @@ namespace mapManager{
 	}
 
 	void dynamicMap::initDynamicParam(){
-
 		// debuging
-		if (not this->nh_.getParam(this->ns_ + "/detect_debug", this->detectDebug_)){
-			this->detectDebug_= 0;
-			cout << this->hint_ << ": No detect_debug. Use default: 5." << endl;
+		if (not this->nh_.getParam(this->ns_ + "/detection_debug", this->detectionDebug_)){
+			this->detectionDebug_= 0;
+			cout << this->hint_ << ": No detection debug parameter. Use default: false." << endl;
 		}
 		else{
-			cout << this->hint_ << ": detect_ebug: " << this->detectDebug_ << endl;
+			cout << this->hint_ << ": Detection debug is set to: " << this->detectionDebug_ << endl;
 		}  
 
 		if (not this->nh_.getParam(this->ns_ + "/ve_debug", this->veDebug_)){
@@ -42,15 +41,6 @@ namespace mapManager{
 			cout << this->hint_ << ": ve_ebug: " << this->veDebug_ << endl;
 		}
 
-		// life time for visualizing lines
-		if (not this->nh_.getParam(this->ns_ + "/vis_life_time", this->visLifeTime_)){
-			this->visLifeTime_= 0.1;
-			cout << this->hint_ << ": No vis_life_time. Use default: 5." << endl;
-		}
-		else{
-			cout << this->hint_ << ": vis_life_time: " << this->visLifeTime_ << endl;
-		}
-		
 
 		// testing
 		if (not this->nh_.getParam(this->ns_ + "/test_vel", this->testVel_)){
@@ -74,7 +64,7 @@ namespace mapManager{
 			cout << this->hint_ << ": No map refine inflate coefficient. Use default: 1000." << endl;
 		}
 		else{
-			cout << this->hint_ << ": map refine inflate coefficient: " << this->mapRefineInflateCoef_ << endl;
+			cout << this->hint_ << ": Map refine inflate coefficient: " << this->mapRefineInflateCoef_ << endl;
 		}
 		
 		if (not this->nh_.getParam(this->ns_ + "/raw_box_width_limit_lower", this->rawBoxWidthLimitLower_)){
@@ -114,7 +104,7 @@ namespace mapManager{
 			cout << this->hint_ << ": No map refine floor height. Use default: 0.2." << endl;
 		}
 		else{
-			cout << this->hint_ << ": map refine floor height: " << this->mapRefineFloor_ << endl;
+			cout << this->hint_ << ": Map refine floor height: " << this->mapRefineFloor_ << endl;
 		}
 
 		if (not this->nh_.getParam(this->ns_ + "/hist_clean_skip", this->histCleanSkip_)){
@@ -133,12 +123,12 @@ namespace mapManager{
 			cout << this->hint_ << ": clean_extra_dist: " << this->cleanExtraDist_ << endl;
 		}
 
-		if (not this->nh_.getParam(this->ns_ + "/ground_thick", this->groundThick_)){
+		if (not this->nh_.getParam(this->ns_ + "/ground_thickness", this->groundThick_)){
 			this->groundThick_= 0.1;
-			cout << this->hint_ << ": No ground_thick. Use default: 5." << endl;
+			cout << this->hint_ << ": No ground thickness parameter. Use default: 0.1." << endl;
 		}
 		else{
-			cout << this->hint_ << ": ground_thick: " << this->groundThick_ << endl;
+			cout << this->hint_ << ": Ground thickness: " << this->groundThick_ << endl;
 		}
 
 		if (not this->nh_.getParam(this->ns_ + "/timestep", this->ts_)){
@@ -720,8 +710,9 @@ namespace mapManager{
 			float xmin = std::numeric_limits<float>::max();
 			float ymin = std::numeric_limits<float>::max();
 			float zmin = std::numeric_limits<float>::max();
-			if(this->detectDebug_){
-				printf("3d box %d on world: %f, %f, %f,%f ,%f, %f\n",i,this->rawBox3Ds_[i].x,this->rawBox3Ds_[i].y,this->rawBox3Ds_[i].z,this->rawBox3Ds_[i].x_width,this->rawBox3Ds_[i].y_width,this->rawBox3Ds_[i].z_width);
+			if(this->detectionDebug_){
+				cout << this->hint_  << ": 3D bounding boxes on the world frame: id: " << i << ", pos: (" << this->rawBox3Ds_[i].x << ", " << this->rawBox3Ds_[i].y << ", " << this->rawBox3Ds_[i].z << "), " << "size: (" 
+				<< this->rawBox3Ds_[i].x_width << ", " << this->rawBox3Ds_[i].y_width << ", " << this->rawBox3Ds_[i].z_width << endl; 
 			}
 			
 			float widthX = std::max(this->rawBox3Ds_[i].x_width,this->rawBox3Ds_[i].y_width)*this->mapRefineInflateCoef_;
@@ -767,7 +758,7 @@ namespace mapManager{
 
 				box3dsTemp.push_back(box3dTemp);
 
-				if(this->detectDebug_){
+				if(this->detectionDebug_){
 					printf("fused 3d box %lu on world: %f, %f, %f,%f ,%f, %f\n",i,box3dTemp.x,box3dTemp.y,box3dTemp.z,box3dTemp.x_width,box3dTemp.y_width,box3dTemp.z_width);
 				}
 			}
@@ -811,7 +802,7 @@ namespace mapManager{
 		this->initTrackedStatesArr(this->preKfStates_, this->nowKfStates_, int(nowBb.size()));// kalman filters states
 		
 
-		if (this->detectDebug_){
+		if (this->detectionDebug_){
 			printf("nowBb size %lu\n", nowBb.size());
 			printf("nowHist size %lu\n",nowHistInFov_.size());
 			printf("preBb_ size %lu\n", preBb_.size());
@@ -834,7 +825,7 @@ namespace mapManager{
 			for(size_t preId = 0; preId < this->preBb_.size(); preId++)
 			{
 				if (this->checkTrack(this->nowOrg_[nowId], this->preOrg_[preId])) { 
-					if (this->detectDebug_){
+					if (this->detectionDebug_){
 						std::cout<<"push "<<preId<<" as candidate"<<std::endl;
 					}
 					
@@ -862,7 +853,7 @@ namespace mapManager{
 					preId = checkQ[0];
 				}
 
-				if (this->detectDebug_){
+				if (this->detectionDebug_){
 					std::cout<<"Trakck Now "<<nowId<<"From "<<preId<<std::endl;
 				}
 
@@ -922,7 +913,7 @@ namespace mapManager{
 
 
 	void dynamicMap::updateNonTrackedStates(const int &nowId){
-		if (this->detectDebug_){
+		if (this->detectionDebug_){
 			std::cout<<nowId<<" =========================NOT TRACKED! ==========================\n"<<std::endl;
 		}
 		// initiate fix flag
@@ -1001,7 +992,7 @@ namespace mapManager{
 			
 			if ((abs(this->nowBb2d_[nowId].tl().x-pre.tl().x) <3 || abs(this->nowBb2d_[nowId].br().x-pre.br().x )< 3) && this->nowBb2d_[nowId].br().x<this->fovXMarginUpper_ && this->nowBb2d_[nowId].tl().x>this->fovXMarginLower_)
 			{
-				if (this->detectDebug_||this->veDebug_){
+				if (this->detectionDebug_||this->veDebug_){
 					ROS_INFO("%ld ============velocity cancel==============",nowId);
 					std::cout<<this->nowBb2d_[nowId].tl().x<<" "<<this->preBb2d_[preId].tl().x<<" "<<this->nowBb2d_[nowId].br().x<<" "<<this->preBb2d_[preId].br().x<<std::endl;
 				}
@@ -1050,7 +1041,7 @@ namespace mapManager{
 			this->nowBb_[i].Vy = Vy; 
 
 
-			if (this->detectDebug_){
+			if (this->detectionDebug_){
 				
 				printf("OBJ %ld:avg:%f, vAvgMeasure: %f, queue lenght %ld, continuity %f",i,norm(Vx,Vy),vAvgMeasured, this->nowHist_[i].size(),contAvg);
 				printf("OBJ %ld size:%f,%f,%f center %f, %f, %f\n",i,this->nowBb_[i].x_width,this->nowBb_[i].y_width,this->nowBb_[i].z_width,nowBb_[i].x,nowBb_[i].y,nowBb_[i].z);
@@ -1073,7 +1064,7 @@ namespace mapManager{
 				|| (this->nowBb_[i].x_width>this->fusedBoxWidthLimitUpper_ && this->nowBb_[i].y_width>this->fusedBoxWidthLimitUpper_) 
 				|| this->nowBb_[i].z_width<this->fusedBoxHeightLimitLower_ || this->nowBb_[i].z_width>this->fusedBoxHeightLimitUpper_
 				|| (this->nowBb_[i].z-this->nowBb_[i].z_width/2 > this->lowestPointLimit_)) {
-					if (this->detectDebug_){     
+					if (this->detectionDebug_){     
 						if ((length/height>this->sizeRatioUpper_ )|| (length/height<this->sizeRatioLower_ )|| (width/height<this->sizeRatioLower_) || (width/height>this->sizeRatioUpper_)){
 							std::cout<<"1: "<<" "<<std::endl;
 						}
@@ -1098,14 +1089,14 @@ namespace mapManager{
 				
 				}
 				else {
-					if (this->detectDebug_){
+					if (this->detectionDebug_){
 						std::cout<<"FISRT LAYER PASS"<<std::endl;
 					}
 				}
 
 			}   
 			else {
-				if (this->detectDebug_){
+				if (this->detectionDebug_){
 					std::cout<<"FISRT LAYER FAIL"<<std::endl;
 				}
 				
@@ -1134,7 +1125,7 @@ namespace mapManager{
 			for (size_t j=0 ; j<this->nowVoteHist_[i].size() ; j++) {
 				sum += this->nowVoteHist_[i][j];
 			}  
-			if (this->detectDebug_){
+			if (this->detectionDebug_){
 				printf("sum %ld:, %d\n",i,sum);
 				printf("vote for now i%ld : %d",i,this->nowVoteHist_[i].back());
 			}
@@ -1159,12 +1150,12 @@ namespace mapManager{
 				dynamicObjs.push_back(nowBb_[i]);
 				dynamicObjs.back().z = dynamicObjs.back().z_width/2+this->groundThick_;
 				dynamicHistInd.push_back(i);
-				if (this->detectDebug_){
+				if (this->detectionDebug_){
 					printf("MOVE OBJ %ld, width: %f, %f, %f\n",i,dynamicObjs.back().x_width,dynamicObjs.back().y_width,dynamicObjs.back().z_width);
 				}
 			}
 			else {
-				if (this->detectDebug_){
+				if (this->detectionDebug_){
 					printf("STATIC OBJ %ld\n",i); 
 				}
 			}
@@ -1175,7 +1166,7 @@ namespace mapManager{
 	double dynamicMap::continuityFilter(const int &nowId) {
 		int countShake = 0;
 		double contAvg = this->contTresh_;
-		if (this->detectDebug_){
+		if (this->detectionDebug_){
 			printf("hist size %ld, checkshakecountsize %ld", this->nowHist_[nowId].size(),this->CFHistSize_);
 		}
 
@@ -1196,7 +1187,7 @@ namespace mapManager{
 					double angle = (vx*preVx+vy*preVy)/(norm(vx, vy)+norm(preVx, preVy));
 					angles.push_back(angle);
 					countShake += angle>0;
-					if(this->detectDebug_){
+					if(this->detectionDebug_){
 						printf("vx %f, vy %f, angle %f", vx, vy, angle);
 					}
 					angleSum += angle;
@@ -1538,7 +1529,7 @@ namespace mapManager{
 		}
 
 		line.color.a = 1.0;
-		line.lifetime = ros::Duration(this->visLifeTime_);
+		line.lifetime = ros::Duration(0.1);
 
 		for(size_t i = 0; i < boxes.size(); i++){
 			// visualization msgs
@@ -1624,7 +1615,7 @@ namespace mapManager{
 		line.scale.x = 0.05;
 		line.color.b = 1.0;
 		line.color.a = 1.0;
-		line.lifetime = ros::Duration(this->visLifeTime_);
+		line.lifetime = ros::Duration(0.1);
 
 		for (size_t i=0 ; i<this->dynamicObjs_.size() ; i++) {
 			// Line list is 
@@ -1660,7 +1651,7 @@ namespace mapManager{
 		
 		line.color.g = 1.0;
 		line.color.a = 1.0;
-		line.lifetime = ros::Duration(this->visLifeTime_);
+		line.lifetime = ros::Duration(0.1);
 		for (size_t i=0 ; i<this->dynamicObjs_.size() ; i++) {
 			// Line list is 
 			if (this->bestTrajs_[i].size()<=1) {

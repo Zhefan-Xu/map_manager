@@ -6,7 +6,6 @@
 # depth_scale_factor
 # conti_thresh: 0.2 for real world, 0 for simulation
 
-
 localization_mode: 0 # 0: pose (default) 1: odom
 # for drone
 # depth_image_topic: /camera/depth/image_rect_raw
@@ -65,7 +64,7 @@ verbose: false
 # dynamic map parameters
 
 # debug
-detect_debug: 0
+detection_debug: 0
 ve_debug: 0
 
 # visualizaiton
@@ -87,7 +86,7 @@ map_refine_floor: 0.2 # height of floor;should be higher than robot z_size/2
 # dynamic region clean
 hist_clean_skip: 1 # step size for picking from tracking history when clean dynamic region 
 clean_extra_dist: 0.2 # clean extra distance on z direction
-ground_thick: 0.0 # thickness of ground 
+ground_thickness: 0.0 # thickness of ground 
 
 # track & estimate velocty
 timestep: 0.033 # system time step

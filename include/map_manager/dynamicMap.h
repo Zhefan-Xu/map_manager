@@ -27,11 +27,8 @@ namespace mapManager{
 		// -----------------------------------------------------------------
 
 		// debug
-		int detectDebug_;
+		int detectionDebug_;
 		int veDebug_;
-
-		// vis
-		float visLifeTime_;
 
 		// test
 		int testVel_;
