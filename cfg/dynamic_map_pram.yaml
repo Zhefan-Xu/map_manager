@@ -64,18 +64,15 @@ verbose: false
 # dynamic map parameters
 
 # debug
-detection_debug: 0
-ve_debug: 0
-
-# visualizaiton
-vis_life_time: 0.1
+detection_debug: false
+velocity_debug: false
 
 # test
-test_vel: 0
-test_pos: 0
+test_vel: false
+test_pos: false
 
 # map refinement
-map_refine_inflate_coefficient: 1.15 # ratio to inflate in dynamic region clean
+map_refinement_inflate_coefficient: 1.15 # ratio to inflate in dynamic region clean
 # sizes limits for raw box from UV_detector
 raw_box_width_limit_lower: 0.2 
 raw_box_height_limit_lower: 1.0
@@ -84,6 +81,7 @@ raw_box_height_limit_upper: 2.0
 map_refine_floor: 0.2 # height of floor;should be higher than robot z_size/2
 
 # dynamic region clean
+pre_history_clean_size: 50 # size of history for dynamic region clean
 hist_clean_skip: 1 # step size for picking from tracking history when clean dynamic region 
 clean_extra_dist: 0.2 # clean extra distance on z direction
 ground_thickness: 0.0 # thickness of ground 
@@ -105,8 +103,6 @@ e_q: 0.002
 e_r: 0.3
 
 # identify dynamic objs
-pre_history_clean_size: 50 # size of history for dynamic region clean
-
 # first layer detect
 avg_velocty_history_size: 10 # number of frames to calculate velocity
 now_history_size: 20 # size of tracking history for all boxes
@@ -125,8 +121,6 @@ lowest_point_limit: 0.2
 static_thresh: 4 # threshold for voting as static
 dynamic_thresh: 8 # threshold for voting as dynamic
 vote_history_size: 10 # size of voting history
-
-
 
 
 # traj pred

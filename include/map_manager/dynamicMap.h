@@ -27,12 +27,12 @@ namespace mapManager{
 		// -----------------------------------------------------------------
 
 		// debug
-		int detectionDebug_;
-		int veDebug_;
+		bool detectionDebug_;
+		bool veDebug_;
 
 		// test
-		int testVel_;
-		int testPos_;
+		bool testVel_;
+		bool testPos_;
 
 		// map refinement
 		float mapRefineInflateCoef_;
@@ -277,26 +277,31 @@ namespace mapManager{
 		// 
 	};
 
-	template <typename T> inline T dynamicMap::norm(const T &x, const T &y){
+	template <typename T> 
+	inline T dynamicMap::norm(const T &x, const T &y){
 		return std::sqrt(std::pow(x,2)+std::pow(y,2));
 	}
 
-	template <typename T> inline T dynamicMap::distance(const T &Ax, const T &Ay, const T &Bx, const T &By){
+	template <typename T> 
+	inline T dynamicMap::distance(const T &Ax, const T &Ay, const T &Bx, const T &By){
 		return norm<T>(Ax-Bx, Ay-By);
 	}
 
-	template <typename T> inline void dynamicMap::initTrackedStatesArr(T &preContainer, T &nowContainer, const int size){
+	template <typename T> 
+	inline void dynamicMap::initTrackedStatesArr(T &preContainer, T &nowContainer, const int size){
 		preContainer = nowContainer;
 		nowContainer.clear();
 		nowContainer.resize(size);
 	}
 
-	template <typename T> inline void dynamicMap::initTrackedStatesArr(T &container, const int size){
+	template <typename T> 
+	inline void dynamicMap::initTrackedStatesArr(T &container, const int size){
 		container.clear();
 		container.resize(size);
 	}
 
-	template <typename T, typename U> inline void dynamicMap::initTrackedStatesVar(T &preVar, T &nowVar, U &income){
+	template <typename T, typename U> 
+	inline void dynamicMap::initTrackedStatesVar(T &preVar, T &nowVar, U &income){
 		preVar = nowVar;
 		nowVar = income;
 	}

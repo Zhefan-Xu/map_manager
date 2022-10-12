@@ -26,47 +26,49 @@ namespace mapManager{
 	void dynamicMap::initDynamicParam(){
 		// debuging
 		if (not this->nh_.getParam(this->ns_ + "/detection_debug", this->detectionDebug_)){
-			this->detectionDebug_= 0;
+			this->detectionDebug_= false;
 			cout << this->hint_ << ": No detection debug parameter. Use default: false." << endl;
 		}
 		else{
 			cout << this->hint_ << ": Detection debug is set to: " << this->detectionDebug_ << endl;
 		}  
 
-		if (not this->nh_.getParam(this->ns_ + "/ve_debug", this->veDebug_)){
-			this->veDebug_= 0;
-			cout << this->hint_ << ": No ve_debug. Use default: 5." << endl;
+		if (not this->nh_.getParam(this->ns_ + "/velocity_debug", this->veDebug_)){
+			this->veDebug_= false;
+			cout << this->hint_ << ": No velocity debug parameter. Use default: false." << endl;
 		}   
 		else{
-			cout << this->hint_ << ": ve_ebug: " << this->veDebug_ << endl;
+			cout << this->hint_ << ": Velocity debug is set to: " << this->veDebug_ << endl;
 		}
 
 
 		// testing
-		if (not this->nh_.getParam(this->ns_ + "/test_vel", this->testVel_)){
-			this->testVel_= 0;
-			cout << this->hint_ << ": No test_vel. Use default: 5." << endl;
+		if (not this->nh_.getParam(this->ns_ + "/publish_test_vel", this->testVel_)){
+			this->testVel_= false;
+			cout << this->hint_ << ": No publish test velocity parameter. Use default: false." << endl;
 		}
 		else{
-			cout << this->hint_ << ": test_vel: " << this->testVel_ << endl;
+			cout << this->hint_ << ": Publish test velocity is set to: " << this->testVel_ << endl;
 		}
 
-		if (not this->nh_.getParam(this->ns_ + "/test_pos", this->testPos_)){
-			this->testPos_= 0;
-			cout << this->hint_ << ": No test_pos. Use default: 5." << endl;
+		if (not this->nh_.getParam(this->ns_ + "/publish_test_pos", this->testPos_)){
+			this->testPos_= false;
+			cout << this->hint_ << ": No publish test position parameter. Use default: false." << endl;
 		}
 		else{
-			cout << this->hint_ << ": test_pos: " << this->testPos_ << endl;
+			cout << this->hint_ << ": Publish test position is set to: " << this->testPos_ << endl;
 		}
 
-		if (not this->nh_.getParam(this->ns_ + "/map_refine_inflate_coefficient", this->mapRefineInflateCoef_)){
-			this->mapRefineInflateCoef_ = 1.3;
-			cout << this->hint_ << ": No map refine inflate coefficient. Use default: 1000." << endl;
+		// map refinement inflation coefficient
+		if (not this->nh_.getParam(this->ns_ + "/map_refinement_inflation_coefficient", this->mapRefineInflateCoef_)){
+			this->mapRefineInflateCoef_ = 1.15;
+			cout << this->hint_ << ": No map refinement inflation coefficient. Use default: 1.15." << endl;
 		}
 		else{
-			cout << this->hint_ << ": Map refine inflate coefficient: " << this->mapRefineInflateCoef_ << endl;
+			cout << this->hint_ << ": Map refinement inflation coefficient: " << this->mapRefineInflateCoef_ << endl;
 		}
 		
+		// raw bounding box width limit lower
 		if (not this->nh_.getParam(this->ns_ + "/raw_box_width_limit_lower", this->rawBoxWidthLimitLower_)){
 			this->rawBoxWidthLimitLower_ = 0.2;
 			cout << this->hint_ << ": No raw box width limit lower. Use default: 0.2." << endl;
@@ -107,20 +109,30 @@ namespace mapManager{
 			cout << this->hint_ << ": Map refine floor height: " << this->mapRefineFloor_ << endl;
 		}
 
-		if (not this->nh_.getParam(this->ns_ + "/hist_clean_skip", this->histCleanSkip_)){
-			this->histCleanSkip_= 5;
-			cout << this->hint_ << ": No hist_clean_skip. Use default: 5." << endl;
+		int preHistCleanSizeTemp;
+		if (not this->nh_.getParam(this->ns_ + "/pre_history_clean_size", preHistCleanSizeTemp)){
+			this->preHistCleanSize_ = 100;
+			cout << this->hint_ << ": No dynamic region clean frame size. Use default: 100." << endl;
 		}
 		else{
-			cout << this->hint_ << ": hist_clean_skip: " << this->histCleanSkip_ << endl;
+			this->preHistCleanSize_ = preHistCleanSizeTemp;
+			cout << this->hint_ << ": Dynamic region clean frame size: " << this->preHistCleanSize_ << endl;
+		}
+
+		if (not this->nh_.getParam(this->ns_ + "/hist_clean_skip", this->histCleanSkip_)){
+			this->histCleanSkip_= 1;
+			cout << this->hint_ << ": No history map dynamic region clean skip. Use default: 1." << endl;
+		}
+		else{
+			cout << this->hint_ << ": History map dynamic region clean: " << this->histCleanSkip_ << endl;
 		}
 
 		if (not this->nh_.getParam(this->ns_ + "/clean_extra_dist", this->cleanExtraDist_)){
 			this->cleanExtraDist_= 5;
-			cout << this->hint_ << ": No clean_extra_dist. Use default: 5." << endl;
+			cout << this->hint_ << ": No vertical extra clean distance. Use default: 5." << endl;
 		}
 		else{
-			cout << this->hint_ << ": clean_extra_dist: " << this->cleanExtraDist_ << endl;
+			cout << this->hint_ << ": Vertical extra clean distance: " << this->cleanExtraDist_ << endl;
 		}
 
 		if (not this->nh_.getParam(this->ns_ + "/ground_thickness", this->groundThick_)){
@@ -191,74 +203,65 @@ namespace mapManager{
 
 		if (not this->nh_.getParam(this->ns_ + "/e_p", this->eP_)){
 			this->eP_= 0.3;
-			cout << this->hint_ << ": No e_p. Use default: 5." << endl;
+			cout << this->hint_ << ": No e_p. Use default: 0.3." << endl;
 		}
 		else{
 			cout << this->hint_ << ": e_p: " << this->eP_ << endl;
 		}
 		if (not this->nh_.getParam(this->ns_ + "/e_q", this->eQ_)){
 			this->eQ_= 0.002;
-			cout << this->hint_ << ": No e_q. Use default: 5." << endl;
+			cout << this->hint_ << ": No e_q. Use default: 0.002." << endl;
 		}
 		else{
 			cout << this->hint_ << ": e_q: " << this->eQ_ << endl;
 		}
 		if (not this->nh_.getParam(this->ns_ + "/e_r", this->eR_)){
 			this->eR_= 0.3;
-			cout << this->hint_ << ": No e_r. Use default: 5." << endl;
+			cout << this->hint_ << ": No e_r. Use default: 0.3." << endl;
 		}
 		else{
 			cout << this->hint_ << ": e_r: " << this->eR_ << endl;
 		}
 
-		int preHistCleanSizeTemp;
-		if (not this->nh_.getParam(this->ns_ + "/pre_history_clean_size", preHistCleanSizeTemp)){
-			this->preHistCleanSize_ = 100;
-			cout << this->hint_ << ": No pre_history_clean_size. Use default: 100." << endl;
-		}
-		else{
-			this->preHistCleanSize_ = preHistCleanSizeTemp;
-			cout << this->hint_ << ": pre_history_clean_size: " << this->preHistCleanSize_ << endl;
-		}
 
 		int avgVHistSizeTemp;
 		if (not this->nh_.getParam(this->ns_ + "/avg_velocty_history_size", avgVHistSizeTemp)){
 			this->avgVHistSize_= 5;
-			cout << this->hint_ << ": No avg_velocty_history_size. Use default: 5." << endl;
+			cout << this->hint_ << ": No number of frames to estimate velocity parameter. Use default: 5." << endl;
 		}
 		else{
 			this->avgVHistSize_ = avgVHistSizeTemp;
-			cout << this->hint_ << ": avg_velocty_history_size: " << this->avgVHistSize_ << endl;
+			cout << this->hint_ << ": Number of frames to estimate velocity: " << this->avgVHistSize_ << endl;
 		}
 
 		int nowHistSizeTemp;
 		if (not this->nh_.getParam(this->ns_ + "/now_history_size", nowHistSizeTemp)){
 			this->nowHistSize_= 20;
-			cout << this->hint_ << ": No now_history_size. Use default: 20." << endl;
+			cout << this->hint_ << ": No size of tracking history parameter. Use default: 20." << endl;
 		}
 		else{
 			this->nowHistSize_ = nowHistSizeTemp;
-			cout << this->hint_ << ": now_history_size: " << this->nowHistSize_ << endl;
+			cout << this->hint_ << ": Size of tracking history: " << this->nowHistSize_ << endl;
 		}
 
 		int CFHistSizeTemp;
 		if (not this->nh_.getParam(this->ns_ + "/continuity_filter_history_size", CFHistSizeTemp)){
 			this->CFHistSize_= 10;
-			cout << this->hint_ << ": No continuity_filter_history_size. Use default: 5." << endl;
+			cout << this->hint_ << ": No continuity filter frame size. Use default: 10." << endl;
 		}
 		else{
 			this->CFHistSize_ = CFHistSizeTemp;
-			cout << this->hint_ << ": continuity_filter_history_size: " << this->CFHistSize_ << endl;
+			cout << this->hint_ << ": Continuity filter frame size: " << this->CFHistSize_ << endl;
 		}
 
 		int CFIntervalTemp;
 		if (not this->nh_.getParam(this->ns_ + "/continuity_filter_interval", CFIntervalTemp)){
 			this->CFInterval_= 4;
-			cout << this->hint_ << ": No /continuity_filter_interval. Use default: 5." << endl;
+			cout << this->hint_ << ": No continurity pairing interval. Use default: 4." << endl;
 		}
 		else{
 			this->CFInterval_ = CFIntervalTemp;
-			cout << this->hint_ << ": /continuity_filter_interval: " << this->CFInterval_ << endl;
+			cout << this->hint_ << ": Continuity pairing interval: " << this->CFInterval_ << endl;
 		}
 
 		if (not this->nh_.getParam(this->ns_ + "/size_ratio_lower", this->sizeRatioLower_)){
@@ -319,7 +322,7 @@ namespace mapManager{
 
 		if (not this->nh_.getParam(this->ns_ + "/static_thresh", this->staticThresh_)){
 			this->staticThresh_= 4;
-			cout << this->hint_ << ": No static. Use default: 5." << endl;
+			cout << this->hint_ << ": No static. Use default: 4." << endl;
 		}
 		else{
 			cout << this->hint_ << ": static: " << this->staticThresh_ << endl;
@@ -327,7 +330,7 @@ namespace mapManager{
 
 		if (not this->nh_.getParam(this->ns_ + "/dynamic_thresh", this->dynamicThresh_)){
 			this->dynamicThresh_= 8;
-			cout << this->hint_ << ": No dynamic_thresh. Use default: 5." << endl;
+			cout << this->hint_ << ": No dynamic_thresh. Use default: 8." << endl;
 		}
 		else{
 			cout << this->hint_ << ": dynamic_thresh: " << this->dynamicThresh_ << endl;
@@ -345,34 +348,34 @@ namespace mapManager{
 
 		if (not this->nh_.getParam(this->ns_ + "/n", this->n_)){
 			this->n_ = 5;
-			cout << this->hint_ << ": No n. Use default: 2.0." << endl;
+			cout << this->hint_ << ": No number of paths in library. Use default: 2.0." << endl;
 		}
 		else{
-			cout << this->hint_ << ": n: " << this->n_ << endl;
+			cout << this->hint_ << ": Number of paths in library: " << this->n_ << endl;
 		}
 
 		if (not this->nh_.getParam(this->ns_ + "/t", this->t_)){
 			this->t_ = 2;
-			cout << this->hint_ << ": No t. Use default: 2." << endl;
+			cout << this->hint_ << ": No maximum time to perform collision checking parameter. Use default: 2." << endl;
 		}
 		else{
-			cout << this->hint_ << ": t: " << this->t_ << endl;
+			cout << this->hint_ << ": Maximum time to perform collision checking: " << this->t_ << endl;
 		}
 
 		if (not this->nh_.getParam(this->ns_ + "/colli_check_end_dist", this->colliCheckEndDist_)){
 			this->colliCheckEndDist_ = 3.0;
-			cout << this->hint_ << ": No colli_check_end_dist. Use default: 3.0." << endl;
+			cout << this->hint_ << ": No max distance to check collision parameter. Use default: 3.0." << endl;
 		}
 		else{
-			cout << this->hint_ << ": colli_check_end_dist: " << this->colliCheckEndDist_ << endl;
+			cout << this->hint_ << ": Max distance to check collision: " << this->colliCheckEndDist_ << endl;
 		}
 
 		if (not this->nh_.getParam(this->ns_ + "/colli_check_start_dist", this->colliCheckStartDist_)){
 			this->colliCheckStartDist_ = 1.0;
-			cout << this->hint_ << ": No colli_check_start_dist. Use default: 1.0." << endl;
+			cout << this->hint_ << ": No collision check starting distance parameter. Use default: 1.0." << endl;
 		}
 		else{
-			cout << this->hint_ << ": colli_check_start_dist: " << this->colliCheckStartDist_ << endl;
+			cout << this->hint_ << ": Collision checking starting distance: " << this->colliCheckStartDist_ << endl;
 		}
 
 		std::vector<float> tempVector;
@@ -390,7 +393,6 @@ namespace mapManager{
 					0.0789, 0.1262, 0.3004, 0.4955, 0.3004,
 					0.064, 	0.0729, 0.1182, 0.2812, 0.4637;
 			this->PT_ = PT;
-			cout << this->hint_ << ": No t. Use default: \n"<<this->PT_ << endl;
 		}
 		else{
 			std::cout<<tempVector.size()<<std::endl;
@@ -401,8 +403,6 @@ namespace mapManager{
 				}
 			}
 			this->PT_ = PT;
-			cout << this->hint_ << ": P_T: \n" << this->PT_ << endl;
-
 		}
 		Eigen::MatrixXd PI(1, this->n_);
 		tempVector.clear();
@@ -414,20 +414,16 @@ namespace mapManager{
 			// 		0.01, 	0.075, 	0.3162, 0.7499, 1;
 			// then multiply k and softmax
 			PI << 	0.3162, 0.7499, 1, 0.7499, 0.3162;
-			this->PI_ = PI;
-			cout << this->hint_ << ": No PI. Use default: \n"<<this->PI_ << endl;
-		}
+			this->PI_ = PI;		}
 		else{
-			std::cout<<tempVector.size()<<std::endl;
+			// std::cout<<tempVector.size()<<std::endl;
 			for (int i=0 ; i<PI.rows() ; i++){
 				for (int j=0 ; j<PI.cols() ; j++){
 					PI(i,j) = tempVector[i*PI.cols()+j];
-					std::cout<<tempVector[i*PI.cols()+j]<<std::endl;
+					// std::cout<<tempVector[i*PI.cols()+j]<<std::endl;
 				}
 			}
 			this->PI_ = PI;
-			cout << this->hint_ << ": P_I: \n" << this->PI_ << endl;
-
 		}
 
 		// trajectory prediction gaussian kernel
@@ -452,9 +448,7 @@ namespace mapManager{
 
 
 	void dynamicMap::registerDynamicCallback(){
-
 		this->detector_.reset(new mapManager::boxDetector(this->nh_, this->ns_,this->depthImage_, this->fx_,this->fy_,this->cx_,this->cy_, this->depthScale_));
-
 		this->boxDetectTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::boxDetectCB, this);
 		this->dynamicBoxPubTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::dynamicBoxPubCB, this);
 		this->obstacleTrajPubTimer_ = this->nh_.createTimer(ros::Duration(this->ts_),&dynamicMap::obstacleTrajPubCB, this);
@@ -479,13 +473,13 @@ namespace mapManager{
 		}
    
 		// occupancy update callback
-		this->occTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::updateOccupancyCB, this);
+		this->occTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicMap::updateOccupancyCB, this);
 
 		// map inflation callback
-		this->inflateTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::inflateMapCB, this);
+		this->inflateTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicMap::inflateMapCB, this);
 
 		// visualization callback
-		this->visTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &occMap::visCB, dynamic_cast<occMap*>(this));
+		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, dynamic_cast<occMap*>(this));
 	}
 
 
@@ -712,7 +706,7 @@ namespace mapManager{
 			float zmin = std::numeric_limits<float>::max();
 			if(this->detectionDebug_){
 				cout << this->hint_  << ": 3D bounding boxes on the world frame: id: " << i << ", pos: (" << this->rawBox3Ds_[i].x << ", " << this->rawBox3Ds_[i].y << ", " << this->rawBox3Ds_[i].z << "), " << "size: (" 
-				<< this->rawBox3Ds_[i].x_width << ", " << this->rawBox3Ds_[i].y_width << ", " << this->rawBox3Ds_[i].z_width << endl; 
+				<< this->rawBox3Ds_[i].x_width << ", " << this->rawBox3Ds_[i].y_width << ", " << this->rawBox3Ds_[i].z_width << ")."<<  endl; 
 			}
 			
 			float widthX = std::max(this->rawBox3Ds_[i].x_width,this->rawBox3Ds_[i].y_width)*this->mapRefineInflateCoef_;
@@ -742,12 +736,7 @@ namespace mapManager{
 				}
 			}
 
-			if (!inLoop) {
-				// printf("bug::3d box %d on world: %f, %f, %f,%f ,%f, %f\n",i,this->rawBox3Ds_[i].x,this->rawBox3Ds_[i].y,this->rawBox3Ds_[i].z,this->rawBox3Ds_[i].x_width,this->rawBox3Ds_[i].y_width,this->rawBox3Ds_[i].z_width);
-				// printf("bug::raw box size %d",this->rawBox3Ds_.size());
-				// exit(0);
-			}
-			else {
+			if (inLoop) {
 				box3D box3dTemp;
 				box3dTemp.x = (xmin+xmax)/2;
 				box3dTemp.y = (ymin+ymax)/2;
@@ -759,7 +748,8 @@ namespace mapManager{
 				box3dsTemp.push_back(box3dTemp);
 
 				if(this->detectionDebug_){
-					printf("fused 3d box %lu on world: %f, %f, %f,%f ,%f, %f\n",i,box3dTemp.x,box3dTemp.y,box3dTemp.z,box3dTemp.x_width,box3dTemp.y_width,box3dTemp.z_width);
+					cout << this->hint_ << ": Fused 3D bounding box " << i << " in the world frame: pos: (" << box3dTemp.x << ", " << box3dTemp.y << ", " << box3dTemp.z << "), " << "size: (" 
+				<< box3dTemp.x_width << ", " << box3dTemp.y_width << ", " << box3dTemp.z_width << ")." <<  endl;
 				}
 			}
 		}
@@ -803,9 +793,9 @@ namespace mapManager{
 		
 
 		if (this->detectionDebug_){
-			printf("nowBb size %lu\n", nowBb.size());
-			printf("nowHist size %lu\n",nowHistInFov_.size());
-			printf("preBb_ size %lu\n", preBb_.size());
+			cout << this->hint_ << ": now bounding box frame size: " << nowBb.size() << endl;
+			cout << this->hint_ << ": now history bounding box frame size: " << this->nowHistInFov_.size() << endl;
+			cout << this->hint_ << ": previous bounding box frame size: " << this->preBb_.size() << endl;
 		}
 
 		// keep the size of history queues, store the sizes of boxes to be fixed
@@ -826,7 +816,7 @@ namespace mapManager{
 			{
 				if (this->checkTrack(this->nowOrg_[nowId], this->preOrg_[preId])) { 
 					if (this->detectionDebug_){
-						std::cout<<"push "<<preId<<" as candidate"<<std::endl;
+						cout<< this->hint_ << ": Push "<< preId <<" as candidate." << endl;
 					}
 					
 					checkQ.push_back(preId);
@@ -854,7 +844,7 @@ namespace mapManager{
 				}
 
 				if (this->detectionDebug_){
-					std::cout<<"Trakck Now "<<nowId<<"From "<<preId<<std::endl;
+					cout<< this->hint_ << ": Track Now ID: " << nowId << " from previous ID: " << preId << endl;
 				}
 
 				this->updateTrackedStates(nowId, preId);
@@ -905,7 +895,7 @@ namespace mapManager{
 	// keep the history queue size as "size"
 	template <typename T> void dynamicMap::keepHistSize(T &HistContainer, int size){
 		for (size_t i=0 ; i<HistContainer.size() ; i++) {
-			if (HistContainer[i].size() > size) {
+			if (int(HistContainer[i].size()) > size) {
 				HistContainer[i].pop_front();
 			}
 		}
@@ -914,7 +904,7 @@ namespace mapManager{
 
 	void dynamicMap::updateNonTrackedStates(const int &nowId){
 		if (this->detectionDebug_){
-			std::cout<<nowId<<" =========================NOT TRACKED! ==========================\n"<<std::endl;
+			cout << this->hint_ << ": ID: " << nowId << "Not tracked!" << endl;
 		}
 		// initiate fix flag
 		this->nowFix_[nowId] = false;
@@ -993,8 +983,8 @@ namespace mapManager{
 			if ((abs(this->nowBb2d_[nowId].tl().x-pre.tl().x) <3 || abs(this->nowBb2d_[nowId].br().x-pre.br().x )< 3) && this->nowBb2d_[nowId].br().x<this->fovXMarginUpper_ && this->nowBb2d_[nowId].tl().x>this->fovXMarginLower_)
 			{
 				if (this->detectionDebug_||this->veDebug_){
-					ROS_INFO("%ld ============velocity cancel==============",nowId);
-					std::cout<<this->nowBb2d_[nowId].tl().x<<" "<<this->preBb2d_[preId].tl().x<<" "<<this->nowBb2d_[nowId].br().x<<" "<<this->preBb2d_[preId].br().x<<std::endl;
+					cout << this->hint_ << "Velocity Cancel." << endl << endl;
+					cout << this->hint_ << ": " << this->nowBb2d_[nowId].tl().x << " " << this->preBb2d_[preId].tl().x << " " << this->nowBb2d_[nowId].br().x << " " << this->preBb2d_[preId].br().x << endl;
 				}
 				V(0,0) = 0.01;
 				V(1,0) = 0.01;
@@ -1004,7 +994,7 @@ namespace mapManager{
 		this->nowBb_[nowId].x = this->nowKfStates_[nowId](0,0);
 		this->nowBb_[nowId].y = this->nowKfStates_[nowId](1,0);
 		if (this->veDebug_){
-			ROS_INFO("estimated velocity of id %ld is %f, %f/n",nowId, V(0,0),V(1,0));
+			cout << this->hint_ << ": Estimated velocity, ID: " << nowId << ", V: " << V(0,0) << ", " << V(1,0) << endl;
 		}
 	}
 
@@ -1031,8 +1021,6 @@ namespace mapManager{
 			double Vx = (sumVx/this->nowV_[i].size());
 			double Vy = (sumVy/this->nowV_[i].size());
 
-			// 10 frame average of measured velocity
-			double vAvgMeasured = 0.0;
 
 			// continuity filter 
 			double contAvg = this->continuityFilter(i);
@@ -1042,10 +1030,10 @@ namespace mapManager{
 
 
 			if (this->detectionDebug_){
-				
-				printf("OBJ %ld:avg:%f, vAvgMeasure: %f, queue lenght %ld, continuity %f",i,norm(Vx,Vy),vAvgMeasured, this->nowHist_[i].size(),contAvg);
-				printf("OBJ %ld size:%f,%f,%f center %f, %f, %f\n",i,this->nowBb_[i].x_width,this->nowBb_[i].y_width,this->nowBb_[i].z_width,nowBb_[i].x,nowBb_[i].y,nowBb_[i].z);
-				printf("size ratios: %f,%f, others: %f, %f, %f,%f\n",this->nowBb_[i].x_width/this->nowBb_[i].z_width,this->nowBb_[i].y_width/this->nowBb_[i].z_width,this->nowBb_[i].x_width,this->nowBb_[i].y_width,this->nowBb_[i].z_width,this->nowBb_[i].z-this->nowBb_[i].z_width/2);//0.66,0.22
+				cout << this->hint_ << ": Object ID: " << i << endl;
+				cout << this->hint_ << ": Average Vel: " << norm(Vx, Vy) << ", queue length: " << this->nowHist_[i].size() << ", continuity: " << contAvg << endl;
+				cout << this->hint_ << ": Pos:  (" << this->nowBb_[i].x << ", " << this->nowBb_[i].y << ", " << this->nowBb_[i].z << ")" << ", Size:  (" << this->nowBb_[i].x_width << ", " << this->nowBb_[i].y_width << ", " << this->nowBb_[i].z_width << ")." << endl;
+				cout << this->hint_ << ": Size Ratio: " << this->nowBb_[i].x_width/this->nowBb_[i].z_width << " " << this->nowBb_[i].y_width/this->nowBb_[i].z_width << endl;
 			}
 
 			if(this->nowDynamic_[i]) {
@@ -1066,22 +1054,21 @@ namespace mapManager{
 				|| (this->nowBb_[i].z-this->nowBb_[i].z_width/2 > this->lowestPointLimit_)) {
 					if (this->detectionDebug_){     
 						if ((length/height>this->sizeRatioUpper_ )|| (length/height<this->sizeRatioLower_ )|| (width/height<this->sizeRatioLower_) || (width/height>this->sizeRatioUpper_)){
-							std::cout<<"1: "<<" "<<std::endl;
+							cout << this->hint_ <<  "1: " << " " << endl;
 						}
 						if ((this->nowBb_[i].x_width<this->fusedBoxWidthLimitLower_) && (this->nowBb_[i].y_width<this->fusedBoxWidthLimitLower_)){
-							std::cout<<"2: "<<" "<<std::endl;
+							cout << this->hint_ <<  "2: " << " " << endl;
 						}
 						if ((this->nowBb_[i].x_width>this->fusedBoxWidthLimitUpper_) && (this->nowBb_[i].y_width>this->fusedBoxWidthLimitUpper_)){
-							std::cout<<"3: "<<" "<<std::endl;
-							std::cout<<this->nowBb_[i].x_width<<" "<<this->nowBb_[i].y_width<<" "<<this->fusedBoxWidthLimitUpper_<<" "<<fusedBoxWidthLimitUpper_<<std::endl;
+							cout << this->hint_ <<  "3: " << " " << endl;
+							cout << this->hint_ << ": " << this->nowBb_[i].x_width << " " << this->nowBb_[i].y_width << " " << this->fusedBoxWidthLimitUpper_ << " " <<fusedBoxWidthLimitUpper_ << endl;
 						}
 						if ((this->nowBb_[i].z_width<this->fusedBoxHeightLimitLower_) || (this->nowBb_[i].z_width>this->fusedBoxHeightLimitUpper_)|| ((this->nowBb_[i].z-this->nowBb_[i].z_width/2) > this->lowestPointLimit_)){
-							
-							std::cout<<"4: "<<" "<<std::endl;
-							std::cout<<this->nowBb_[i].z_width<<" "<<this->fusedBoxHeightLimitUpper_<<" "<<this->nowBb_[i].z<<" "<< this->lowestPointLimit_<<std::endl;
+							cout << this->hint_ <<  "4: " << " " << endl;
+							cout << this->hint_ << ": " << this->nowBb_[i].z_width << " " << this->fusedBoxHeightLimitUpper_ << " " << this->nowBb_[i].z << " " << this->lowestPointLimit_ << endl;
 						}
-						std::cout<<"FISRT LAYER FAIL"<<std::endl;
-						std::cout<<"SIZE WRONG "<<i<<" proc count "<<this->nowVoteHist_[i].back()<<" isDynamic "<<isDynamic[i]<<std::endl;
+						std::cout << this->hint_ << ": First Layer Fail!" << endl;
+						std::cout << this->hint_ << ": Size wrong, ID: " << i << ", proc count: " << this->nowVoteHist_[i].back() << ", is dynamic? " << isDynamic[i] << endl;  
 					}
 					
 					this->nowVoteHist_[i].back() = 0;
@@ -1090,14 +1077,14 @@ namespace mapManager{
 				}
 				else {
 					if (this->detectionDebug_){
-						std::cout<<"FISRT LAYER PASS"<<std::endl;
+						std::cout << this->hint_ << ": First Layer pass!" << endl;
 					}
 				}
 
 			}   
 			else {
 				if (this->detectionDebug_){
-					std::cout<<"FISRT LAYER FAIL"<<std::endl;
+						std::cout << this->hint_ << ": First Layer Fail!" << endl;
 				}
 				
 				this->nowVoteHist_[i].push_back(0);
@@ -1126,8 +1113,8 @@ namespace mapManager{
 				sum += this->nowVoteHist_[i][j];
 			}  
 			if (this->detectionDebug_){
-				printf("sum %ld:, %d\n",i,sum);
-				printf("vote for now i%ld : %d",i,this->nowVoteHist_[i].back());
+				cout << this->hint_ << ": ID " << i << ", sum: " << sum << endl;  
+				cout << this->hint_ << ": Vote for now, ID: " << i << ", " << this->nowVoteHist_[i].back() << endl;
 			}
 			
 			// vote for detemining if the box is dynamic
@@ -1151,12 +1138,12 @@ namespace mapManager{
 				dynamicObjs.back().z = dynamicObjs.back().z_width/2+this->groundThick_;
 				dynamicHistInd.push_back(i);
 				if (this->detectionDebug_){
-					printf("MOVE OBJ %ld, width: %f, %f, %f\n",i,dynamicObjs.back().x_width,dynamicObjs.back().y_width,dynamicObjs.back().z_width);
+					cout << this->hint_ << ": Dynamic obstacle: ID: " << i << ", Size:  (" << dynamicObjs.back().x_width << ", " << dynamicObjs.back().y_width << ", " << dynamicObjs.back().z_width << ")." << endl;
 				}
 			}
 			else {
 				if (this->detectionDebug_){
-					printf("STATIC OBJ %ld\n",i); 
+					cout << this->hint_ << ": Static obstacle ID: " << i << endl;
 				}
 			}
 		}
@@ -1167,7 +1154,7 @@ namespace mapManager{
 		int countShake = 0;
 		double contAvg = this->contTresh_;
 		if (this->detectionDebug_){
-			printf("hist size %ld, checkshakecountsize %ld", this->nowHist_[nowId].size(),this->CFHistSize_);
+			cout << this->hint_ << ": History size: " << this->nowHist_[nowId].size() << ", continuity size: " << this->CFHistSize_ << endl;
 		}
 
 		if (this->nowHist_[nowId].size()>=this->CFHistSize_) {
@@ -1188,7 +1175,7 @@ namespace mapManager{
 					angles.push_back(angle);
 					countShake += angle>0;
 					if(this->detectionDebug_){
-						printf("vx %f, vy %f, angle %f", vx, vy, angle);
+						cout << this->hint_ << ": Vx: " << vx << ", Vy: " << vy << ", Angle: " << angle << endl;
 					}
 					angleSum += angle;
 				}
