@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   cv_bridge
   message_filters
+  image_transport
 )
 
 ## System dependencies are found with CMake's conventions
@@ -136,7 +137,11 @@ include_directories(
 add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp
                             include/${PROJECT_NAME}/occupancyMap.cpp
                             include/${PROJECT_NAME}/ESDFMap.cpp
-                            include/${PROJECT_NAME}/raycast.cpp)
+                            include/${PROJECT_NAME}/raycast.cpp
+                            include/${PROJECT_NAME}/dynamicMap.cpp
+                            include/${PROJECT_NAME}/detector/kalman_filter.cpp
+                            include/${PROJECT_NAME}/detector/boxDetector.cpp
+                            include/${PROJECT_NAME}/detector/uv_detector.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -150,6 +155,8 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp
 add_executable(mapManagerOctomap src/mapManagerOctomapNode.cpp)
 add_executable(occupancy_map_node src/occupancy_map_node.cpp)
 add_executable(esdf_map_node src/esdf_map_node.cpp)
+add_executable(dynamic_map_node src/dynamic_map_node.cpp)
+
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -172,6 +179,8 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(mapManagerOctomap ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(esdf_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(dynamic_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+
 
 #############
 ## Install ##

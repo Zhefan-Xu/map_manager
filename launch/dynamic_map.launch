@@ -1,0 +1,4 @@
+<launch>
+	<rosparam file="$(find map_manager)/cfg/dynamic_map_param.yaml" ns="/dynamic_map"  />
+	<node pkg="map_manager" type="dynamic_map_node" name="dynamic_map_node" output="screen" />
+</launch>
