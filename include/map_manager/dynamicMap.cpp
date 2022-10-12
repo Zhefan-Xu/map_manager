@@ -1441,7 +1441,7 @@ namespace mapManager{
 	}
 
 
-	void dynamicMap::getObjPos(std::vector<Eigen::Vector3d> &obstaclesPos) {
+	void dynamicMap::getObstaclesPos(std::vector<Eigen::Vector3d> &obstaclesPos) {
 		obstaclesPos.clear();
 		Eigen::Vector3d posVect(3);
 		for (size_t i=0 ; i<this->dynamicObjs_.size() ; i++) {
@@ -1453,19 +1453,7 @@ namespace mapManager{
 	}
 
 
-	void dynamicMap::getObjSize(std::vector<Eigen::Vector3d> &obstaclesSize) {
-		obstaclesSize.clear();
-		Eigen::Vector3d sizeVect(3);
-		for (size_t i=0 ; i<this->dynamicObjs_.size() ; i++) {
-			sizeVect(0) = this->dynamicObjs_[i].x_width;
-			sizeVect(1) = this->dynamicObjs_[i].y_width;
-			sizeVect(2) = this->dynamicObjs_[i].z_width;
-			obstaclesSize.push_back(sizeVect);
-		}
-	}
-
-
-	void dynamicMap::getObjVel(std::vector<Eigen::Vector3d> &obstaclesVel){
+	void dynamicMap::getObstaclesVel(std::vector<Eigen::Vector3d> &obstaclesVel){
 		obstaclesVel.clear();
 		Eigen::Vector3d velVect(3);
 		for (size_t i=0 ; i<this->dynamicObjs_.size() ; i++) {
@@ -1476,6 +1464,22 @@ namespace mapManager{
 		}
 	}
 
+	void dynamicMap::getObstaclesSize(std::vector<Eigen::Vector3d> &obstaclesSize) {
+		obstaclesSize.clear();
+		Eigen::Vector3d sizeVect(3);
+		for (size_t i=0 ; i<this->dynamicObjs_.size() ; i++) {
+			sizeVect(0) = this->dynamicObjs_[i].x_width;
+			sizeVect(1) = this->dynamicObjs_[i].y_width;
+			sizeVect(2) = this->dynamicObjs_[i].z_width;
+			obstaclesSize.push_back(sizeVect);
+		}
+	}
+
+	void dynamicMap::getDynamicObstacles(std::vector<Eigen::Vector3d> &obstaclesPos, std::vector<Eigen::Vector3d> &obstaclesVel, std::vector<Eigen::Vector3d> &obstaclesSize){
+		this->getObstaclesPos(obstaclesPos);
+		this->getObstaclesVel(obstaclesVel);
+		this->getObstaclesSize(obstaclesSize);
+	}
 
 	void dynamicMap::publishVelAndPos(const std::vector<box3D> &dynamicObjs){
 		std_msgs::Float64 velocity;

@@ -265,9 +265,10 @@ namespace mapManager{
 
 		// user interface
 		void getPredTraj(std::vector<std::vector<std::vector<geometry_msgs::Point>>>& predTraj);
-		void getObjPos(std::vector<Eigen::Vector3d> &obstaclesPos);
-		void getObjVel(std::vector<Eigen::Vector3d> &obstaclesVel);
-		void getObjSize(std::vector<Eigen::Vector3d> &obstaclesSize);
+		void getObstaclesPos(std::vector<Eigen::Vector3d> &obstaclesPos);
+		void getObstaclesVel(std::vector<Eigen::Vector3d> &obstaclesVel);
+		void getObstaclesSize(std::vector<Eigen::Vector3d> &obstaclesSize);
+		void getDynamicObstacles(std::vector<Eigen::Vector3d> &obstaclesPos, std::vector<Eigen::Vector3d> &obstaclesVel, std::vector<Eigen::Vector3d> &obstaclesSize);
 
 		// publish
 		void publish3dBox(const std::vector<box3D> &boxes, const ros::Publisher &publisher, const char &color);
