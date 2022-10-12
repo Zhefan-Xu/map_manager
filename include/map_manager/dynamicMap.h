@@ -203,6 +203,7 @@ namespace mapManager{
 
 	public:
 		dynamicMap();
+		dynamicMap(const ros::NodeHandle& nh);
 
 		// init
 		void initMap(const ros::NodeHandle& nh);

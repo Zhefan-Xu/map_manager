@@ -13,6 +13,12 @@ namespace mapManager{
 		this->hint_ = "[dynamicMap]";
 	}
 
+	dynamicMap::dynamicMap(const ros::NodeHandle& nh){
+		this->ns_ = "dynamic_map";
+		this->hint_ = "[dynamicMap]";
+		this->initMap(nh);
+	}
+
 	void dynamicMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();    
