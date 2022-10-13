@@ -18,7 +18,7 @@ pose_topic: /CERLAB/quadcopter/pose
 odom_topic: /CERLAB/quadcopter/odom
 
 # robot size
-robot_size: [0.3, 0.3, 0.2]
+robot_size: [0.5, 0.5, 0.3]
 
 # Camera Parameters
 # depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
@@ -47,15 +47,15 @@ p_occ: 0.80
 
 # Map
 map_resolution: 0.1
-ground_height: 0.2 # m
-map_size: [20, 20, 3.5] # meter. in x y z direction (reserved size)
+ground_height: -0.1 # m
+map_size: [80, 40, 10] # meter. in x y z direction (reserved size)
 local_update_range: [5, 5, 3]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
 
 # visualziation
 local_map_size: [20, 20, 6] # meter. in x y z direction (only for visualization)
-max_height_visualization: 2.1 # m
+max_height_visualization: 8 # m
 visualize_global_map: true
 verbose: false
 
@@ -64,7 +64,7 @@ verbose: false
 # dynamic map parameters
 
 # debug
-detection_debug: false
+detection_debug: true
 velocity_debug: false
 
 # test
@@ -89,8 +89,8 @@ ground_thickness: 0.0 # thickness of ground
 # track & estimate velocty
 timestep: 0.033 # system time step
 overlap_threshold: 0.3 # overlap ratio for tracking metric
-continuity_thresh: 0.0 # threshold of average cosine value in continuity filter
-velocity_threshold: 0.2 # larger than this value will be considered as dynamic obstacle
+continuity_thresh: 0.8 # threshold of average cosine value in continuity filter
+velocity_threshold: 0.3 # larger than this value will be considered as dynamic obstacle
 
 # track and identify dynamic
 fov_x_margin: 3
@@ -106,8 +106,8 @@ e_r: 0.3
 # first layer detect
 avg_velocty_history_size: 10 # number of frames to calculate velocity
 now_history_size: 20 # size of tracking history for all boxes
-continuity_filter_history_size: 10 # size of tracking history for continuity filter; must <= now_history_size
-continuity_filter_interval: 4 # interval for pairing in continuity filter
+continuity_filter_history_size: 15 # size of tracking history for continuity filter; must <= now_history_size
+continuity_filter_interval: 10 # interval for pairing in continuity filter
 size_ratio_lower: 0.2 # 0.25/1.8 lower limit of width/height for region proposals
 size_ratio_upper: 0.7 #1.3/1.8 upper limit of width/height for region proposals
 # size limit for region proposals
@@ -119,8 +119,8 @@ lowest_point_limit: 0.2
 
 # second layer detect
 static_thresh: 4 # threshold for voting as static
-dynamic_thresh: 8 # threshold for voting as dynamic
-vote_history_size: 10 # size of voting history
+dynamic_thresh: 16 # threshold for voting as dynamic
+vote_history_size: 20 # size of voting history
 
 
 # traj pred
@@ -135,9 +135,3 @@ P_T:  [ 0.4637, 0.2812, 0.1182, 0.0729, 0.064, # markov state transform matrix
         0.0789, 0.1262, 0.3004, 0.4955, 0.3004,
         0.0640, 0.0729, 0.1182, 0.2812, 0.4637]
 P_I:  [0.3162, 0.7499, 1, 0.7499, 0.3162] # markove init state matrix
-
-
-
-
-
-

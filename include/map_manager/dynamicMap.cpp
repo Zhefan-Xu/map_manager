@@ -614,10 +614,12 @@ namespace mapManager{
 
 
 	void dynamicMap::dynamicRegionClean(const std::deque<std::deque<box3D>> &nowHistClean, const std::vector<int> &dynamicHistInd, const std::vector<box3D> &dynamicObjs){
-		box3D now;
-		box3D pre;
 
 		for (size_t i=0; i<dynamicObjs.size() ; i++) {
+
+			box3D now = nowHistClean[dynamicHistInd[i]][0];
+			box3D pre = nowHistClean[dynamicHistInd[i]][0];
+
 			for (size_t j=0; j<nowHistClean[dynamicHistInd[i]].size() ; j+=this->histCleanSkip_) {
 				now = nowHistClean[dynamicHistInd[i]][j];
 
@@ -1043,10 +1045,11 @@ namespace mapManager{
 			}
 
 			if(this->nowDynamic_[i]) {
+				cout << this->hint_ << ": Force Dynamic" << endl;
 				this->nowVoteHist_[i].push_back(1);
 				isDynamic[i] = true;
 			}
-			else if (norm(Vx,Vy) > this->vAvgEstimatedMetric_ &&  contAvg>this->contTresh_) {
+			else if (norm(Vx,Vy) > this->vAvgEstimatedMetric_ &&  contAvg>=this->contTresh_) {
 				
 				this->nowVoteHist_[i].push_back(1);
 				isDynamic[i] = true;
@@ -1157,7 +1160,7 @@ namespace mapManager{
 
 
 	double dynamicMap::continuityFilter(const int &nowId) {
-		int countShake = 0;
+
 		double contAvg = this->contTresh_;
 		if (this->detectionDebug_){
 			cout << this->hint_ << ": History size: " << this->nowHist_[nowId].size() << ", continuity size: " << this->CFHistSize_ << endl;
@@ -1172,23 +1175,28 @@ namespace mapManager{
 			double preVx = 0;
 			double preVy = 0;
 
-			for (size_t j=this->CFHistSize_-this->CFInterval_ ; j<this->CFHistSize_ ; j++) {
-				vx = this->nowHist_[nowId][j].x-this->nowHist_[nowId][j-(this->CFHistSize_-this->CFInterval_)].x;
-				vy = this->nowHist_[nowId][j].y-this->nowHist_[nowId][j-(this->CFHistSize_-this->CFInterval_)].y;
+			for (size_t j=this->CFInterval_ ; j<this->CFHistSize_ ; j++) {
+				box3D p1 = this->nowHist_[nowId][j];
+				box3D p2 = this->nowHist_[nowId][j-this->CFInterval_];
 
-				if (j>this->CFHistSize_-this->CFInterval_) {
-					double angle = (vx*preVx+vy*preVy)/(norm(vx, vy)+norm(preVx, preVy));
+				vx = (p1.x-p1.x_width/2)-(p2.x-p2.x_width/2);
+				vy = (p1.y-p1.y_width/2)-(p2.y-p2.y_width/2);
+
+				if (j>this->CFInterval_) {
+					double angle = (vx*preVx+vy*preVy)/(norm(vx, vy)*norm(preVx, preVy));
 					angles.push_back(angle);
-					countShake += angle>0;
 					if(this->detectionDebug_){
-						cout << this->hint_ << ": Vx: " << vx << ", Vy: " << vy << ", Angle: " << angle << endl;
+						cout << this->hint_ << " :Pair:" << j << " " << j-this->CFInterval_ << ": Vx: " << vx << ", Vy: " << vy << ", Angle: " << angle << endl;
 					}
 					angleSum += angle;
 				}
 				preVx = vx;
 				preVy = vy;  
 			}
-			contAvg = angleSum/(this->CFInterval_-1);
+			contAvg = angleSum/(this->CFHistSize_ - this->CFInterval_-1);
+			if(this->detectionDebug_){
+				cout << this->hint_ << " :angleSum: " << angleSum << ", size: " << this->CFHistSize_ - this->CFInterval_-1 << ", contAvg :" << contAvg << endl;
+			}
 		}
 
 		return contAvg;
