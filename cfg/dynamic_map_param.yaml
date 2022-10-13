@@ -90,7 +90,7 @@ ground_thickness: 0.0 # thickness of ground
 timestep: 0.033 # system time step
 overlap_threshold: 0.3 # overlap ratio for tracking metric
 continuity_thresh: 0.8 # threshold of average cosine value in continuity filter
-velocity_threshold: 0.3 # larger than this value will be considered as dynamic obstacle
+velocity_threshold: 0.4 # larger than this value will be considered as dynamic obstacle
 
 # track and identify dynamic
 fov_x_margin: 3
@@ -106,7 +106,7 @@ e_r: 0.3
 # first layer detect
 avg_velocty_history_size: 10 # number of frames to calculate velocity
 now_history_size: 20 # size of tracking history for all boxes
-continuity_filter_history_size: 15 # size of tracking history for continuity filter; must <= now_history_size
+continuity_filter_history_size: 20 # size of tracking history for continuity filter; must <= now_history_size
 continuity_filter_interval: 10 # interval for pairing in continuity filter
 size_ratio_lower: 0.2 # 0.25/1.8 lower limit of width/height for region proposals
 size_ratio_upper: 0.7 #1.3/1.8 upper limit of width/height for region proposals
