@@ -91,12 +91,10 @@ namespace mapManager{
     
     void UVtracker::check_status(vector<box3D> &box_3D)
     {
-        int f = 30; // Hz
-        double ts = 1.0 / f; // s
-        for(int now_id = 0; now_id < this->now_bb.size(); now_id++)
+        for(size_t now_id = 0; now_id < this->now_bb.size(); now_id++)
         {
             bool tracked = false;
-            for(int pre_id = 0; pre_id < this->pre_bb.size(); pre_id++)
+            for(size_t pre_id = 0; pre_id < this->pre_bb.size(); pre_id++)
             {
                 Rect overlap = this->now_bb[now_id] & this->pre_bb[pre_id];
             
@@ -306,7 +304,7 @@ namespace mapManager{
                                     else
                                     {
                                         int temp = UVboxes[mask[row - 1][c] - 1].toppest_parent_id;
-                                        for(int b = 0; b < UVboxes.size(); b++)
+                                        for(size_t b = 0; b < UVboxes.size(); b++)
                                         {
                                             UVboxes[b].toppest_parent_id = (UVboxes[b].toppest_parent_id == temp)?UVboxes.back().toppest_parent_id:UVboxes[b].toppest_parent_id;
                                         }
@@ -325,11 +323,11 @@ namespace mapManager{
         // group lines into boxes
         this->bounding_box_U.clear();
         // merge boxes with same toppest parent
-        for(int b = 0; b < UVboxes.size(); b++)
+        for(size_t b = 0; b < UVboxes.size(); b++)
         {
             if(UVboxes[b].id == UVboxes[b].toppest_parent_id)
             {
-                for(int s = b + 1; s < UVboxes.size(); s++)
+                for(size_t s = b + 1; s < UVboxes.size(); s++)
                 {
                     if(UVboxes[s].toppest_parent_id == UVboxes[b].id)
                     {
@@ -414,7 +412,7 @@ namespace mapManager{
         this->box3Ds.clear();
         this->bounding_box_D.clear();
 
-        for (int b = 0; b < this->bounding_box_U.size(); b++) {
+        for (size_t b = 0; b < this->bounding_box_U.size(); b++) {
             // 
             x = this->bounding_box_U[b].tl().x;
             width = this->bounding_box_U[b].width;
@@ -430,8 +428,8 @@ namespace mapManager{
             depth_in_far = depth_of_depth*1.3 + depth_in_near; // assumed depth was truncated because of occlusion
             // printf("bin_s, bin_l, near, far %d, %d, %f, %f\n",bin_index_small, bin_index_large, depth_in_near, depth_in_far);
 
-            for (size_t i = x ; i < x + width; i++) { // for several middle coloums
-                for (size_t j = 0; j < depth_resize.rows - 1; j++) { // for each row
+            for (int i = x ; i < x + width; i++) { // for several middle coloums
+                for (int j = 0; j < depth_resize.rows - 1; j++) { // for each row
                     depth_resize_val = (float(depth_resize.at<unsigned short>(j,i))/this->depthScale_)*1000.0;
                     if (float(depth_resize_val) >= depth_in_near && depth_resize_val <= depth_in_far) {
                         for (int check = 0; check < num_check; check++) { // check some more points in the coloum
@@ -515,7 +513,7 @@ namespace mapManager{
             this->U_map_show.convertTo(this->U_map_show, CV_8UC1);
             applyColorMap(this->U_map_show, this->U_map_show, COLORMAP_JET);
 
-            for(int b = 0; b < this->bounding_box_U.size(); b++)
+            for(size_t b = 0; b < this->bounding_box_U.size(); b++)
             {
                 Rect final_bb = Rect(this->bounding_box_U[b].tl(),Size(this->bounding_box_U[b].width, 2 * this->bounding_box_U[b].height));
                 rectangle(this->U_map_show, final_bb, Scalar(0, 255, 0), 1, 8, 0);
@@ -537,7 +535,7 @@ namespace mapManager{
         this->bounding_box_B.clear();
         this->bounding_box_B.resize(this->bounding_box_U.size());
 
-        for(int b = 0; b < this->bounding_box_U.size(); b++)
+        for(size_t b = 0; b < this->bounding_box_U.size(); b++)
         {
             // U_map bounding box -> Bird's view bounding box conversion
             float bb_depth = this->bounding_box_U[b].br().y * bin_width / 10;
@@ -564,7 +562,7 @@ namespace mapManager{
         line(this->bird_view, center, center + left_end_to_center, Scalar(0, 255, 0), 3, 8, 0);
         line(this->bird_view, center, center + right_end_to_center, Scalar(0, 255, 0), 3, 8, 0);
 
-        for(int b = 0; b < this->bounding_box_U.size(); b++)
+        for(size_t b = 0; b < this->bounding_box_U.size(); b++)
         {
             // change coordinates
             Rect final_bb = this->bounding_box_B[b];
@@ -585,7 +583,7 @@ namespace mapManager{
     void UVdetector::add_tracking_result()
     {
         Point2f center = Point2f(this->bird_view.cols / 2, this->bird_view.rows);
-        for(int b = 0; b < this->tracker.now_bb.size(); b++)
+        for(size_t b = 0; b < this->tracker.now_bb.size(); b++)
         {
             // change coordinates
             Point2f estimated_center = Point2f(this->tracker.now_filter[b].output(0), this->tracker.now_filter[b].output(1));
@@ -601,7 +599,7 @@ namespace mapManager{
             velocity.y = -velocity.y;// y direction in birdvie map is in opposite of opencv::line default
             // printf("velocity in birdview 10mm/s: %f, %f , center x ,y: %f, %f, bbox size x, y:%f, %f\n", velocity.x, -velocity.y, estimated_center.x, estimated_center.y, bb_size.x, bb_size.y);
             line(this->bird_view, estimated_center, estimated_center + velocity, Scalar(255, 255, 255), 3, 8, 0);
-            for(int h = 1; h < this->tracker.now_history[b].size(); h++)
+            for(size_t h = 1; h < this->tracker.now_history[b].size(); h++)
             {
                 // trajectory
                 Point2f start = this->tracker.now_history[b][h - 1];

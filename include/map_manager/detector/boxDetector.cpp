@@ -159,7 +159,7 @@ namespace mapManager{
 
 				}
 				else {
-					ROS_INFO("did not get depth");
+					// ROS_INFO("did not get depth");
 					this->uvDetector_.bounding_box_D.clear();
 					this->uvDetector_.bounding_box_B.clear();
 				}

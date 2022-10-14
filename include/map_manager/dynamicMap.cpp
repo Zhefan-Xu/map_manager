@@ -401,11 +401,11 @@ namespace mapManager{
 			this->PT_ = PT;
 		}
 		else{
-			std::cout<<tempVector.size()<<std::endl;
+			// std::cout<<tempVector.size()<<std::endl;
 			for (int i=0 ; i<PT.rows() ; i++){
 				for (int j=0 ; j<PT.cols() ; j++){
 					PT(i,j) = tempVector[i*PT.cols()+j];
-					std::cout<<tempVector[i*PT.cols()+j]<<std::endl;
+					// std::cout<<tempVector[i*PT.cols()+j]<<std::endl;
 				}
 			}
 			this->PT_ = PT;
@@ -991,7 +991,7 @@ namespace mapManager{
 			if ((abs(this->nowBb2d_[nowId].tl().x-pre.tl().x) <3 || abs(this->nowBb2d_[nowId].br().x-pre.br().x )< 3) && this->nowBb2d_[nowId].br().x<this->fovXMarginUpper_ && this->nowBb2d_[nowId].tl().x>this->fovXMarginLower_)
 			{
 				if (this->detectionDebug_||this->veDebug_){
-					cout << this->hint_ << "Velocity Cancel." << endl << endl;
+					cout << this->hint_ << ": Velocity Cancel." << endl << endl;
 					cout << this->hint_ << ": " << this->nowBb2d_[nowId].tl().x << " " << this->preBb2d_[preId].tl().x << " " << this->nowBb2d_[nowId].br().x << " " << this->preBb2d_[preId].br().x << endl;
 				}
 				V(0,0) = 0.01;
@@ -1063,21 +1063,21 @@ namespace mapManager{
 				|| (this->nowBb_[i].z-this->nowBb_[i].z_width/2 > this->lowestPointLimit_)) {
 					if (this->detectionDebug_){     
 						if ((length/height>this->sizeRatioUpper_ )|| (length/height<this->sizeRatioLower_ )|| (width/height<this->sizeRatioLower_) || (width/height>this->sizeRatioUpper_)){
-							cout << this->hint_ <<  "1: " << " " << endl;
+							cout << this->hint_ <<  ": 1" << " " << endl;
 						}
 						if ((this->nowBb_[i].x_width<this->fusedBoxWidthLimitLower_) && (this->nowBb_[i].y_width<this->fusedBoxWidthLimitLower_)){
-							cout << this->hint_ <<  "2: " << " " << endl;
+							cout << this->hint_ <<  ": 2" << " " << endl;
 						}
 						if ((this->nowBb_[i].x_width>this->fusedBoxWidthLimitUpper_) && (this->nowBb_[i].y_width>this->fusedBoxWidthLimitUpper_)){
-							cout << this->hint_ <<  "3: " << " " << endl;
+							cout << this->hint_ <<  ": 3" << " " << endl;
 							cout << this->hint_ << ": " << this->nowBb_[i].x_width << " " << this->nowBb_[i].y_width << " " << this->fusedBoxWidthLimitUpper_ << " " <<fusedBoxWidthLimitUpper_ << endl;
 						}
 						if ((this->nowBb_[i].z_width<this->fusedBoxHeightLimitLower_) || (this->nowBb_[i].z_width>this->fusedBoxHeightLimitUpper_)|| ((this->nowBb_[i].z-this->nowBb_[i].z_width/2) > this->lowestPointLimit_)){
-							cout << this->hint_ <<  "4: " << " " << endl;
+							cout << this->hint_ <<  ": 4" << " " << endl;
 							cout << this->hint_ << ": " << this->nowBb_[i].z_width << " " << this->fusedBoxHeightLimitUpper_ << " " << this->nowBb_[i].z << " " << this->lowestPointLimit_ << endl;
 						}
-						std::cout << this->hint_ << ": First Layer Fail!" << endl;
-						std::cout << this->hint_ << ": Size wrong, ID: " << i << ", proc count: " << this->nowVoteHist_[i].back() << ", is dynamic? " << isDynamic[i] << endl;  
+						cout << this->hint_ << ": First Layer Fail!" << endl;
+						cout << this->hint_ << ": Size wrong, ID: " << i << ", proc count: " << this->nowVoteHist_[i].back() << ", is dynamic? " << isDynamic[i] << endl;  
 					}
 					
 					this->nowVoteHist_[i].back() = 0;
@@ -1086,14 +1086,14 @@ namespace mapManager{
 				}
 				else {
 					if (this->detectionDebug_){
-						std::cout << this->hint_ << ": First Layer pass!" << endl;
+						cout << this->hint_ << ": First Layer pass!" << endl;
 					}
 				}
 
 			}   
 			else {
 				if (this->detectionDebug_){
-						std::cout << this->hint_ << ": First Layer Fail!" << endl;
+						cout << this->hint_ << ": First Layer Fail!" << endl;
 				}
 				
 				this->nowVoteHist_[i].push_back(0);
@@ -1195,7 +1195,7 @@ namespace mapManager{
 			}
 			contAvg = angleSum/(this->CFHistSize_ - this->CFInterval_-1);
 			if(this->detectionDebug_){
-				cout << this->hint_ << " :angleSum: " << angleSum << ", size: " << this->CFHistSize_ - this->CFInterval_-1 << ", contAvg :" << contAvg << endl;
+				cout << this->hint_ << ": Angle Sum: " << angleSum << ", size: " << this->CFHistSize_ - this->CFInterval_-1 << ", contAvg :" << contAvg << endl;
 			}
 		}
 
