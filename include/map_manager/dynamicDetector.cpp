@@ -12,11 +12,16 @@ namespace mapManager{
 		this->hint_ = "[dynamicDetector]";
 	}
 
-	dynamicDetector::dynamicDetector(const ros::NodeHandle& nh, std::vector<Eigen::Vector3d> projPoints){
+	dynamicDetector::dynamicDetector(const ros::NodeHandle& nh, std::vector<Eigen::Vector3d>& projPoints, Eigen::Vector3d& position, Eigen::Vector3d& localMapSizeMin, Eigen::Vector3i& localMapVoxelMax, double& mapRes){
 		this->ns_ = "dynamic_detector";
 		this->hint_ = "[dynamicDetector]";
         this->nh_ = nh;
         this->projPoints_ = projPoints;
+        
+        this->position_ = position;
+        this->localMapSizeMin_ = localMapSizeMin;
+        this->localMapVoxelMax_ = localMapVoxelMax;
+        this->mapRes_ = mapRes;
 	}
 
     void dynamicDetector::initDetectorParam(){
@@ -33,31 +38,29 @@ namespace mapManager{
     }
 
     void dynamicDetector::filteringAndClustering(){
+        this->voxelFilter();
+
+    }
+
+    void dynamicDetector::voxelFilter(){
         Eigen::Vector3d currPoint;
         int localAddress;
-        int count;
-        ROS_INFO("here1");
-        std::cout<<"projPointsNum, projPoints size: %i, %i"<<this->projPointsNum_ << " " << this->projPoints_.size()<<std::endl;
-        // voxel filter
+
+        // filtering by voxel
+        this->filteredPc_.clear();
         for (size_t i=0; i<this->projPoints_.size(); ++i){
 			currPoint = this->projPoints_[i];
-            ROS_INFO("herer2");
             localAddress = this->posToLocalAddress(currPoint);
+
             if (!this->localPcOccupied_[localAddress]){
-                // ROS_INFO("local address: %i", localAddress);
-                std::cout<<"localAddress"<<localAddress<<std::endl;
                 this->localPcOccupied_[localAddress] = true;
                 this->filteredPc_.push_back(currPoint);
-                count++;
             }
         }
-        
-        // std::cout<<"filtered pc size: "<<this->filteredPc_.size()<<std::endl;
-        // std::cout << "count "<< count << std::endl;
+
         //clean localPcVoxel
         this->localPcOccupied_.clear();
         this->localPcOccupied_.resize(this->localPcVoxelSize_, false);
-
     }
 }
 

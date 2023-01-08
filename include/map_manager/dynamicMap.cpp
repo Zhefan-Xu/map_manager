@@ -115,8 +115,7 @@ namespace mapManager{
 		startTime = ros::Time::now();
 		// project 3D points from depth map
 		this->projectDepthImage();
-		ROS_INFO("in updataOccCB");
-		std::cout<<"projpoints: "<<this->projPoints_.size()<<std::endl;
+		
 		// raycasting and update occupancy
 		this->raycastUpdate();
 
@@ -137,11 +136,11 @@ namespace mapManager{
 
 
 	void dynamicMap::registerDynamicCallback(){
-		this->detector_.reset(new mapManager::dynamicDetector(this->nh_, this->projPoints_));
+		this->detector_.reset(new mapManager::dynamicDetector(this->nh_, this->projPoints_, this->position_, this->localMapSizeMin_, this->localMapVoxelMax_, this->mapRes_ ));
 		this->detector_->initDetectorParam();
 		
 		this->dynamicObsDetectTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::dynamicObsDetectCB, this);
-		this->visTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::visDynamicCB, this);
+		this->visDynamicTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::visDynamicCB, this);
 		// this->detector_.reset(new mapManager::boxDetector(this->nh_, this->ns_,this->depthImage_, this->fx_,this->fy_,this->cx_,this->cy_, this->depthScale_));
 		// this->boxDetectTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::boxDetectCB, this);
 		// this->dynamicBoxPubTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::dynamicBoxPubCB, this);
@@ -150,6 +149,11 @@ namespace mapManager{
 	}
 
 	void dynamicMap::dynamicObsDetectCB(const ros::TimerEvent&){
+		// update information
+		this->detector_->setProjPoints(this->projPoints_);
+		this->detector_->setPosition(this->position_);
+
+		// filter pc and get obstacles clusters
 		this->detector_->filteringAndClustering();
 	}
 
@@ -161,9 +165,7 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 		std::vector<Eigen::Vector3d> filteredPc;
-		ROS_INFO("before got filtered pc");
 		this->detector_->getFilteredPc(filteredPc);
-		ROS_INFO("got filtered pc: %li", filteredPc.size());
 		for (size_t i=0; i<filteredPc.size(); ++i){
 			pt.x = filteredPc[i](0);
 			pt.y = filteredPc[i](1);
@@ -178,7 +180,6 @@ namespace mapManager{
 
 		sensor_msgs::PointCloud2 cloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
-		ROS_INFO("publish");
 		this->depthCloudFilteredPub_.publish(cloudMsg);
 	}
 
@@ -209,6 +210,13 @@ namespace mapManager{
 	// 	// visualization callback
 	// 	this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, dynamic_cast<occMap*>(this));
 	// }
+
+
+	// usr functions 
+	void dynamicMap::getDynamicObstacles(std::vector<Eigen::Vector3d> &obstaclesPos, std::vector<Eigen::Vector3d> &obstaclesVel, std::vector<Eigen::Vector3d> &obstaclesSize){
+
+	}
+	
 
 }
 

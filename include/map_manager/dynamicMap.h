@@ -30,7 +30,7 @@ namespace mapManager{
 		int ts_;
 		// ROS
 		ros::Timer dynamicObsDetectTimer_;
-		ros::Timer visTimer_;
+		ros::Timer visDynamicTimer_;
 
 		// detector
 		std::shared_ptr<mapManager::dynamicDetector> detector_;
@@ -62,6 +62,9 @@ namespace mapManager{
 
 		// publish
 		void publishFilteredPoinCloud();
+
+		// usr interface
+		void getDynamicObstacles(std::vector<Eigen::Vector3d> &obstaclesPos, std::vector<Eigen::Vector3d> &obstaclesVel, std::vector<Eigen::Vector3d> &obstaclesSize);
 	
 		
 	
