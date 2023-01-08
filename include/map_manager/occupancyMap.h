@@ -76,6 +76,8 @@ namespace mapManager{
 		double groundHeight_; // ground height in z axis
 		Eigen::Vector3d mapSize_, mapSizeMin_, mapSizeMax_; // reserved min/max map size
 		Eigen::Vector3i mapVoxelMin_, mapVoxelMax_; // reserved min/max map size in voxel
+		Eigen::Vector3d localMapSizeMin_, localMapSizeMax_; // reserved min/max local map size
+		Eigen::Vector3i localMapVoxelMin_, localMapVoxelMax_; // reserved min/max local map size in voxel
 		Eigen::Vector3d localUpdateRange_; // self defined local update range
 		double localBoundInflate_; // inflate local map for some distance
 		bool cleanLocalMap_; 

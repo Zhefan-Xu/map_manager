@@ -8,6 +8,7 @@
 #define MAPMANAGER_DYNAMICMAP_H
 
 #include <map_manager/occupancyMap.h>
+#include <map_manager/dynamicDetector.h>
 #include <nav_msgs/Path.h>
 
 #include <opencv2/opencv.hpp>
@@ -20,15 +21,23 @@
 namespace mapManager{
 
 	class dynamicMap : public occMap{
-	private:
+	// private:
+	protected:
 		ros::NodeHandle nh_;
 
 		// PARAMS
 		// -----------------------------------------------------------------
+		int ts_;
+		// ROS
+		ros::Timer dynamicObsDetectTimer_;
+		ros::Timer visTimer_;
 
+		// detector
+		std::shared_ptr<mapManager::dynamicDetector> detector_;
 
-
-
+		// publisher
+		ros::Publisher depthCloudFilteredPub_;
+		// ros::Publisher depthCloudPub_;
 	public:
 		dynamicMap();
 		dynamicMap(const ros::NodeHandle& nh);
@@ -36,19 +45,23 @@ namespace mapManager{
 		// init
 		void initMap(const ros::NodeHandle& nh);
 		void initDynamicParam();
+		void registerCallback(); // re-write occmap callback
 		void registerDynamicPub();
 		void registerDynamicCallback();
 
-		// call back
+		// callback
+		void visDynamicCB(const ros::TimerEvent&);
+		void inflateMapCB(const ros::TimerEvent&);
+		void updateOccupancyCB(const ros::TimerEvent&);
+		void dynamicObsDetectCB(const ros::TimerEvent&);
 		// void inflateMapCB(const ros::TimerEvent&);
 		// void updateOccupancyCB(const ros::TimerEvent&);
 		// void boxDetectCB(const ros::TimerEvent&);
 		// void obstacleTrajPubCB(const ros::TimerEvent&);
 		// void dynamicBoxPubCB(const ros::TimerEvent&);
-		void filteringAndClusteringCB(const ros::TimerEvent&);
-		void occlusionAwareTrackingCB(const ros::TimerEvent&);
-		void identifyDynamicObsCB(const ros::TimerEvent&);
 
+		// publish
+		void publishFilteredPoinCloud();
 	
 		
 	

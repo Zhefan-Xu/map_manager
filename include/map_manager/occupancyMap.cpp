@@ -329,6 +329,16 @@ namespace mapManager{
 		}
 		this->localMapSize_(0) = localMapSizeVec[0]/2; this->localMapSize_(1) = localMapSizeVec[1]/2; this->localMapSize_(2) = localMapSizeVec[2]/2;
 		this->localMapVoxel_(0) = int(ceil(localMapSizeVec[0]/(2*this->mapRes_))); this->localMapVoxel_(1) = int(ceil(localMapSizeVec[1]/(2*this->mapRes_))); this->localMapVoxel_(2) = int(ceil(localMapSizeVec[2]/(2*this->mapRes_)));
+		// local map:
+		// init min max
+		this->localMapSizeMin_(0) = -localMapSizeVec[0]/2; this->localMapSizeMax_(0) = localMapSizeVec[0]/2;
+		this->localMapSizeMin_(1) = -localMapSizeVec[1]/2; this->localMapSizeMax_(1) = localMapSizeVec[1]/2;
+		this->localMapSizeMin_(2) = this->groundHeight_; this->localMapSizeMax_(2) = this->groundHeight_ + localMapSizeVec[2];
+		
+		// min max for voxel
+		this->localMapVoxelMin_(0) = 0; this->localMapVoxelMax_(0) = ceil(localMapSizeVec[0]/this->mapRes_);
+		this->localMapVoxelMin_(1) = 0; this->localMapVoxelMax_(1) = ceil(localMapSizeVec[1]/this->mapRes_);
+		this->localMapVoxelMin_(2) = 0; this->localMapVoxelMax_(2) = ceil(localMapSizeVec[2]/this->mapRes_);
 
 		// max vis height
 		if (not this->nh_.getParam(this->ns_ + "/max_height_visualization", this->maxVisHeight_)){
