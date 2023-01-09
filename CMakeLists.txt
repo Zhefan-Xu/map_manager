@@ -139,7 +139,8 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp
                             include/${PROJECT_NAME}/ESDFMap.cpp
                             include/${PROJECT_NAME}/raycast.cpp
                             include/${PROJECT_NAME}/dynamicMap.cpp
-                            include/${PROJECT_NAME}/dynamicDetector.cpp)
+                            include/${PROJECT_NAME}/dynamicDetector.cpp
+                            include/${PROJECT_NAME}/dbscan.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

@@ -136,8 +136,8 @@ namespace mapManager{
 
 
 	void dynamicMap::registerDynamicCallback(){
-		this->detector_.reset(new mapManager::dynamicDetector(this->nh_, this->projPoints_, this->position_, this->localMapSizeMin_, this->localMapVoxelMax_, this->mapRes_, this->depthMaxValue_));
-		this->detector_->initDetectorParam();
+		this->detector_.reset(new mapManager::dynamicDetector(this->nh_, this->localMapSizeMin_, this->localMapVoxelMax_, this->mapRes_, this->depthMaxValue_));
+		// this->detector_->initDetectorParam();
 		
 		this->dynamicObsDetectTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::dynamicObsDetectCB, this);
 		this->visDynamicTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::visDynamicCB, this);

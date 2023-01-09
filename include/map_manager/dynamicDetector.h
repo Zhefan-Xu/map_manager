@@ -2,6 +2,7 @@
 #define MAPMANAGER_DYNAMICDETECTOR_H
 
 #include <map_manager/occupancyMap.h>
+#include <map_manager/dbscan.h>
 
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
@@ -16,18 +17,24 @@ namespace mapManager{
 
         //PARAMS
         int dt_;
+        float groundHeight_;
+        int minPoints_;
+        float epsilon_;
         
         // filteringAndClustering
         int localPcVoxelSize_;
         std::vector<bool> localPcOccupied_; //voxel for projected point in current frame
         std::vector<Eigen::Vector3d> filteredPc_; // filtered piontcloud in current frame
+        std::shared_ptr<DBSCAN> dsCluster_;
+        std::vector<Point> dsPoints_;
+        std::vector<std::vector<Eigen::Vector3d>> clusters_; // results of clustering
 
         // ROS
-        ros::NodeHandle nh;
+        // ros::NodeHandle nh;
         
     public:
         dynamicDetector(/* args */);
-        dynamicDetector(const ros::NodeHandle& nh, std::vector<Eigen::Vector3d>& projPoints, Eigen::Vector3d& position, Eigen::Vector3d& localMapSizeMin, Eigen::Vector3i& localMapVoxelMax, double& mapRes, double& depthMaxValue);
+        dynamicDetector(const ros::NodeHandle& nh, Eigen::Vector3d& localMapSizeMin, Eigen::Vector3i& localMapVoxelMax, double& mapRes, double& depthMaxValue);
 
         
         void initDetectorParam();
@@ -37,6 +44,9 @@ namespace mapManager{
         
         // filtering and clustering
         void voxelFilter();
+        void neighborFilter();
+        void clustering();
+        void dividePointsIntoClusters();
 
         // user interface
         void getFilteredPc(std::vector<Eigen::Vector3d>& incomePc);
@@ -48,6 +58,9 @@ namespace mapManager{
         void posToLocalIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& localIdx);
 		int localIndexToLocalAddress(const Eigen::Vector3i& localIdx);
         int posToLocalAddress(const Eigen::Vector3d& pos);
+        void eigenToPointStruct(const Eigen::Vector3d& eigenVec, Point& point);
+        void pointStructToEigen(Eigen::Vector3d& eigenVec, const Point& point);
+        void printClusterResults(std::vector<Point>& points, int num_points);
 
 
     };
@@ -68,6 +81,19 @@ namespace mapManager{
 		this->posToLocalIndex(pos, localIdx);
 		return this->localIndexToLocalAddress(localIdx);
 	}
+
+    inline void dynamicDetector::eigenToPointStruct(const Eigen::Vector3d& eigenVec, Point& point){
+        point.x = eigenVec(0);
+        point.y = eigenVec(1);
+        point.z = eigenVec(2);
+        point.clusterID = -1; // UNCLASIFIED = -1
+    }
+
+    inline void dynamicDetector::pointStructToEigen(Eigen::Vector3d& eigenVec, const Point& point){
+        eigenVec(0) = point.x;
+        eigenVec(1) = point.y;
+        eigenVec(2) = point.z;
+    }
     
     // usr interface
     inline void dynamicDetector::getFilteredPc(std::vector<Eigen::Vector3d>& incomePc){

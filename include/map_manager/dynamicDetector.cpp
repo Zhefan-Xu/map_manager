@@ -12,17 +12,17 @@ namespace mapManager{
 		this->hint_ = "[dynamicDetector]";
 	}
 
-	dynamicDetector::dynamicDetector(const ros::NodeHandle& nh, std::vector<Eigen::Vector3d>& projPoints, Eigen::Vector3d& position, Eigen::Vector3d& localMapSizeMin, Eigen::Vector3i& localMapVoxelMax, double& mapRes, double& depthMaxValue){
+	dynamicDetector::dynamicDetector(const ros::NodeHandle& nh, Eigen::Vector3d& localMapSizeMin, Eigen::Vector3i& localMapVoxelMax, double& mapRes, double& depthMaxValue){
 		this->ns_ = "dynamic_detector";
 		this->hint_ = "[dynamicDetector]";
         this->nh_ = nh;
-        this->projPoints_ = projPoints;
-        
-        this->position_ = position;
         this->localMapSizeMin_ = localMapSizeMin;
         this->localMapVoxelMax_ = localMapVoxelMax;
         this->mapRes_ = mapRes;
         this->depthMaxValue_ = depthMaxValue;
+
+        this->initDetectorParam();
+        this->dsCluster_.reset(new DBSCAN(this->minPoints_, this->epsilon_, this->dsPoints_));
 	}
 
     void dynamicDetector::initDetectorParam(){
@@ -34,12 +34,38 @@ namespace mapManager{
 			std::cout << this->hint_ << ": time_difference is set to: " << this->dt_ << std::endl;
 		}
 
+        if (not this->nh_.getParam(this->ns_ + "/ground_height", this->groundHeight_)){
+			this->groundHeight_ = 0.1;
+			std::cout << this->hint_ << ": No ground_height parameter. Use default: 0.1." << std::endl;
+		}
+		else{
+			std::cout << this->hint_ << ": ground_height is set to: " << this->groundHeight_ << std::endl;
+		}
+
+        if (not this->nh_.getParam(this->ns_ + "/min_points", this->minPoints_)){
+			this->minPoints_ = 18;
+			std::cout << this->hint_ << ": No min_points parameter. Use default: 18." << std::endl;
+		}
+		else{
+			std::cout << this->hint_ << ": min_points is set to: " << this->minPoints_ << std::endl;
+		}
+
+        if (not this->nh_.getParam(this->ns_ + "/epsilon", this->epsilon_)){
+			this->epsilon_ = 0.3;
+			std::cout << this->hint_ << ": No min_points parameter. Use default: 0.3." << std::endl;
+		}
+		else{
+			std::cout << this->hint_ << ": epsilon is set to: " << this->epsilon_ << std::endl;
+		}
+
         this->localPcVoxelSize_ = this->localMapVoxelMax_(0) * this->localMapVoxelMax_(1) * this->localMapVoxelMax_(2);
         this->localPcOccupied_.resize(this->localPcVoxelSize_, false);
     }
 
     void dynamicDetector::filteringAndClustering(){
         this->voxelFilter();
+        this->neighborFilter();
+        this->clustering();
 
     }
 
@@ -55,7 +81,8 @@ namespace mapManager{
 
             if (!this->localPcOccupied_[localAddress]){
                 this->localPcOccupied_[localAddress] = true;
-                if (this->pointsDepth_[i]<this->depthMaxValue_){
+                // filter out ground points and background points
+                if (this->pointsDepth_[i]<this->depthMaxValue_ && currPoint(2)>this->groundHeight_){
                     this->filteredPc_.push_back(currPoint);
                 }
             }
@@ -65,5 +92,91 @@ namespace mapManager{
         this->localPcOccupied_.clear();
         this->localPcOccupied_.resize(this->localPcVoxelSize_, false);
     }
+
+    void dynamicDetector::neighborFilter(){
+
+    }
+
+    void dynamicDetector::clustering(){
+        // set input
+        this->dsCluster_->m_points.clear();
+        Point currPoint;
+        for (size_t i=0 ; i<this->filteredPc_.size() ; ++i){
+            this->eigenToPointStruct(this->filteredPc_[i], currPoint);
+            this->dsCluster_->m_points.push_back(currPoint);
+        }
+
+        // clustering
+        this->dsCluster_->run();
+
+        // test result
+        // this->printClusterResults(this->dsCluster_->m_points, this->dsCluster_->m_points.size());
+
+        // store cluster groups in this->clusters_
+        this->dividePointsIntoClusters(); 
+        
+
+    }
+
+    void dynamicDetector::dividePointsIntoClusters(){
+        this->clusters_.clear();
+
+        // reize according to first point's index
+        if (this->dsCluster_->m_points.size()){
+            // set unclassifed as 0
+            if (this->dsCluster_->m_points[0].clusterID == -1){
+                this->dsCluster_->m_points[0].clusterID = 0;
+            }
+            this->clusters_.resize(this->dsCluster_->m_points[0].clusterID + 1); // reserve for unclassified points
+        }
+
+        for (size_t i=0 ; i<this->dsCluster_->m_points.size() ; ++i){
+            
+            Eigen::Vector3d currPc;
+            Point currPoint = this->dsCluster_->m_points[i];
+
+            // set unclassifed as 0
+            if (currPoint.clusterID == -1){
+                currPoint.clusterID = 0;
+            }
+
+            // point to eigen vector
+            this->pointStructToEigen(currPc, currPoint);
+
+            // insert points into cluster vectors
+            if (currPoint.clusterID < int(this->clusters_.size())){ // insert to previous clusters
+                this->clusters_[currPoint.clusterID].push_back(currPc);
+            }
+            else{ // push another cluster and insert pc
+                std::vector<Eigen::Vector3d> currPcVec;
+                currPcVec.push_back(currPc);
+                this->clusters_.push_back(currPcVec);
+            }
+        }
+
+        // show cluster and num of points
+        // for (size_t i=0 ; i<this->clusters_.size() ; ++i){
+        //     std::cout<<"cluster " << i << ": " << this->clusters_[i].size()<<std::endl;
+        // }
+    }
+
+    // tool functions
+    void dynamicDetector::printClusterResults(std::vector<Point>& points, int num_points)
+    {
+        int i = 0;
+        printf("Number of points: %u\n"
+            " x     y     z     cluster_id\n"
+            "-----------------------------\n"
+            , num_points);
+        while (i < num_points)
+        {
+            printf("%5.2lf %5.2lf %5.2lf: %d\n",
+                    points[i].x,
+                    points[i].y, points[i].z,
+                    points[i].clusterID);
+            ++i;
+        }
+    }
+
 }
 
