@@ -153,6 +153,7 @@ namespace mapManager{
 			cout << this->hint_ << ": Depth image rows: " << this->imgRows_ << endl;
 		}
 		this->projPoints_.resize(this->imgCols_ * this->imgRows_ / (this->skipPixel_ * this->skipPixel_));
+		this->pointsDepth_.resize(this->projPoints_.size());
 		// ------------------------------------------------------------------------------------
 
 
@@ -514,6 +515,7 @@ namespace mapManager{
 		const double inv_fx = 1.0 / this->fx_;
 		const double inv_fy = 1.0 / this->fy_;
 
+		this->pointsDepth_.clear();
 
 		// iterate through each pixel in the depth image
 		for (int v=this->depthFilterMargin_; v<rows-this->depthFilterMargin_; v=v+this->skipPixel_){ // row
@@ -537,8 +539,12 @@ namespace mapManager{
 				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 
 				// store current point
+				// if (this->depthMinValue_<=depth && this->depthMaxValue_>depth){
+				// if (true){
 				this->projPoints_[this->projPointsNum_] = currPointMap;
 				this->projPointsNum_ = this->projPointsNum_ + 1;
+				this->pointsDepth_.push_back(depth);
+
 			}
 		} 
 	}

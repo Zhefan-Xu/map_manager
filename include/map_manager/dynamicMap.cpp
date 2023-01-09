@@ -115,7 +115,7 @@ namespace mapManager{
 		startTime = ros::Time::now();
 		// project 3D points from depth map
 		this->projectDepthImage();
-		
+
 		// raycasting and update occupancy
 		this->raycastUpdate();
 
@@ -136,7 +136,7 @@ namespace mapManager{
 
 
 	void dynamicMap::registerDynamicCallback(){
-		this->detector_.reset(new mapManager::dynamicDetector(this->nh_, this->projPoints_, this->position_, this->localMapSizeMin_, this->localMapVoxelMax_, this->mapRes_ ));
+		this->detector_.reset(new mapManager::dynamicDetector(this->nh_, this->projPoints_, this->position_, this->localMapSizeMin_, this->localMapVoxelMax_, this->mapRes_, this->depthMaxValue_));
 		this->detector_->initDetectorParam();
 		
 		this->dynamicObsDetectTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::dynamicObsDetectCB, this);
@@ -152,6 +152,7 @@ namespace mapManager{
 		// update information
 		this->detector_->setProjPoints(this->projPoints_);
 		this->detector_->setPosition(this->position_);
+		this->detector_->setPointsDepth((this->pointsDepth_));
 
 		// filter pc and get obstacles clusters
 		this->detector_->filteringAndClustering();

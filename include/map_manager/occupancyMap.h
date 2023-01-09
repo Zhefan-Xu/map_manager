@@ -104,6 +104,7 @@ namespace mapManager{
 		// MAP DATA
 		int projPointsNum_ = 0;
 		std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
+		std::vector<double> pointsDepth_; // depths value in cam frame of projected points from depth image
 		std::vector<int> countHitMiss_;
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;

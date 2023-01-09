@@ -12,7 +12,7 @@ namespace mapManager{
 		this->hint_ = "[dynamicDetector]";
 	}
 
-	dynamicDetector::dynamicDetector(const ros::NodeHandle& nh, std::vector<Eigen::Vector3d>& projPoints, Eigen::Vector3d& position, Eigen::Vector3d& localMapSizeMin, Eigen::Vector3i& localMapVoxelMax, double& mapRes){
+	dynamicDetector::dynamicDetector(const ros::NodeHandle& nh, std::vector<Eigen::Vector3d>& projPoints, Eigen::Vector3d& position, Eigen::Vector3d& localMapSizeMin, Eigen::Vector3i& localMapVoxelMax, double& mapRes, double& depthMaxValue){
 		this->ns_ = "dynamic_detector";
 		this->hint_ = "[dynamicDetector]";
         this->nh_ = nh;
@@ -22,6 +22,7 @@ namespace mapManager{
         this->localMapSizeMin_ = localMapSizeMin;
         this->localMapVoxelMax_ = localMapVoxelMax;
         this->mapRes_ = mapRes;
+        this->depthMaxValue_ = depthMaxValue;
 	}
 
     void dynamicDetector::initDetectorParam(){
@@ -54,7 +55,9 @@ namespace mapManager{
 
             if (!this->localPcOccupied_[localAddress]){
                 this->localPcOccupied_[localAddress] = true;
-                this->filteredPc_.push_back(currPoint);
+                if (this->pointsDepth_[i]<this->depthMaxValue_){
+                    this->filteredPc_.push_back(currPoint);
+                }
             }
         }
 
