@@ -58,6 +58,7 @@ namespace mapManager{
 	void dynamicMap::registerDynamicPub(){
 		// this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud", 10);
 		this->depthCloudFilteredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud_filt", 2);
+		this->dsObsBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/ds_obstacle_box", 2);
 		// this->dynamicBoxPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_+"/box_visualization_marker", 10);
 		// this->fusedBoxPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_+"/fused_box_visualization_marker", 10);
 		// this->rawBoxPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_+"/raw_box_visualization_marker", 10);
@@ -156,10 +157,13 @@ namespace mapManager{
 
 		// filter pc and get obstacles clusters
 		this->detector_->filteringAndClustering();
+
+		this->detector_->getObsBoxes(this->dsObsBoxes_);
 	}
 
 	void dynamicMap::visDynamicCB(const ros::TimerEvent&){
 		this->publishFilteredPoinCloud();
+		this->publish3dBox(this->dsObsBoxes_, dsObsBoxesPub_, 'g');
 	}
 
 	void dynamicMap::publishFilteredPoinCloud(){
@@ -182,6 +186,103 @@ namespace mapManager{
 		sensor_msgs::PointCloud2 cloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
 		this->depthCloudFilteredPub_.publish(cloudMsg);
+	}
+
+	void dynamicMap::publish3dBox(const std::vector<box3D> &boxes, const ros::Publisher &publisher, const char &color) {
+
+		// visualization using bounding boxes 
+		visualization_msgs::Marker line;
+		visualization_msgs::MarkerArray lines;
+		line.header.frame_id = "map";
+		line.type = visualization_msgs::Marker::LINE_LIST;
+		line.action = visualization_msgs::Marker::ADD;
+		line.ns = "box3D";	
+		line.scale.x = 0.1;
+
+		if (color=='g') {
+			line.color.g = 1.0;
+		}
+		else if (color=='b') {
+			line.color.b = 1.0;
+		}
+		else {
+			line.color.r = 1.0;
+		}
+
+		line.color.a = 1.0;
+		line.lifetime = ros::Duration(0.1);
+
+		for(size_t i = 0; i < boxes.size(); i++){
+			// visualization msgs
+
+			double x = boxes[i].x; 
+			double y = boxes[i].y; 
+			double z = boxes[i].z; 
+
+			double x_width = std::max(boxes[i].x_width,boxes[i].y_width);
+			double y_width = std::max(boxes[i].x_width,boxes[i].y_width);
+			double z_width = boxes[i].z_width;
+			
+			vector<geometry_msgs::Point> verts;
+			geometry_msgs::Point p;
+			// vertice 0
+			p.x = x-x_width / 2.; p.y = y-y_width / 2.; p.z = z-z_width / 2.;
+			verts.push_back(p);
+
+			// vertice 1
+			p.x = x-x_width / 2.; p.y = y+y_width / 2.; p.z = z-z_width / 2.;
+			verts.push_back(p);
+
+			// vertice 2
+			p.x = x+x_width / 2.; p.y = y+y_width / 2.; p.z = z-z_width / 2.;
+			verts.push_back(p);
+
+			// vertice 3
+			p.x = x+x_width / 2.; p.y = y-y_width / 2.; p.z = z-z_width / 2.;
+			verts.push_back(p);
+
+			// vertice 4
+			p.x = x-x_width / 2.; p.y = y-y_width / 2.; p.z = z+z_width / 2.;
+			verts.push_back(p);
+
+			// vertice 5
+			p.x = x-x_width / 2.; p.y = y+y_width / 2.; p.z = z+z_width / 2.;
+			verts.push_back(p);
+
+			// vertice 6
+			p.x = x+x_width / 2.; p.y = y+y_width / 2.; p.z = z+z_width / 2.;
+			verts.push_back(p);
+
+			// vertice 7
+			p.x = x+x_width / 2.; p.y = y-y_width / 2.; p.z = z+z_width / 2.;
+			verts.push_back(p);
+			
+			int vert_idx[12][2] = {
+				{0,1},
+				{1,2},
+				{2,3},
+				{0,3},
+				{0,4},
+				{1,5},
+				{3,7},
+				{2,6},
+				{4,5},
+				{5,6},
+				{4,7},
+				{6,7}
+			};
+			
+			for (size_t i=0;i<12;i++){
+				line.points.push_back(verts[vert_idx[i][0]]);
+				line.points.push_back(verts[vert_idx[i][1]]);
+			}
+			
+			lines.markers.push_back(line);
+			
+			line.id++;
+		}
+		// publish
+		publisher.publish(lines);
 	}
 
 

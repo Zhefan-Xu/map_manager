@@ -9,8 +9,10 @@
 
 #include <map_manager/occupancyMap.h>
 #include <map_manager/dynamicDetector.h>
-#include <nav_msgs/Path.h>
 
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <nav_msgs/Path.h>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
 #include <Eigen/StdVector>
@@ -34,9 +36,11 @@ namespace mapManager{
 
 		// detector
 		std::shared_ptr<mapManager::dynamicDetector> detector_;
+		std::vector<box3D> dsObsBoxes_;
 
 		// publisher
 		ros::Publisher depthCloudFilteredPub_;
+		ros::Publisher dsObsBoxesPub_;
 		// ros::Publisher depthCloudPub_;
 	public:
 		dynamicMap();
@@ -62,6 +66,7 @@ namespace mapManager{
 
 		// publish
 		void publishFilteredPoinCloud();
+		void publish3dBox(const std::vector<box3D> &boxes, const ros::Publisher &publisher, const char &color);
 
 		// usr interface
 		void getDynamicObstacles(std::vector<Eigen::Vector3d> &obstaclesPos, std::vector<Eigen::Vector3d> &obstaclesVel, std::vector<Eigen::Vector3d> &obstaclesSize);

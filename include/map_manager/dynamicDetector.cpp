@@ -114,7 +114,7 @@ namespace mapManager{
 
         // store cluster groups in this->clusters_
         this->dividePointsIntoClusters(); 
-        
+        this->clustersToBoxes();
 
     }
 
@@ -158,6 +158,42 @@ namespace mapManager{
         // for (size_t i=0 ; i<this->clusters_.size() ; ++i){
         //     std::cout<<"cluster " << i << ": " << this->clusters_[i].size()<<std::endl;
         // }
+    }
+
+    void dynamicDetector::clustersToBoxes(){
+
+        std::vector<box3D> boxesTemp;
+        for (size_t i=1 ; i<this->clusters_.size() ; ++i){
+
+            box3D box;
+
+            float xmin = this->clusters_[i][0](0);
+            float ymin = this->clusters_[i][0](1);
+            float zmin = this->clusters_[i][0](2);
+            float xmax = this->clusters_[i][0](0);
+            float ymax = this->clusters_[i][0](1);
+            float zmax = this->clusters_[i][0](2);
+
+            for (size_t j=0 ; j<this->clusters_[i].size() ; ++j){
+                xmin = (this->clusters_[i][j](0)<xmin)?this->clusters_[i][j](0):xmin;
+                ymin = (this->clusters_[i][j](1)<ymin)?this->clusters_[i][j](1):ymin;
+                zmin = (this->clusters_[i][j](2)<zmin)?this->clusters_[i][j](2):zmin;
+                xmax = (this->clusters_[i][j](0)>xmax)?this->clusters_[i][j](0):xmax;
+                ymax = (this->clusters_[i][j](1)>ymax)?this->clusters_[i][j](1):ymax;
+                zmax = (this->clusters_[i][j](2)>zmax)?this->clusters_[i][j](2):zmax;
+            }
+
+            box.id = i;
+            box.x = (xmax + xmin)/2.0;
+            box.y = (ymax + ymin)/2.0;
+            box.z = (zmax + zmin)/2.0;
+            box.x_width = (xmax - xmin)/2.0;
+            box.y_width = (ymax - ymin)/2.0;
+            box.z_width = (zmax - zmin)/2.0;
+            boxesTemp.push_back(box);
+        }
+
+        this->obsBoxes_ = boxesTemp;
     }
 
     // tool functions

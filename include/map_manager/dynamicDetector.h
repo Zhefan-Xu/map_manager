@@ -11,6 +11,16 @@
 
 
 namespace mapManager{
+
+    struct box3D
+    {
+        /* data */
+        float x, y, z;
+        float x_width, y_width, z_width;
+        float id;
+    };
+    
+
     class dynamicDetector : public occMap{
     private:
         /* data */
@@ -28,6 +38,7 @@ namespace mapManager{
         std::shared_ptr<DBSCAN> dsCluster_;
         std::vector<Point> dsPoints_;
         std::vector<std::vector<Eigen::Vector3d>> clusters_; // results of clustering
+        std::vector<box3D> obsBoxes_;
 
         // ROS
         // ros::NodeHandle nh;
@@ -47,9 +58,11 @@ namespace mapManager{
         void neighborFilter();
         void clustering();
         void dividePointsIntoClusters();
+        void clustersToBoxes();
 
         // user interface
         void getFilteredPc(std::vector<Eigen::Vector3d>& incomePc);
+        void getObsBoxes(std::vector<box3D>& incomeBoxes);
         void setPointsDepth(std::vector<double>& incomePointsDepth);
         void setProjPoints(std::vector<Eigen::Vector3d>& incomeProjPoints);
         void setPosition(Eigen::Vector3d& incomePosition);
@@ -98,6 +111,10 @@ namespace mapManager{
     // usr interface
     inline void dynamicDetector::getFilteredPc(std::vector<Eigen::Vector3d>& incomePc){
         incomePc = this->filteredPc_;
+    }
+
+    inline void dynamicDetector::getObsBoxes(std::vector<box3D>& incomeBoxes){
+        incomeBoxes = this->obsBoxes_;
     }
 
     inline void dynamicDetector::setPointsDepth(std::vector<double>& incomePointsDepth){
