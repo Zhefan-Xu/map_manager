@@ -62,6 +62,7 @@ namespace mapManager{
 
         // user interface
         void getFilteredPc(std::vector<Eigen::Vector3d>& incomePc);
+        void getClusters(std::vector<std::vector<Eigen::Vector3d>>& incomeClusters);
         void getObsBoxes(std::vector<box3D>& incomeBoxes);
         void setPointsDepth(std::vector<double>& incomePointsDepth);
         void setProjPoints(std::vector<Eigen::Vector3d>& incomeProjPoints);
@@ -111,6 +112,10 @@ namespace mapManager{
     // usr interface
     inline void dynamicDetector::getFilteredPc(std::vector<Eigen::Vector3d>& incomePc){
         incomePc = this->filteredPc_;
+    }
+
+    inline void dynamicDetector::getClusters(std::vector<std::vector<Eigen::Vector3d>>& incomeClusters){
+        incomeClusters = this->clusters_;
     }
 
     inline void dynamicDetector::getObsBoxes(std::vector<box3D>& incomeBoxes){

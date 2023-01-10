@@ -170,6 +170,7 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 		std::vector<Eigen::Vector3d> filteredPc;
+
 		this->detector_->getFilteredPc(filteredPc);
 		for (size_t i=0; i<filteredPc.size(); ++i){
 			pt.x = filteredPc[i](0);
@@ -178,6 +179,17 @@ namespace mapManager{
 			cloud.push_back(pt);
 		}
 
+		// std::vector<std::vector<Eigen::Vector3d>> clusters;
+		// this->detector_->getClusters(clusters);
+		// if (clusters.size()){
+		// 	for (size_t i=0; i<clusters.back().size(); ++i){
+		// 	pt.x = clusters.back()[i](0);
+		// 	pt.y = clusters.back()[i](1);
+		// 	pt.z = clusters.back()[i](2);
+		// 	cloud.push_back(pt);
+		// }
+	
+		
 		cloud.width = cloud.points.size();
 		cloud.height = 1;
 		cloud.is_dense = true;

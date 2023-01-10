@@ -187,9 +187,9 @@ namespace mapManager{
             box.x = (xmax + xmin)/2.0;
             box.y = (ymax + ymin)/2.0;
             box.z = (zmax + zmin)/2.0;
-            box.x_width = (xmax - xmin)/2.0;
-            box.y_width = (ymax - ymin)/2.0;
-            box.z_width = (zmax - zmin)/2.0;
+            box.x_width = (xmax - xmin);
+            box.y_width = (ymax - ymin);
+            box.z_width = (zmax - zmin);
             boxesTemp.push_back(box);
         }
 
