@@ -3,8 +3,8 @@
 	-------------------------------------
 	occupancy voxel map header file
 */
-#ifndef MAPMANAGER_OCCUPANCYMAP
-#define MAPMANAGER_OCCUPANCYMAP
+#ifndef MAPMANAGER_OCCUPANCYMAP_H
+#define MAPMANAGER_OCCUPANCYMAP_H
 #include <ros/ros.h>
 #include <Eigen/Eigen>
 #include <Eigen/StdVector>
