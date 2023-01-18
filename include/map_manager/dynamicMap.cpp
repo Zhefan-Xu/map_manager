@@ -59,6 +59,7 @@ namespace mapManager{
 		// this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud", 10);
 		this->depthCloudFilteredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud_filt", 2);
 		this->dsObsBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/ds_obstacle_box", 2);
+		this->uvObsBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_+"/uv_obstacle_box", 2);
 		// this->dynamicBoxPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_+"/box_visualization_marker", 10);
 		// this->fusedBoxPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_+"/fused_box_visualization_marker", 10);
 		// this->rawBoxPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_+"/raw_box_visualization_marker", 10);
@@ -138,8 +139,9 @@ namespace mapManager{
 
 	void dynamicMap::registerDynamicCallback(){
 		this->detector_.reset(new mapManager::dynamicDetector(this->nh_, this->localMapSizeMin_, this->localMapVoxelMax_, this->mapRes_, this->depthMaxValue_));
-		// this->detector_->initDetectorParam();
-		
+		// this->detector_->initDetectorParam();	
+		this->uvDetector_.reset(new mapManager::boxDetector(this->nh_, this->ns_,this->depthImage_, this->fx_,this->fy_,this->cx_,this->cy_, this->depthScale_));
+		this->boxDetectTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::boxDetectCB, this);
 		this->dynamicObsDetectTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::dynamicObsDetectCB, this);
 		this->visDynamicTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::visDynamicCB, this);
 		// this->detector_.reset(new mapManager::boxDetector(this->nh_, this->ns_,this->depthImage_, this->fx_,this->fy_,this->cx_,this->cy_, this->depthScale_));
@@ -147,6 +149,12 @@ namespace mapManager{
 		// this->dynamicBoxPubTimer_ = this->nh_.createTimer(ros::Duration(this->ts_), &dynamicMap::dynamicBoxPubCB, this);
 		// this->obstacleTrajPubTimer_ = this->nh_.createTimer(ros::Duration(this->ts_),&dynamicMap::obstacleTrajPubCB, this);
 		
+	}
+
+	void dynamicMap::boxDetectCB(const ros::TimerEvent&){
+		// get latest uv detector result
+		this->uvDetector_->getBBox(this->depthImage_, this->position_, this->orientation_);
+		this->uvDetector_->getBox3Ds(this->uvObsBoxes_);
 	}
 
 	void dynamicMap::dynamicObsDetectCB(const ros::TimerEvent&){
@@ -163,7 +171,8 @@ namespace mapManager{
 
 	void dynamicMap::visDynamicCB(const ros::TimerEvent&){
 		this->publishFilteredPoinCloud();
-		this->publish3dBox(this->dsObsBoxes_, dsObsBoxesPub_, 'g');
+		this->publish3dBox(this->dsObsBoxes_, this->dsObsBoxesPub_, 'g');
+		this->publish3dBox(this->uvObsBoxes_, this->uvObsBoxesPub_, 'r');
 	}
 
 	void dynamicMap::publishFilteredPoinCloud(){

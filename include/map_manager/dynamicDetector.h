@@ -8,17 +8,18 @@
 #include <Eigen/Eigen>
 #include <Eigen/StdVector>
 #include <unsupported/Eigen/MatrixFunctions>
-
+#include <map_manager/detector/uv_detector.h>
 
 namespace mapManager{
 
-    struct box3D
-    {
-        /* data */
-        float x, y, z;
-        float x_width, y_width, z_width;
-        float id;
-    };
+    // struct box3D
+    // {
+    //     /* data */
+    //     float x, y, z;
+    //     float x_width, y_width, z_width;
+    //     float id;
+    //     double Vx, Vy;
+    // };
     
 
     class dynamicDetector : public occMap{

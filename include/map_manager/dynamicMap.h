@@ -9,6 +9,8 @@
 
 #include <map_manager/occupancyMap.h>
 #include <map_manager/dynamicDetector.h>
+#include <map_manager/detector/boxDetector.cpp>
+#include <map_manager/detector/uv_detector.h>
 
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -33,14 +35,18 @@ namespace mapManager{
 		// ROS
 		ros::Timer dynamicObsDetectTimer_;
 		ros::Timer visDynamicTimer_;
+		ros::Timer boxDetectTimer_;
 
 		// detector
 		std::shared_ptr<mapManager::dynamicDetector> detector_;
+		std::shared_ptr<mapManager::boxDetector> uvDetector_;
 		std::vector<box3D> dsObsBoxes_;
+		std::vector<box3D> uvObsBoxes_;
 
 		// publisher
 		ros::Publisher depthCloudFilteredPub_;
 		ros::Publisher dsObsBoxesPub_;
+		ros::Publisher uvObsBoxesPub_;
 		// ros::Publisher depthCloudPub_;
 	public:
 		dynamicMap();
@@ -58,6 +64,7 @@ namespace mapManager{
 		void inflateMapCB(const ros::TimerEvent&);
 		void updateOccupancyCB(const ros::TimerEvent&);
 		void dynamicObsDetectCB(const ros::TimerEvent&);
+		void boxDetectCB(const ros::TimerEvent&);
 		// void inflateMapCB(const ros::TimerEvent&);
 		// void updateOccupancyCB(const ros::TimerEvent&);
 		// void boxDetectCB(const ros::TimerEvent&);
