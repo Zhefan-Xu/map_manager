@@ -1,0 +1,5 @@
+<launch>
+	<rosparam file="$(find map_manager)/cfg/dynamic_detector_param.yaml" ns="/dynamic_detector" />
+	<node pkg="map_manager" type="dynamic_detector_node" name="dynamic_detector_node" output="screen" />
+	
+</launch>
