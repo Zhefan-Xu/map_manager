@@ -48,23 +48,30 @@ namespace mapManager{
         int depthFilterMargin_, skipPixel_; // depth filter margin
         int imgCols_, imgRows_;
         Eigen::Matrix4d body2Cam_; // from body frame to camera frame
-        
+
+
         // DETECTOR PARAMETETER
         int localizationMode_;
         std::string depthTopicName_;
         std::string poseTopicName_;
         std::string odomTopicName_;
+        double raycastMaxLength_;
         double groundHeight_;
         int dbMinPointsCluster_;
         double dbEpsilon_;
+
+
 
         // SENSOR DATA
         cv::Mat depthImage_;
         Eigen::Vector3d position_; // robot position
         Eigen::Matrix3d orientation_; // robot orientation
+        Eigen::Vector3d localSensorRange_ {5.0, 5.0, 5.0};
 
         // DETECTOR DATA
+        int projPointsNum_;
         std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
+        std::vector<Eigen::Vector3d> filteredPoints_; // filtered point cloud data
 
 
     public:
@@ -93,6 +100,7 @@ namespace mapManager{
         void projectDepthImage();
         void filterPoints();
         void clusterPointsAndBBoxes();
+        void voxelFilter();
 
         // helper functions
         void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);

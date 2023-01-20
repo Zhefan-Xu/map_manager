@@ -160,6 +160,15 @@ namespace mapManager{
             }
         }
 
+        // Raycast max length
+        if (not this->nh_.getParam(this->ns_ + "/raycast_max_length", this->raycastMaxLength_)){
+            this->raycastMaxLength_ = 5.0;
+            cout << this->hint_ << ": No raycast max length. Use default: 5.0." << endl;
+        }
+        else{
+            cout << this->hint_ << ": Raycast max length: " << this->raycastMaxLength_ << endl;
+        }
+
         // ground height
         if (not this->nh_.getParam(this->ns_ + "/ground_height", this->groundHeight_)){
             this->groundHeight_ = 0.1;
@@ -288,7 +297,43 @@ namespace mapManager{
     }
 
     void dynamicDetector::projectDepthImage(){
+        this->projPointsNum_ = 0;
 
+        int cols = this->depthImage_.cols;
+        int rows = this->depthImage_.rows;
+        uint16_t* rowPtr;
+
+        Eigen::Vector3d currPointCam, currPointMap;
+        double depth;
+        const double inv_factor = 1.0 / this->depthScale_;
+        const double inv_fx = 1.0 / this->fx_;
+        const double inv_fy = 1.0 / this->fy_;
+
+        // iterate through each pixel in the depth image
+        for (int v=this->depthFilterMargin_; v<rows-this->depthFilterMargin_; v=v+this->skipPixel_){ // row
+            rowPtr = this->depthImage_.ptr<uint16_t>(v) + this->depthFilterMargin_;
+            for (int u=this->depthFilterMargin_; u<cols-this->depthFilterMargin_; u=u+this->skipPixel_){ // column
+                depth = (*rowPtr) * inv_factor;
+                
+                if (*rowPtr == 0) {
+                    depth = this->raycastMaxLength_ + 0.1;
+                } else if (depth < this->depthMinValue_) {
+                    continue;
+                } else if (depth > this->depthMaxValue_) {
+                    depth = this->raycastMaxLength_ + 0.1;
+                }
+                rowPtr =  rowPtr + this->skipPixel_;
+
+                // get 3D point in camera frame
+                currPointCam(0) = (u - this->cx_) * depth * inv_fx;
+                currPointCam(1) = (v - this->cy_) * depth * inv_fy;
+                currPointCam(2) = depth;
+                currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
+
+                this->projPoints_[this->projPointsNum_] = currPointMap;
+                this->projPointsNum_ = this->projPointsNum_ + 1;
+            }
+        } 
     }
 
     void dynamicDetector::filterPoints(){
@@ -300,5 +345,28 @@ namespace mapManager{
 
     }
 
+    void dynamicDetector::voxelFilter(){
+        // Eigen::Vector3d currPoint;
+        // int localAddress;
+
+        // // filtering by voxel
+        // this->filteredPoints_.clear();
+        // for (size_t i=0; i<this->projPoints_.size(); ++i){
+        //     currPoint = this->projPoints_[i];
+        //     localAddress = this->posToLocalAddress(currPoint);
+
+        //     if (!this->localPcOccupied_[localAddress]){
+        //         this->localPcOccupied_[localAddress] = true;
+        //         // filter out ground points and background points
+        //         if (this->pointsDepth_[i]<this->depthMaxValue_ && currPoint(2)>this->groundHeight_){
+        //             this->filteredPoints_.push_back(currPoint);
+        //         }
+        //     }
+        // }
+
+        // //clean localPcVoxel
+        // this->localPcOccupied_.clear();
+        // this->localPcOccupied_.resize(this->localPcVoxelSize_, false);        
+    }
 }
 

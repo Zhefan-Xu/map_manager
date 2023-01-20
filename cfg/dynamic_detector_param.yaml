@@ -20,6 +20,9 @@ body_to_camera: [0.0,  0.0,  1.0,  0.09,
                  0.0, -1.0,  0.0,  0.095,
                  0.0,  0.0,  0.0,  1.0]
 
+# Raycasting
+raycast_max_length: 5.0
+
 # dbscan
 ground_height: 0.1 # height of ground to remove ground points
 dbscan_min_points_cluster: 18
