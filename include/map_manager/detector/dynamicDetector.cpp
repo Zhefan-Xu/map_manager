@@ -348,7 +348,7 @@ namespace mapManager{
 
     void dynamicDetector::voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints){
         const double res = 0.1; // resolution of voxel
-        int xVoxels = this->localSensorRange_(0)/res; int yVoxels = this->localSensorRange_(1)/res; int zVoxels = this->localSensorRange_(2)/res;
+        int xVoxels = ceil(this->localSensorRange_(0)/res); int yVoxels = ceil(this->localSensorRange_(1)/res); int zVoxels = ceil(this->localSensorRange_(2)/res);
         int totalVoxels = xVoxels * yVoxels * zVoxels;
         std::vector<bool> voxelOccupancyVec (totalVoxels, false);
 
@@ -357,34 +357,20 @@ namespace mapManager{
         for (size_t i=0; i<points.size(); ++i){
             Eigen::Vector3d p = points[i];
 
-            // find the corresponding voxel id in the vector and check whether it is occupied
+            if (this->isInFilterRange(p)){
+                // find the corresponding voxel id in the vector and check whether it is occupied
+                int pID = this->posToAddress(p, res);
 
-            // if occupied, skip. Else add to the filtered points
-        }
-
-
-
-        // Eigen::Vector3d currPoint;
-        // int localAddress;
-
-        // // filtering by voxel
-        // this->filteredPoints_.clear();
-        // for (size_t i=0; i<this->projPoints_.size(); ++i){
-        //     currPoint = this->projPoints_[i];
-        //     localAddress = this->posToLocalAddress(currPoint);
-
-        //     if (!this->localPcOccupied_[localAddress]){
-        //         this->localPcOccupied_[localAddress] = true;
-        //         // filter out ground points and background points
-        //         if (this->pointsDepth_[i]<this->depthMaxValue_ && currPoint(2)>this->groundHeight_){
-        //             this->filteredPoints_.push_back(currPoint);
-        //         }
-        //     }
-        // }
-
-        // //clean localPcVoxel
-        // this->localPcOccupied_.clear();
-        // this->localPcOccupied_.resize(this->localPcVoxelSize_, false);        
+                // if occupied, skip. Else add to the filtered points
+                if (voxelOccupancyVec[pID] == true){
+                    continue;
+                }
+                else{
+                    voxelOccupancyVec[pID] = true;
+                    filteredPoints.push_back(p);
+                }
+            }
+        }  
     }
 }
 

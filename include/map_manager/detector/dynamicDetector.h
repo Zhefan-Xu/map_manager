@@ -103,9 +103,40 @@ namespace mapManager{
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
 
         // helper functions
+        bool isInFilterRange(const Eigen::Vector3d& pos);
+        void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx, double res);
+        int indexToAddress(const Eigen::Vector3i& idx, double res);
+        int posToAddress(const Eigen::Vector3d& pos, double res);
         void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
         void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix);
     };
+
+    inline bool dynamicDetector::isInFilterRange(const Eigen::Vector3d& pos){
+        if ((pos(0) >= this->position_(0) - this->localSensorRange_(0)) and (pos(0) <= this->position_(0) + this->localSensorRange_(0)) and 
+            (pos(1) >= this->position_(1) - this->localSensorRange_(1)) and (pos(1) <= this->position_(1) + this->localSensorRange_(1)) and 
+            (pos(2) >= this->position_(2) - this->localSensorRange_(2)) and (pos(2) <= this->position_(2) + this->localSensorRange_(2))){
+            return true;
+        }
+        else{
+            return false;
+        }        
+    }
+
+    inline void dynamicDetector::posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx, double res){
+        idx(0) = floor( (pos(0) - this->position_(0) - localSensorRange_(0)) / res);
+        idx(1) = floor( (pos(1) - this->position_(1) - localSensorRange_(1)) / res);
+        idx(2) = floor( (pos(2) - this->position_(2) - localSensorRange_(2)) / res);
+    }
+
+    inline int dynamicDetector::indexToAddress(const Eigen::Vector3i& idx, double res){
+        return idx(0) * ceil(this->localSensorRange_(0)/res) + idx(1) * ceil(this->localSensorRange_(1)/res) + idx(2);
+    }
+
+    inline int dynamicDetector::posToAddress(const Eigen::Vector3d& pos, double res){
+         Eigen::Vector3i idx;
+         this->posToIndex(pos, idx, res);
+         return this->indexToAddress(idx, res);
+    }
     
     inline void dynamicDetector::getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix){
         Eigen::Quaterniond quat;
