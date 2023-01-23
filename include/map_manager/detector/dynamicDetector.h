@@ -41,6 +41,10 @@ namespace mapManager{
         ros::Timer trackingTimer_;
         ros::Timer classificationTimer_;
 
+
+        // DETECTOR
+        std::shared_ptr<mapManager::DBSCAN> dbCluster_;
+
         // CAMERA
         double fx_, fy_, cx_, cy_; // depth camera intrinsics
         double depthScale_; // value / depthScale
@@ -72,6 +76,8 @@ namespace mapManager{
         int projPointsNum_;
         std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
         std::vector<Eigen::Vector3d> filteredPoints_; // filtered point cloud data
+        std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
+        std::vector<mapManager::box3D> dbBBoxes_; // DBSCAN bounding boxes
 
 
     public:
@@ -98,8 +104,8 @@ namespace mapManager{
 
         // DBSCAN Detector Functionns
         void projectDepthImage();
-        void filterPoints();
-        void clusterPointsAndBBoxes();
+        void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
+        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
 
         // helper functions
@@ -109,6 +115,8 @@ namespace mapManager{
         int posToAddress(const Eigen::Vector3d& pos, double res);
         void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
         void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix);
+        mapManager::Point_ eigenToDBPoint(const Eigen::Vector3d& p);
+        void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point_>& pointsDB);
     };
 
     inline bool dynamicDetector::isInFilterRange(const Eigen::Vector3d& pos){
@@ -170,6 +178,22 @@ namespace mapManager{
         camPoseMatrix = map2body * this->body2Cam_;
     }
     
+    inline mapManager::Point_ dynamicDetector::eigenToDBPoint(const Eigen::Vector3d& p){
+        mapManager::Point_ pDB;
+        pDB.x = p(0);
+        pDB.y = p(1);
+        pDB.z = p(2);
+        pDB.clusterID = 0;
+        return pDB;
+    }
+
+    inline void dynamicDetector::eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point_>& pointsDB){
+        for (Eigen::Vector3d p : points){
+            mapManager::Point_ pDB = this->eigenToDBPoint(p);
+            pointsDB.push_back(pDB);
+        }
+    }
+
 }
 
 #endif

@@ -289,10 +289,10 @@ namespace mapManager{
         this->projectDepthImage();
 
         // 2. filter points
-        this->filterPoints();
+        this->filterPoints(this->projPoints_, this->filteredPoints_);
 
         // 3. cluster points and get bounding boxes
-        this->clusterPointsAndBBoxes();
+        this->clusterPointsAndBBoxes(this->filteredPoints_, bboxes, pcClusters);
 
     }
 
@@ -336,13 +336,23 @@ namespace mapManager{
         } 
     }
 
-    void dynamicDetector::filterPoints(){
+    void dynamicDetector::filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints){
+        // currently there is only one filtered (might include more in the future)
         std::vector<Eigen::Vector3d> voxelFilteredPoints;
-        this->voxelFilter(this->projPoints_, voxelFilteredPoints);
+        this->voxelFilter(points, voxelFilteredPoints);
+
+        filteredPoints = voxelFilteredPoints;
     }
 
 
-    void dynamicDetector::clusterPointsAndBBoxes(){
+    void dynamicDetector::clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters){
+        std::vector<mapManager::Point_> pointsDB;
+        this->eigenToDBPointVec(points, pointsDB);
+
+        this->dbCluster_.reset(new DBSCAN (this->dbMinPointsCluster_, this->dbEpsilon_, pointsDB));
+
+        // DBSCAN clustering
+        this->dbCluster_->run();
 
     }
 
