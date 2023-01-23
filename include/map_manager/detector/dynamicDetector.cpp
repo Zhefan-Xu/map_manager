@@ -337,7 +337,8 @@ namespace mapManager{
     }
 
     void dynamicDetector::filterPoints(){
-
+        std::vector<Eigen::Vector3d> voxelFilteredPoints;
+        this->voxelFilter(this->projPoints_, voxelFilteredPoints);
     }
 
 
@@ -345,7 +346,24 @@ namespace mapManager{
 
     }
 
-    void dynamicDetector::voxelFilter(){
+    void dynamicDetector::voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints){
+        const double res = 0.1; // resolution of voxel
+        int xVoxels = this->localSensorRange_(0)/res; int yVoxels = this->localSensorRange_(1)/res; int zVoxels = this->localSensorRange_(2)/res;
+        int totalVoxels = xVoxels * yVoxels * zVoxels;
+        std::vector<bool> voxelOccupancyVec (totalVoxels, false);
+
+        // Iterate through each points in the cloud
+        filteredPoints.clear();
+        for (size_t i=0; i<points.size(); ++i){
+            Eigen::Vector3d p = points[i];
+
+            // find the corresponding voxel id in the vector and check whether it is occupied
+
+            // if occupied, skip. Else add to the filtered points
+        }
+
+
+
         // Eigen::Vector3d currPoint;
         // int localAddress;
 

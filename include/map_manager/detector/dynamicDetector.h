@@ -100,7 +100,7 @@ namespace mapManager{
         void projectDepthImage();
         void filterPoints();
         void clusterPointsAndBBoxes();
-        void voxelFilter();
+        void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
 
         // helper functions
         void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
