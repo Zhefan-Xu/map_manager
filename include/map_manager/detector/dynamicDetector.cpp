@@ -28,7 +28,7 @@ namespace mapManager{
 
     void dynamicDetector::initParam(){
         // localization mode
-        if (not this->nh_.getParam(this->ns_ + "localization_mode", this->localizationMode_)){
+        if (not this->nh_.getParam(this->ns_ + "/localization_mode", this->localizationMode_)){
             this->localizationMode_ = 0;
             cout << this->hint_ << ": No localization mode option. Use default: pose" << endl;
         }
@@ -37,7 +37,7 @@ namespace mapManager{
         }   
 
         // depth topic name
-        if (not this->nh_.getParam(this->ns_ + "depth_image_topic", this->depthTopicName_)){
+        if (not this->nh_.getParam(this->ns_ + "/depth_image_topic", this->depthTopicName_)){
             this->depthTopicName_ = "/camera/depth/image_raw";
             cout << this->hint_ << ": No depth image topic name. Use default: /camera/depth/image_raw" << endl;
         }
@@ -356,7 +356,7 @@ namespace mapManager{
 
         // get the cluster data with bounding boxes
         // iterate through all the clustered points and find number of clusters
-        int clusterNum = 1;
+        int clusterNum = 0;
         for (size_t i=0; i<this->dbCluster_->m_points.size(); ++i){
             mapManager::Point pDB = this->dbCluster_->m_points[i];
             if (pDB.clusterID > clusterNum){
@@ -413,7 +413,7 @@ namespace mapManager{
 
         // Iterate through each points in the cloud
         filteredPoints.clear();
-        for (size_t i=0; i<points.size(); ++i){
+        for (int i=0; i<this->projPointsNum_; ++i){
             Eigen::Vector3d p = points[i];
 
             if (this->isInFilterRange(p)){
