@@ -17,12 +17,14 @@ namespace mapManager{
         this->hint_ = "[dynamicDetector]";
         this->nh_ = nh;
         this->initParam();
+        this->registerPub();
         this->registerCallback();
     }
 
     void dynamicDetector::initDetector(const ros::NodeHandle& nh){
         this->nh_ = nh;
         this->initParam();
+        this->registerPub();
         this->registerCallback();
     }
 
@@ -197,6 +199,14 @@ namespace mapManager{
         }  
     }
 
+    void dynamicDetector::registerPub(){
+        // filtered pointcloud pub
+        this->filteredPointsPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/filtered_depth_cloud", 10);
+
+        // DBSCAN bounding box pub
+        this->dbBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/dbscan_bboxes", 10);
+    }
+
     void dynamicDetector::registerCallback(){
         // depth pose callback
         this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
@@ -223,6 +233,9 @@ namespace mapManager{
 
         // classification timer
         this->classificationTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicDetector::classificationCB, this);
+    
+        // visualization timer
+        this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicDetector::visCB, this);
     }
 
 
@@ -279,6 +292,11 @@ namespace mapManager{
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
         cout << "classification CB not implemented yet." << endl;
+    }
+
+    void dynamicDetector::visCB(const ros::TimerEvent&){
+        this->publishPoints(this->filteredPoints_, this->filteredPointsPub_);
+        this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 'r');
     }
 
     void dynamicDetector::uvDetect(){
@@ -430,6 +448,121 @@ namespace mapManager{
                 }
             }
         }  
+    }
+
+    void dynamicDetector::publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher){
+        pcl::PointXYZ pt;
+        pcl::PointCloud<pcl::PointXYZ> cloud;        
+        for (size_t i=0; i<points.size(); ++i){
+            pt.x = points[i](0);
+            pt.y = points[i](1);
+            pt.z = points[i](2);
+            cloud.push_back(pt);
+        }    
+        cloud.width = cloud.points.size();
+        cloud.height = 1;
+        cloud.is_dense = true;
+        cloud.header.frame_id = "map";
+
+        sensor_msgs::PointCloud2 cloudMsg;
+        pcl::toROSMsg(cloud, cloudMsg);
+        publisher.publish(cloudMsg);
+    }
+
+    void dynamicDetector::publish3dBox(const std::vector<box3D>& boxes, const ros::Publisher& publisher, const char color) {
+        // visualization using bounding boxes 
+        visualization_msgs::Marker line;
+        visualization_msgs::MarkerArray lines;
+        line.header.frame_id = "map";
+        line.type = visualization_msgs::Marker::LINE_LIST;
+        line.action = visualization_msgs::Marker::ADD;
+        line.ns = "box3D";  
+        line.scale.x = 0.1;
+
+        if (color=='g') {
+            line.color.g = 1.0;
+        }
+        else if (color=='b') {
+            line.color.b = 1.0;
+        }
+        else {
+            line.color.r = 1.0;
+        }
+
+        line.color.a = 1.0;
+        line.lifetime = ros::Duration(0.1);
+
+        for(size_t i = 0; i < boxes.size(); i++){
+            // visualization msgs
+
+            double x = boxes[i].x; 
+            double y = boxes[i].y; 
+            double z = boxes[i].z; 
+
+            double x_width = std::max(boxes[i].x_width,boxes[i].y_width);
+            double y_width = std::max(boxes[i].x_width,boxes[i].y_width);
+            double z_width = boxes[i].z_width;
+            
+            vector<geometry_msgs::Point> verts;
+            geometry_msgs::Point p;
+            // vertice 0
+            p.x = x-x_width / 2.; p.y = y-y_width / 2.; p.z = z-z_width / 2.;
+            verts.push_back(p);
+
+            // vertice 1
+            p.x = x-x_width / 2.; p.y = y+y_width / 2.; p.z = z-z_width / 2.;
+            verts.push_back(p);
+
+            // vertice 2
+            p.x = x+x_width / 2.; p.y = y+y_width / 2.; p.z = z-z_width / 2.;
+            verts.push_back(p);
+
+            // vertice 3
+            p.x = x+x_width / 2.; p.y = y-y_width / 2.; p.z = z-z_width / 2.;
+            verts.push_back(p);
+
+            // vertice 4
+            p.x = x-x_width / 2.; p.y = y-y_width / 2.; p.z = z+z_width / 2.;
+            verts.push_back(p);
+
+            // vertice 5
+            p.x = x-x_width / 2.; p.y = y+y_width / 2.; p.z = z+z_width / 2.;
+            verts.push_back(p);
+
+            // vertice 6
+            p.x = x+x_width / 2.; p.y = y+y_width / 2.; p.z = z+z_width / 2.;
+            verts.push_back(p);
+
+            // vertice 7
+            p.x = x+x_width / 2.; p.y = y-y_width / 2.; p.z = z+z_width / 2.;
+            verts.push_back(p);
+            
+            int vert_idx[12][2] = {
+                {0,1},
+                {1,2},
+                {2,3},
+                {0,3},
+                {0,4},
+                {1,5},
+                {3,7},
+                {2,6},
+                {4,5},
+                {5,6},
+                {4,7},
+                {6,7}
+            };
+            
+            for (size_t i=0;i<12;i++){
+                line.points.push_back(verts[vert_idx[i][0]]);
+                line.points.push_back(verts[vert_idx[i][1]]);
+            }
+            
+            lines.markers.push_back(line);
+            
+            line.id++;
+        }
+        // publish
+        publisher.publish(lines);
     }
 }
 

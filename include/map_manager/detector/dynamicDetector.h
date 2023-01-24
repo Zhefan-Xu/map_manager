@@ -11,8 +11,13 @@
 #include <Eigen/StdVector>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -37,6 +42,9 @@ namespace mapManager{
         ros::Timer detectionTimer_;
         ros::Timer trackingTimer_;
         ros::Timer classificationTimer_;
+        ros::Timer visTimer_;
+        ros::Publisher filteredPointsPub_;
+        ros::Publisher dbBBoxesPub_;
 
 
         // DETECTOR
@@ -84,6 +92,7 @@ namespace mapManager{
 
 
         void initParam();
+        void registerPub();
         void registerCallback();
 
         // callback
@@ -92,6 +101,7 @@ namespace mapManager{
         void detectionCB(const ros::TimerEvent&);
         void trackingCB(const ros::TimerEvent&);
         void classificationCB(const ros::TimerEvent&);
+        void visCB(const ros::TimerEvent&);
 
         // detect function
         void uvDetect();
@@ -103,6 +113,11 @@ namespace mapManager{
         void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
         void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
+
+        // visualization
+        void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
+        void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, const char color);
+
 
         // helper functions
         bool isInFilterRange(const Eigen::Vector3d& pos);
