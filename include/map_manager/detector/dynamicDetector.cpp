@@ -265,6 +265,7 @@ namespace mapManager{
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
         cout << "detector CB" << endl;
+        this->dbscanDetect();
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
@@ -280,11 +281,11 @@ namespace mapManager{
         cout << "classification CB not implemented yet." << endl;
     }
 
-    void dynamicDetector::uvDetect(std::vector<mapManager::box3D>& bboxes){
+    void dynamicDetector::uvDetect(){
         
     }
 
-    void dynamicDetector::dbscanDetect(std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters){
+    void dynamicDetector::dbscanDetect(){
         // 1. get pointcloud
         this->projectDepthImage();
 
@@ -292,8 +293,7 @@ namespace mapManager{
         this->filterPoints(this->projPoints_, this->filteredPoints_);
 
         // 3. cluster points and get bounding boxes
-        this->clusterPointsAndBBoxes(this->filteredPoints_, bboxes, pcClusters);
-
+        this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_);
     }
 
     void dynamicDetector::projectDepthImage(){
@@ -346,7 +346,7 @@ namespace mapManager{
 
 
     void dynamicDetector::clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters){
-        std::vector<mapManager::Point_> pointsDB;
+        std::vector<mapManager::Point> pointsDB;
         this->eigenToDBPointVec(points, pointsDB);
 
         this->dbCluster_.reset(new DBSCAN (this->dbMinPointsCluster_, this->dbEpsilon_, pointsDB));
@@ -354,6 +354,55 @@ namespace mapManager{
         // DBSCAN clustering
         this->dbCluster_->run();
 
+        // get the cluster data with bounding boxes
+        // iterate through all the clustered points and find number of clusters
+        int clusterNum = 1;
+        for (size_t i=0; i<this->dbCluster_->m_points.size(); ++i){
+            mapManager::Point pDB = this->dbCluster_->m_points[i];
+            if (pDB.clusterID > clusterNum){
+                clusterNum = pDB.clusterID;
+            }
+        }
+
+        pcClusters.clear();
+        pcClusters.resize(clusterNum);
+        for (size_t i=0; i<this->dbCluster_->m_points.size(); ++i){
+            mapManager::Point pDB = this->dbCluster_->m_points[i];
+            if (pDB.clusterID > 0){
+                Eigen::Vector3d p = this->dbPointToEigen(pDB);
+                pcClusters[pDB.clusterID].push_back(p);
+            }            
+        }
+
+        // calculate the bounding boxes based on the clusters
+        bboxes.clear();
+        bboxes.resize(clusterNum);
+        for (size_t i=0; i<pcClusters.size(); ++i){
+            mapManager::box3D box;
+
+            double xmin = pcClusters[i][0](0);
+            double ymin = pcClusters[i][0](1);
+            double zmin = pcClusters[i][0](2);
+            double xmax = pcClusters[i][0](0);
+            double ymax = pcClusters[i][0](1);
+            double zmax = pcClusters[i][0](2);
+            for (size_t j=0; j<pcClusters[i].size(); ++j){
+                xmin = (pcClusters[i][j](0)<xmin)?pcClusters[i][j](0):xmin;
+                ymin = (pcClusters[i][j](1)<ymin)?pcClusters[i][j](1):ymin;
+                zmin = (pcClusters[i][j](2)<zmin)?pcClusters[i][j](2):zmin;
+                xmax = (pcClusters[i][j](0)>xmax)?pcClusters[i][j](0):xmax;
+                ymax = (pcClusters[i][j](1)>ymax)?pcClusters[i][j](1):ymax;
+                zmax = (pcClusters[i][j](2)>zmax)?pcClusters[i][j](2):zmax;
+            }
+            box.id = i;
+            box.x = (xmax + xmin)/2.0;
+            box.y = (ymax + ymin)/2.0;
+            box.z = (zmax + zmin)/2.0;
+            box.x_width = (xmax - xmin);
+            box.y_width = (ymax - ymin);
+            box.z_width = (zmax - zmin);
+            bboxes.push_back(box);
+        }
     }
 
     void dynamicDetector::voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints){
