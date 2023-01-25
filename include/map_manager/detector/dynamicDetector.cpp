@@ -278,7 +278,10 @@ namespace mapManager{
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
         cout << "detector CB" << endl;
+        ros::Time dbStartTime = ros::Time::now();
         this->dbscanDetect();
+        ros::Time dbEndTime = ros::Time::now();
+        cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
@@ -365,7 +368,7 @@ namespace mapManager{
 
     void dynamicDetector::clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters){
         std::vector<mapManager::Point> pointsDB;
-        this->eigenToDBPointVec(points, pointsDB);
+        this->eigenToDBPointVec(points, pointsDB, points.size());
 
         this->dbCluster_.reset(new DBSCAN (this->dbMinPointsCluster_, this->dbEpsilon_, pointsDB));
 
@@ -382,13 +385,14 @@ namespace mapManager{
             }
         }
 
+        cout << clusterNum << endl;
         pcClusters.clear();
         pcClusters.resize(clusterNum);
         for (size_t i=0; i<this->dbCluster_->m_points.size(); ++i){
             mapManager::Point pDB = this->dbCluster_->m_points[i];
             if (pDB.clusterID > 0){
                 Eigen::Vector3d p = this->dbPointToEigen(pDB);
-                pcClusters[pDB.clusterID].push_back(p);
+                pcClusters[pDB.clusterID-1].push_back(p);
             }            
         }
 
@@ -433,7 +437,6 @@ namespace mapManager{
         filteredPoints.clear();
         for (int i=0; i<this->projPointsNum_; ++i){
             Eigen::Vector3d p = points[i];
-
             if (this->isInFilterRange(p)){
                 // find the corresponding voxel id in the vector and check whether it is occupied
                 int pID = this->posToAddress(p, res);

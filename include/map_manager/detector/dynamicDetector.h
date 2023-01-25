@@ -78,7 +78,7 @@ namespace mapManager{
         Eigen::Vector3d localSensorRange_ {5.0, 5.0, 5.0};
 
         // DETECTOR DATA
-        int projPointsNum_;
+        int projPointsNum_ = 0;
         std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
         std::vector<Eigen::Vector3d> filteredPoints_; // filtered point cloud data
         std::vector<mapManager::box3D> dbBBoxes_; // DBSCAN bounding boxes        
@@ -128,7 +128,7 @@ namespace mapManager{
         void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix);
         mapManager::Point eigenToDBPoint(const Eigen::Vector3d& p);
         Eigen::Vector3d dbPointToEigen(const mapManager::Point& pDB);
-        void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB);
+        void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size);
     };
 
     inline bool dynamicDetector::isInFilterRange(const Eigen::Vector3d& pos){
@@ -143,9 +143,9 @@ namespace mapManager{
     }
 
     inline void dynamicDetector::posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx, double res){
-        idx(0) = floor( (pos(0) - this->position_(0) - localSensorRange_(0)) / res);
-        idx(1) = floor( (pos(1) - this->position_(1) - localSensorRange_(1)) / res);
-        idx(2) = floor( (pos(2) - this->position_(2) - localSensorRange_(2)) / res);
+        idx(0) = floor( (pos(0) - this->position_(0) + localSensorRange_(0)) / res);
+        idx(1) = floor( (pos(1) - this->position_(1) + localSensorRange_(1)) / res);
+        idx(2) = floor( (pos(2) - this->position_(2) + localSensorRange_(2)) / res);
     }
 
     inline int dynamicDetector::indexToAddress(const Eigen::Vector3i& idx, double res){
@@ -207,8 +207,9 @@ namespace mapManager{
         return p;
     }
 
-    inline void dynamicDetector::eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB){
-        for (Eigen::Vector3d p : points){
+    inline void dynamicDetector::eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size){
+        for (int i=0; i<size; ++i){
+            Eigen::Vector3d p = points[i];
             mapManager::Point pDB = this->eigenToDBPoint(p);
             pointsDB.push_back(pDB);
         }
