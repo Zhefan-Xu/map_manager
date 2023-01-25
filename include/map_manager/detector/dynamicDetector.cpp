@@ -385,7 +385,6 @@ namespace mapManager{
             }
         }
 
-        cout << clusterNum << endl;
         pcClusters.clear();
         pcClusters.resize(clusterNum);
         for (size_t i=0; i<this->dbCluster_->m_points.size(); ++i){
@@ -437,7 +436,7 @@ namespace mapManager{
         filteredPoints.clear();
         for (int i=0; i<this->projPointsNum_; ++i){
             Eigen::Vector3d p = points[i];
-            if (this->isInFilterRange(p)){
+            if (this->isInFilterRange(p) and p(2) >= this->groundHeight_){
                 // find the corresponding voxel id in the vector and check whether it is occupied
                 int pID = this->posToAddress(p, res);
 
