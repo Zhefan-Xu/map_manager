@@ -15,6 +15,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <image_transport/image_transport.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -44,6 +45,10 @@ namespace mapManager{
         ros::Timer trackingTimer_;
         ros::Timer classificationTimer_;
         ros::Timer visTimer_;
+        image_transport::Publisher uvDepthMapPub_;
+        image_transport::Publisher uDepthMapPub_;
+        image_transport::Publisher uvBirdViewPub_;
+        ros::Publisher uvBBoxesPub_;
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
 
@@ -71,8 +76,6 @@ namespace mapManager{
         int dbMinPointsCluster_;
         double dbEpsilon_;
 
-
-
         // SENSOR DATA
         cv::Mat depthImage_;
         Eigen::Vector3d position_; // robot position
@@ -80,6 +83,7 @@ namespace mapManager{
         Eigen::Vector3d localSensorRange_ {5.0, 5.0, 5.0};
 
         // DETECTOR DATA
+        std::vector<mapManager::box3D> uvBBoxes_; // uv detector bounding boxes
         int projPointsNum_ = 0;
         std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
         std::vector<double> pointsDepth_;
@@ -118,6 +122,7 @@ namespace mapManager{
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
 
         // visualization
+        void publishUVImages(); 
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, const char color);
 

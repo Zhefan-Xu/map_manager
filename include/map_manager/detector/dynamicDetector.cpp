@@ -201,6 +201,19 @@ namespace mapManager{
     }
 
     void dynamicDetector::registerPub(){
+        image_transport::ImageTransport it(this->nh_);
+        // uv detector depth map pub
+        this->uvDepthMapPub_ = it.advertise(this->ns_ + "/detected_depth_map", 1);
+
+        // uv detector u depth map pub
+        this->uDepthMapPub_ = it.advertise(this->ns_ + "/detected_u_depth_map", 1);
+
+        // uv detector bird view pub
+        this->uvBirdViewPub_ = it.advertise(this->ns_ + "/bird_view", 1);
+
+        // uv detector bounding box pub
+        this->uvBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/uv_bboxes", 10);
+
         // filtered pointcloud pub
         this->filteredPointsPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/filtered_depth_cloud", 10);
 
@@ -283,6 +296,11 @@ namespace mapManager{
         this->dbscanDetect();
         ros::Time dbEndTime = ros::Time::now();
         cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
+
+        ros::Time uvStartTime = ros::Time::now();
+        this->uvDetect();
+        ros::Time uvEndTime = ros::Time::now();
+        cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
@@ -299,12 +317,59 @@ namespace mapManager{
     }
 
     void dynamicDetector::visCB(const ros::TimerEvent&){
+        this->publishUVImages();
+        this->publish3dBox(this->uvBBoxes_, this->uvBBoxesPub_, 'g');
         this->publishPoints(this->filteredPoints_, this->filteredPointsPub_);
         this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 'r');
     }
 
     void dynamicDetector::uvDetect(){
-        
+        // initialization
+        if (this->uvDetector_ == NULL){
+            this->uvDetector_.reset(new UVdetector ());
+            this->uvDetector_->fx = this->fx_;
+            this->uvDetector_->fy = this->fy_;
+            this->uvDetector_->px = this->cx_;
+            this->uvDetector_->py = this->cy_;
+            this->uvDetector_->depthScale_ = this->depthScale_; 
+        }
+
+        // detect from depth map
+        if (not this->depthImage_.empty()){
+            this->uvDetector_->depth = this->depthImage_;
+            this->uvDetector_->detect();
+            this->uvDetector_->extract_3Dbox();
+
+            this->uvDetector_->display_U_map();
+            this->uvDetector_->display_bird_view();
+            this->uvDetector_->display_depth();
+
+
+            // transform to the world frame
+            std::vector<mapManager::box3D> uvBBoxes;
+            Eigen::Vector3d currPointCam, currPointMap;
+            for(size_t i = 0; i < this->uvDetector_->box3Ds.size(); ++i){
+                mapManager::box3D box;
+
+
+                double x = this->uvDetector_->box3Ds[i].x; 
+                double y = this->uvDetector_->box3Ds[i].y;
+                double z = this->uvDetector_->box3Ds[i].z;
+                currPointCam(0) = x;
+                currPointCam(1) = y;
+                currPointCam(2) = z;
+                currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
+
+                box.x = currPointMap(0);
+                box.y = currPointMap(1);
+                box.z = currPointMap(2);
+                box.x_width = this->uvDetector_->box3Ds[i].x_width;
+                box.y_width = this->uvDetector_->box3Ds[i].z_width;
+                box.z_width = this->uvDetector_->box3Ds[i].y_width;
+                uvBBoxes.push_back(box);            
+            }
+            this->uvBBoxes_ = uvBBoxes;
+        }
     }
 
     void dynamicDetector::dbscanDetect(){
@@ -453,6 +518,15 @@ namespace mapManager{
                 }
             }
         }  
+    }
+
+    void dynamicDetector::publishUVImages(){
+        sensor_msgs::ImagePtr depthBoxMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", this->uvDetector_->depth_show).toImageMsg();
+        sensor_msgs::ImagePtr UmapBoxMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", this->uvDetector_->U_map_show).toImageMsg();
+        sensor_msgs::ImagePtr birdBoxMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", this->uvDetector_->bird_view).toImageMsg();  
+        this->uvDepthMapPub_.publish(depthBoxMsg);
+        this->uDepthMapPub_.publish(UmapBoxMsg); 
+        this->uvBirdViewPub_.publish(birdBoxMsg);     
     }
 
     void dynamicDetector::publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher){
