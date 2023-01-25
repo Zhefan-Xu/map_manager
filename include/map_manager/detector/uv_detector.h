@@ -4,6 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <math.h>
 #include <vector>
+#include <map_manager/detector/utils.h>
 #include <map_manager/detector/kalman_filter.h>
 #include <queue>
 #include <Eigen/Dense>
@@ -12,16 +13,7 @@
 // using namespace cv;
 // using Eigen::MatrixXd;
 namespace mapManager{
-    struct box3D
-    {
-        /* data */
-        float x, y, z;
-        float x_width, y_width, z_width;
-        float id;
-        float Vx, Vy;
-    };
     
-
     class UVbox
     {
         public:

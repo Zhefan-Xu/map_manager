@@ -146,6 +146,7 @@ namespace mapManager{
             cout << this->hint_ << ": Depth image rows: " << this->imgRows_ << endl;
         }
         this->projPoints_.resize(this->imgCols_ * this->imgRows_ / (this->skipPixel_ * this->skipPixel_));
+        this->pointsDepth_.resize(this->imgCols_ * this->imgRows_ / (this->skipPixel_ * this->skipPixel_));
         // ------------------------------------------------------------------------------------
 
 
@@ -352,6 +353,7 @@ namespace mapManager{
                 currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 
                 this->projPoints_[this->projPointsNum_] = currPointMap;
+                this->pointsDepth_[this->projPointsNum_] = depth;
                 this->projPointsNum_ = this->projPointsNum_ + 1;
             }
         } 
@@ -436,7 +438,8 @@ namespace mapManager{
         filteredPoints.clear();
         for (int i=0; i<this->projPointsNum_; ++i){
             Eigen::Vector3d p = points[i];
-            if (this->isInFilterRange(p) and p(2) >= this->groundHeight_){
+
+            if (this->isInFilterRange(p) and p(2) >= this->groundHeight_ and this->pointsDepth_[i] <= this->raycastMaxLength_){
                 // find the corresponding voxel id in the vector and check whether it is occupied
                 int pID = this->posToAddress(p, res);
 

@@ -22,6 +22,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/detector/dbscan.h>
+#include <map_manager/detector/uv_detector.h>
 #include <map_manager/detector/utils.h>
 
 namespace mapManager{
@@ -48,6 +49,7 @@ namespace mapManager{
 
 
         // DETECTOR
+        std::shared_ptr<mapManager::UVdetector> uvDetector_;
         std::shared_ptr<mapManager::DBSCAN> dbCluster_;
 
         // CAMERA
@@ -80,6 +82,7 @@ namespace mapManager{
         // DETECTOR DATA
         int projPointsNum_ = 0;
         std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
+        std::vector<double> pointsDepth_;
         std::vector<Eigen::Vector3d> filteredPoints_; // filtered point cloud data
         std::vector<mapManager::box3D> dbBBoxes_; // DBSCAN bounding boxes        
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters

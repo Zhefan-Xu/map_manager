@@ -13,7 +13,7 @@ odom_topic: /CERLAB/quadcopter/odom
 depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
 # depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
 depth_scale_factor: 10 # simulation
-depth_min_value: 0.5
+depth_min_value: 0.3
 depth_max_value: 5.0
 depth_filter_margin: 2 # filter
 depth_skip_pixel: 2 # filter
