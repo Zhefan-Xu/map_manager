@@ -198,6 +198,16 @@ namespace mapManager{
         else{
             std::cout << this->hint_ << ": DBSCAN epsilon is set to: " << this->dbEpsilon_ << std::endl;
         }  
+
+        // IOU threshold
+        if (not this->nh_.getParam(this->ns_ + "/filtering_BBox_IOU_threshold", this->boxIOUThresh_)){
+            this->boxIOUThresh_ = 0.5;
+            std::cout << this->hint_ << ": No threshold for boununding box IOU filtering parameter found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The threshold for boununding box IOU filtering is set to: " << this->boxIOUThresh_ << std::endl;
+        }  
+
     }
 
     void dynamicDetector::registerPub(){
@@ -219,6 +229,9 @@ namespace mapManager{
 
         // DBSCAN bounding box pub
         this->dbBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/dbscan_bboxes", 10);
+
+        // filtered bounding box pub
+        this->filteredBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/filtered_bboxes", 10);
     }
 
     void dynamicDetector::registerCallback(){
@@ -301,6 +314,8 @@ namespace mapManager{
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
         cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+
+        this->filterBBoxes();
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
@@ -321,6 +336,7 @@ namespace mapManager{
         this->publish3dBox(this->uvBBoxes_, this->uvBBoxesPub_, 'g');
         this->publishPoints(this->filteredPoints_, this->filteredPointsPub_);
         this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 'r');
+        this->publish3dBox(this->filteredBBoxes_, this->filteredBoxesPub_, 'b');
     }
 
     void dynamicDetector::uvDetect(){
@@ -332,9 +348,10 @@ namespace mapManager{
             this->uvDetector_->px = this->cx_;
             this->uvDetector_->py = this->cy_;
             this->uvDetector_->depthScale_ = this->depthScale_; 
+            this->uvDetector_->max_dist = this->raycastMaxLength_ * 1000;
         }
 
-        // detect from depth map
+        // detect from depth mapcalBox
         if (not this->depthImage_.empty()){
             this->uvDetector_->depth = this->depthImage_;
             this->uvDetector_->detect();
@@ -381,6 +398,43 @@ namespace mapManager{
 
         // 3. cluster points and get bounding boxes
         this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_);
+    }
+
+    void dynamicDetector::filterBBoxes(){
+        this->filteredBBoxes_.clear();
+        for (size_t i=0 ; i<this->uvBBoxes_.size() ; i++){
+            for (size_t j=0 ; j<this->dbBBoxes_.size() ; j++){
+                float IOU = this->calBoxIOU(this->uvBBoxes_[i], this->dbBBoxes_[j]);
+                if (IOU > this->boxIOUThresh_){
+                    // float uvVolume = this->uvBBoxes_[i].x * box1.y * box1.z;
+                    // float dbVolume = box2.x * box2.y * box2.z;
+                    mapManager::box3D box;
+                    
+                    // take concervative strategy
+                    float xmax = std::max(this->uvBBoxes_[i].x+this->uvBBoxes_[i].x_width/2, this->dbBBoxes_[j].x+this->dbBBoxes_[j].x_width/2);
+                    float xmin = std::min(this->uvBBoxes_[i].x-this->uvBBoxes_[i].x_width/2, this->dbBBoxes_[j].x-this->dbBBoxes_[j].x_width/2);
+                    float ymax = std::max(this->uvBBoxes_[i].y+this->uvBBoxes_[i].y_width/2, this->dbBBoxes_[j].y+this->dbBBoxes_[j].y_width/2);
+                    float ymin = std::min(this->uvBBoxes_[i].y-this->uvBBoxes_[i].y_width/2, this->dbBBoxes_[j].y-this->dbBBoxes_[j].y_width/2);
+                    float zmax = std::max(this->uvBBoxes_[i].z+this->uvBBoxes_[i].z_width/2, this->dbBBoxes_[j].z+this->dbBBoxes_[j].z_width/2);
+                    float zmin = std::min(this->uvBBoxes_[i].z-this->uvBBoxes_[i].z_width/2, this->dbBBoxes_[j].z-this->dbBBoxes_[j].z_width/2);
+                    box.x = (xmin+xmax)/2;
+                    box.y = (ymin+ymax)/2;
+                    box.z = (zmin+zmax)/2;
+                    box.x_width = xmax-xmin;
+                    box.y_width = ymax-ymin;
+                    box.z_width = zmax-zmin;
+
+                    // take average
+                    // box.x = (this->uvBBoxes_[i].x+this->dbBBoxes_[j].x)/2;
+                    // box.y = (this->uvBBoxes_[i].y+this->dbBBoxes_[j].y)/2;
+                    // box.z = (this->uvBBoxes_[i].z+this->dbBBoxes_[j].z)/2;
+                    // box.x_width = (this->uvBBoxes_[i].x_width+this->dbBBoxes_[j].x_width)/2;
+                    // box.y_width = (this->uvBBoxes_[i].y_width+this->dbBBoxes_[j].y_width)/2;
+                    // box.z_width = (this->uvBBoxes_[i].z_width+this->dbBBoxes_[j].z_width)/2;
+                    this->filteredBBoxes_.push_back(box);
+                }
+            }
+        }
     }
 
     void dynamicDetector::projectDepthImage(){
@@ -497,7 +551,8 @@ namespace mapManager{
         const double res = 0.1; // resolution of voxel
         int xVoxels = ceil(this->localSensorRange_(0)/res); int yVoxels = ceil(this->localSensorRange_(1)/res); int zVoxels = ceil(this->localSensorRange_(2)/res);
         int totalVoxels = xVoxels * yVoxels * zVoxels;
-        std::vector<bool> voxelOccupancyVec (totalVoxels, false);
+        // std::vector<bool> voxelOccupancyVec (totalVoxels, false);
+        std::vector<int> voxelOccupancyVec (totalVoxels, 0);
 
         // Iterate through each points in the cloud
         filteredPoints.clear();
@@ -508,16 +563,62 @@ namespace mapManager{
                 // find the corresponding voxel id in the vector and check whether it is occupied
                 int pID = this->posToAddress(p, res);
 
+                // add one point
+                voxelOccupancyVec[pID] +=1;
+
                 // if occupied, skip. Else add to the filtered points
-                if (voxelOccupancyVec[pID] == true){
-                    continue;
-                }
-                else{
-                    voxelOccupancyVec[pID] = true;
+                // if (voxelOccupancyVec[pID] == true){
+                //     continue;
+                // }
+                // else{
+                //     voxelOccupancyVec[pID] = true;
+                //     filteredPoints.push_back(p);
+                // }
+                // add only if 5 points are found
+                if (voxelOccupancyVec[pID] == 10){
                     filteredPoints.push_back(p);
                 }
             }
         }  
+    }
+
+    float dynamicDetector::calBoxIOU(mapManager::box3D& box1, mapManager::box3D& box2){
+        float box1Volume = box1.x_width * box1.y_width * box1.z_width;
+        float box2Volume = box2.x_width * box2.y_width * box2.z_width;
+
+        float l1Y = box1.y+box1.y_width/2-(box2.y-box2.y_width/2);
+        float l2Y = box2.y+box2.y_width/2-(box1.y-box1.y_width/2);
+        float l1X = box1.x+box1.x_width/2-(box2.x-box2.x_width/2);
+        float l2X = box2.x+box2.x_width/2-(box1.x-box1.x_width/2);
+        float l1Z = box1.z+box1.z_width/2-(box2.z-box2.z_width/2);
+        float l2Z = box2.z+box2.z_width/2-(box1.z-box1.z_width/2);
+        float overlapX = std::min( box1.x+box1.x_width/2-(box2.x-box2.x_width/2) , box2.x+box2.x_width/2-(box1.x-box1.x_width/2) );
+        float overlapY = std::min( box1.y+box1.y_width/2-(box2.y-box2.y_width/2) , box2.y+box2.y_width/2-(box1.y-box1.y_width/2) );
+        float overlapZ = std::min( box1.z+box1.z_width/2-(box2.z-box2.z_width/2) , box2.z+box2.z_width/2-(box1.z-box1.z_width/2) );
+
+        // include: C-IOU
+        if (std::max(l1X, l2X)<=std::max(box1.x_width,box2.x_width)){ 
+            overlapX = std::min(box1.x_width, box2.x_width);
+        }
+        if (std::max(l1Y, l2Y)<=std::max(box1.y_width,box2.y_width)){ 
+            overlapY = std::min(box1.y_width, box2.y_width);
+        }
+        if (std::max(l1Z, l2Z)<=std::max(box1.z_width,box2.z_width)){ 
+            overlapZ = std::min(box1.z_width, box2.z_width);
+        }
+        // overlapX = overlapLengthIfCIOU(overlapX, l1X, l2X, box1.x_width, box2.x_width);
+        // overlapY = overlapLengthIfCIOU(overlapY, l1Y, l2Y, box1.y+width, box2.y_width);
+        // overlapZ = overlapLengthIfCIOU(overlapZ, l1Z, l2Z, box1.z_width, box2.z_width);
+
+
+        float overlapVolume = overlapX * overlapY *  overlapZ;
+        float IOU = overlapVolume / (box1Volume+box2Volume-overlapVolume);
+        
+        // D-IOU
+        if (overlapX<=0 || overlapY<=0 ||overlapZ<=0){
+            IOU = 0;
+        }
+        return IOU;
     }
 
     void dynamicDetector::publishUVImages(){
@@ -578,8 +679,10 @@ namespace mapManager{
             double y = boxes[i].y; 
             double z = boxes[i].z; 
 
-            double x_width = std::max(boxes[i].x_width,boxes[i].y_width);
-            double y_width = std::max(boxes[i].x_width,boxes[i].y_width);
+            // double x_width = std::max(boxes[i].x_width,boxes[i].y_width);
+            // double y_width = std::max(boxes[i].x_width,boxes[i].y_width);
+            double x_width = boxes[i].x_width;
+            double y_width = boxes[i].y_width;
             double z_width = boxes[i].z_width;
             
             vector<geometry_msgs::Point> verts;

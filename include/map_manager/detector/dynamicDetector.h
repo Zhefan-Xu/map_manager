@@ -51,6 +51,7 @@ namespace mapManager{
         ros::Publisher uvBBoxesPub_;
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
+        ros::Publisher filteredBoxesPub_;
 
 
         // DETECTOR
@@ -75,6 +76,8 @@ namespace mapManager{
         double groundHeight_;
         int dbMinPointsCluster_;
         double dbEpsilon_;
+        float boxIOUThresh_;
+        
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -83,6 +86,7 @@ namespace mapManager{
         Eigen::Vector3d localSensorRange_ {5.0, 5.0, 5.0};
 
         // DETECTOR DATA
+        std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
         std::vector<mapManager::box3D> uvBBoxes_; // uv detector bounding boxes
         int projPointsNum_ = 0;
         std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
@@ -113,6 +117,7 @@ namespace mapManager{
         // detect function
         void uvDetect();
         void dbscanDetect();
+        void filterBBoxes();
     
 
         // DBSCAN Detector Functionns
@@ -120,6 +125,10 @@ namespace mapManager{
         void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
         void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
+
+        // detection helpper functions
+        float calBoxIOU(mapManager::box3D& box1, mapManager::box3D& box2);
+        float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
 
         // visualization
         void publishUVImages(); 
@@ -138,6 +147,14 @@ namespace mapManager{
         Eigen::Vector3d dbPointToEigen(const mapManager::Point& pDB);
         void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size);
     };
+
+    // inline float dynamicDetector::overlapLengthIfCIOU(float& overlap, float& l1, float& l2, float& width1, float& width2){
+    //     if (std::max(l1, l2) <= std::max(box1.x_width, box2.x)){
+    //         overlap = std::min(box1.x, box2.x);
+    //     }
+    //     return overlap;
+    // }
+    // CIOU: complete-IOU
 
     inline bool dynamicDetector::isInFilterRange(const Eigen::Vector3d& pos){
         if ((pos(0) >= this->position_(0) - this->localSensorRange_(0)) and (pos(0) <= this->position_(0) + this->localSensorRange_(0)) and 
