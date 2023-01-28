@@ -365,6 +365,7 @@ namespace mapManager{
             // transform to the world frame
             std::vector<mapManager::box3D> uvBBoxes;
             Eigen::Vector3d currPointCam, currPointMap;
+            Eigen::Vector3d currDimCam;
             for(size_t i = 0; i < this->uvDetector_->box3Ds.size(); ++i){
                 mapManager::box3D box;
 
@@ -372,17 +373,23 @@ namespace mapManager{
                 double x = this->uvDetector_->box3Ds[i].x; 
                 double y = this->uvDetector_->box3Ds[i].y;
                 double z = this->uvDetector_->box3Ds[i].z;
+                double xWidth = this->uvDetector_->box3Ds[i].x_width;
+                double yWidth = this->uvDetector_->box3Ds[i].y_width;
+                double zWidth = this->uvDetector_->box3Ds[i].z_width;
                 currPointCam(0) = x;
                 currPointCam(1) = y;
                 currPointCam(2) = z;
+                currDimCam(0) = xWidth;
+                currDimCam(1) = yWidth;
+                currDimCam(2) = zWidth;
                 currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
-
+                currDimCam = this->orientation_ * currDimCam;
                 box.x = currPointMap(0);
                 box.y = currPointMap(1);
                 box.z = currPointMap(2);
-                box.x_width = this->uvDetector_->box3Ds[i].x_width;
-                box.y_width = this->uvDetector_->box3Ds[i].z_width;
-                box.z_width = this->uvDetector_->box3Ds[i].y_width;
+                box.x_width = currDimCam(0);
+                box.y_width = currDimCam(1);
+                box.z_width = currDimCam(2);
                 uvBBoxes.push_back(box);            
             }
             this->uvBBoxes_ = uvBBoxes;
