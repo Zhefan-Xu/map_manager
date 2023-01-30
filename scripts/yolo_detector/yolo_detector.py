@@ -42,7 +42,7 @@ class yolo_detector:
         rospy.Timer(rospy.Duration(0.033), self.vis_callback)
     
     def image_callback(self, msg):
-        self.img = self.br.imgmsg_to_cv2(msg)
+        self.img = self.br.imgmsg_to_cv2(msg, "bgr8")
         self.img_received = True
 
     def detect_callback(self, event):
@@ -53,7 +53,7 @@ class yolo_detector:
 
     def vis_callback(self, event):
         if (self.img_detected == True):
-            self.img_pub.publish(self.br.cv2_to_imgmsg(self.detected_img))
+            self.img_pub.publish(self.br.cv2_to_imgmsg(self.detected_img, "bgr8"))
 
     def inference(self, ori_img):
         # image pre-processing
