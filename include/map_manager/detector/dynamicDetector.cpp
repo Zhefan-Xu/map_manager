@@ -230,6 +230,9 @@ namespace mapManager{
         // uv detector bird view pub
         this->uvBirdViewPub_ = it.advertise(this->ns_ + "/bird_view", 1);
 
+        // Yolo 2D bounding box on depth map pub
+        this->detectedAlignedDepthImgPub_ = it.advertise(this->ns_ + "/detected_aligned_depth_map_yolo", 1);
+
         // uv detector bounding box pub
         this->uvBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/uv_bboxes", 10);
 
@@ -323,6 +326,7 @@ namespace mapManager{
             (imgPtr->image).convertTo(imgPtr->image, CV_16UC1, this->depthScale_);
         }
         imgPtr->image.copyTo(this->alignedDepthImage_);
+        this->alignedDepthImage_.copyTo(this->detectedAlignedDepthImg_);
     }
 
     void dynamicDetector::yoloDetectionCB(const vision_msgs::Detection2DArrayConstPtr& detections){
@@ -362,6 +366,8 @@ namespace mapManager{
         this->publish3dBox(this->uvBBoxes_, this->uvBBoxesPub_, 'g');
         this->publishPoints(this->filteredPoints_, this->filteredPointsPub_);
         this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 'r');
+        this->publishYoloImages();
+
         this->publish3dBox(this->filteredBBoxes_, this->filteredBoxesPub_, 'b');
     }
 
@@ -434,14 +440,32 @@ namespace mapManager{
     }
 
     void dynamicDetector::yoloDetectionTo3D(){
-        
+        for (size_t i=0; i<this->yoloDetectionResults_.detections.size(); ++i){
+            mapManager::box3D bbox3D;
+            cv::Rect bboxVis;
+            this->getYolo3DBBox(this->yoloDetectionResults_.detections[i], bbox3D, bboxVis);
+            cv::rectangle(this->detectedAlignedDepthImg_, bboxVis, cv::Scalar(0, 255, 0), 5, 8, 0);
+        }   
+
+    }
+
+    void dynamicDetector::getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis){
+        // 1. retrive 2D detection result
+        int topX = int(detection.bbox.center.x); bboxVis.x = topX;
+        int topY = int(detection.bbox.center.y); bboxVis.y = topY;
+        int xWidth = int(detection.bbox.size_x); bboxVis.height = xWidth;
+        int yWidth = int(detection.bbox.size_y); bboxVis.width = yWidth;
+
+
+
     }
 
     void dynamicDetector::filterBBoxes(){
-        this->filteredBBoxes_.clear();
+        std::vector<mapManager::box3D> filteredBBoxesTemp;
         for (size_t i=0 ; i<this->uvBBoxes_.size() ; i++){
             for (size_t j=0 ; j<this->dbBBoxes_.size() ; j++){
                 float IOU = this->calBoxIOU(this->uvBBoxes_[i], this->dbBBoxes_[j]);
+                cout << "IOU: " << IOU << endl;
                 if (IOU > this->boxIOUThresh_){
                     // float uvVolume = this->uvBBoxes_[i].x * box1.y * box1.z;
                     // float dbVolume = box2.x * box2.y * box2.z;
@@ -468,10 +492,11 @@ namespace mapManager{
                     // box.x_width = (this->uvBBoxes_[i].x_width+this->dbBBoxes_[j].x_width)/2;
                     // box.y_width = (this->uvBBoxes_[i].y_width+this->dbBBoxes_[j].y_width)/2;
                     // box.z_width = (this->uvBBoxes_[i].z_width+this->dbBBoxes_[j].z_width)/2;
-                    this->filteredBBoxes_.push_back(box);
+                    filteredBBoxesTemp.push_back(box);
                 }
             }
         }
+        this->filteredBBoxes_ = filteredBBoxesTemp;
     }
 
     void dynamicDetector::projectDepthImage(){
@@ -667,6 +692,11 @@ namespace mapManager{
         this->uvBirdViewPub_.publish(birdBoxMsg);     
     }
 
+    void dynamicDetector::publishYoloImages(){
+        sensor_msgs::ImagePtr detectedAlignedImgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", this->detectedAlignedDepthImg_).toImageMsg();
+        this->detectedAlignedDepthImgPub_.publish(detectedAlignedImgMsg);
+    }
+
     void dynamicDetector::publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher){
         pcl::PointXYZ pt;
         pcl::PointCloud<pcl::PointXYZ> cloud;        
@@ -685,6 +715,7 @@ namespace mapManager{
         pcl::toROSMsg(cloud, cloudMsg);
         publisher.publish(cloudMsg);
     }
+
 
     void dynamicDetector::publish3dBox(const std::vector<box3D>& boxes, const ros::Publisher& publisher, const char color) {
         // visualization using bounding boxes 

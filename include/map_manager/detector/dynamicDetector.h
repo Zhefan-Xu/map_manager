@@ -51,6 +51,7 @@ namespace mapManager{
         image_transport::Publisher uvDepthMapPub_;
         image_transport::Publisher uDepthMapPub_;
         image_transport::Publisher uvBirdViewPub_;
+        image_transport::Publisher detectedAlignedDepthImgPub_;
         ros::Publisher uvBBoxesPub_;
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
@@ -101,6 +102,7 @@ namespace mapManager{
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
         std::vector<mapManager::box3D> yoloBBoxes_; // yolo detected bounding boxes
         vision_msgs::Detection2DArray yoloDetectionResults_; // yolo detected 2D results
+        cv::Mat detectedAlignedDepthImg_;
 
     public:
         dynamicDetector();
@@ -135,12 +137,16 @@ namespace mapManager{
         void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
 
-        // detection helpper functions
+        // detection helper functions
         float calBoxIOU(mapManager::box3D& box1, mapManager::box3D& box2);
         float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
 
+        // yolo helper functions
+        void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
+
         // visualization
         void publishUVImages(); 
+        void publishYoloImages();
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, const char color);
 
@@ -157,13 +163,6 @@ namespace mapManager{
         void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size);
     };
 
-    // inline float dynamicDetector::overlapLengthIfCIOU(float& overlap, float& l1, float& l2, float& width1, float& width2){
-    //     if (std::max(l1, l2) <= std::max(box1.x_width, box2.x)){
-    //         overlap = std::min(box1.x, box2.x);
-    //     }
-    //     return overlap;
-    // }
-    // CIOU: complete-IOU
 
     inline bool dynamicDetector::isInFilterRange(const Eigen::Vector3d& pos){
         if ((pos(0) >= this->position_(0) - this->localSensorRange_(0)) and (pos(0) <= this->position_(0) + this->localSensorRange_(0)) and 

@@ -67,8 +67,8 @@ class yolo_detector:
             for detected_box in self.detected_bboxes:
                 if (detected_box[4] in target_classes):
                     bbox_msg = Detection2D()
-                    bbox_msg.bbox.center.x = int(detected_box[0] + detected_box[2]/2)
-                    bbox_msg.bbox.center.y = int(detected_box[1] + detected_box[3]/2)
+                    bbox_msg.bbox.center.x = int(detected_box[0])
+                    bbox_msg.bbox.center.y = int(detected_box[1])
                     bbox_msg.bbox.size_x = abs(detected_box[2] - detected_box[0]) 
                     bbox_msg.bbox.size_y = abs(detected_box[3] - detected_box[1])
 
