@@ -326,7 +326,15 @@ namespace mapManager{
             (imgPtr->image).convertTo(imgPtr->image, CV_16UC1, this->depthScale_);
         }
         imgPtr->image.copyTo(this->alignedDepthImage_);
-        this->alignedDepthImage_.copyTo(this->detectedAlignedDepthImg_);
+
+        cv::Mat depthNormalized;
+        imgPtr->image.copyTo(depthNormalized);
+        double min, max;
+        cv::minMaxIdx(depthNormalized, &min, &max);
+        cv::convertScaleAbs(depthNormalized, depthNormalized, 255. / max);
+        depthNormalized.convertTo(depthNormalized, CV_8UC1);
+        cv::applyColorMap(depthNormalized, depthNormalized, cv::COLORMAP_BONE);
+        this->detectedAlignedDepthImg_ = depthNormalized;
     }
 
     void dynamicDetector::yoloDetectionCB(const vision_msgs::Detection2DArrayConstPtr& detections){
@@ -344,6 +352,9 @@ namespace mapManager{
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
         cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+
+
+        this->yoloDetectionTo3D();
 
         this->filterBBoxes();
     }
@@ -450,13 +461,14 @@ namespace mapManager{
 
     void dynamicDetector::getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis){
         // 1. retrive 2D detection result
-        int topX = int(detection.bbox.center.x); bboxVis.x = topX;
-        int topY = int(detection.bbox.center.y); bboxVis.y = topY;
-        int xWidth = int(detection.bbox.size_x); bboxVis.height = xWidth;
-        int yWidth = int(detection.bbox.size_y); bboxVis.width = yWidth;
-
-
-
+        int topX = int(detection.bbox.center.x); 
+        int topY = int(detection.bbox.center.y); 
+        int xWidth = int(detection.bbox.size_x); 
+        int yWidth = int(detection.bbox.size_y); 
+        bboxVis.x = topX;
+        bboxVis.y = topY;
+        bboxVis.height = yWidth;
+        bboxVis.width = xWidth;
     }
 
     void dynamicDetector::filterBBoxes(){

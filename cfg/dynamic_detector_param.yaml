@@ -1,7 +1,7 @@
 localization_mode: 0 # 0: pose (default) 1: odom
 
 depth_image_topic: /camera/depth/image_raw
-aligned_depth_image_topic: /camera/aligned_depth_to_color/image_raw
+aligned_depth_image_topic: /camera/depth/image_raw
 pose_topic: /CERLAB/quadcopter/pose
 odom_topic: /CERLAB/quadcopter/odom
 
