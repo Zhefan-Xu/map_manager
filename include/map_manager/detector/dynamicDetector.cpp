@@ -401,7 +401,6 @@ namespace mapManager{
             for(size_t i = 0; i < this->uvDetector_->box3Ds.size(); ++i){
                 mapManager::box3D box;
 
-
                 double x = this->uvDetector_->box3Ds[i].x; 
                 double y = this->uvDetector_->box3Ds[i].y;
                 double z = this->uvDetector_->box3Ds[i].z;
