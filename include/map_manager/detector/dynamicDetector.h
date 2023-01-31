@@ -15,6 +15,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <vision_msgs/Detection2DArray.h>
 #include <image_transport/image_transport.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -41,6 +42,8 @@ namespace mapManager{
         std::shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odomSub_;
         typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry> depthOdomSync;
         std::shared_ptr<message_filters::Synchronizer<depthOdomSync>> depthOdomSync_;
+        ros::Subscriber alignedDepthSub_; 
+        ros::Subscriber yoloDetectionSub_;
         ros::Timer detectionTimer_;
         ros::Timer trackingTimer_;
         ros::Timer classificationTimer_;
@@ -70,6 +73,7 @@ namespace mapManager{
         // DETECTOR PARAMETETER
         int localizationMode_;
         std::string depthTopicName_;
+        std::string alignedDepthTopicName_;
         std::string poseTopicName_;
         std::string odomTopicName_;
         double raycastMaxLength_;
@@ -81,6 +85,7 @@ namespace mapManager{
 
         // SENSOR DATA
         cv::Mat depthImage_;
+        cv::Mat alignedDepthImage_;
         Eigen::Vector3d position_; // robot position
         Eigen::Matrix3d orientation_; // robot orientation
         Eigen::Vector3d localSensorRange_ {5.0, 5.0, 5.0};
@@ -94,7 +99,8 @@ namespace mapManager{
         std::vector<Eigen::Vector3d> filteredPoints_; // filtered point cloud data
         std::vector<mapManager::box3D> dbBBoxes_; // DBSCAN bounding boxes        
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
-
+        std::vector<mapManager::box3D> yoloBBoxes_; // yolo detected bounding boxes
+        vision_msgs::Detection2DArray yoloDetectionResults_; // yolo detected 2D results
 
     public:
         dynamicDetector();
@@ -109,6 +115,8 @@ namespace mapManager{
         // callback
         void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
         void depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
+        void alignedDepthCB(const sensor_msgs::ImageConstPtr& img);
+        void yoloDetectionCB(const vision_msgs::Detection2DArrayConstPtr& detections);
         void detectionCB(const ros::TimerEvent&);
         void trackingCB(const ros::TimerEvent&);
         void classificationCB(const ros::TimerEvent&);
@@ -118,6 +126,7 @@ namespace mapManager{
         void uvDetect();
         void dbscanDetect();
         void filterBBoxes();
+        void yoloDetectionTo3D();
     
 
         // DBSCAN Detector Functionns

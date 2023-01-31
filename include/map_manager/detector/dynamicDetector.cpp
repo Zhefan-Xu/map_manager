@@ -47,6 +47,15 @@ namespace mapManager{
             cout << this->hint_ << ": Depth topic: " << this->depthTopicName_ << endl;
         }
 
+        // aligned depth topic name
+        if (not this->nh_.getParam(this->ns_ + "/aligned_depth_image_topic", this->alignedDepthTopicName_)){
+            this->alignedDepthTopicName_ = "/camera/aligned_depth_to_color/image_raw";
+            cout << this->hint_ << ": No aligned depth image topic name. Use default: /camera/aligned_depth_to_color/image_raw" << endl;
+        }
+        else{
+            cout << this->hint_ << ": Aligned depth topic: " << this->alignedDepthTopicName_ << endl;
+        }
+
         if (this->localizationMode_ == 0){
             // odom topic name
             if (not this->nh_.getParam(this->ns_ + "/pose_topic", this->poseTopicName_)){
@@ -252,6 +261,12 @@ namespace mapManager{
             exit(0);
         }
 
+        // aligned depth subscriber
+        this->alignedDepthSub_ = this->nh_.subscribe(this->alignedDepthTopicName_, 10, &dynamicDetector::alignedDepthCB, this);
+
+        // yolo detection results subscriber
+        this->yoloDetectionSub_ = this->nh_.subscribe("yolo_detector/detected_bounding_boxes", 10, &dynamicDetector::yoloDetectionCB, this);
+
         // detection timer
         this->detectionTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicDetector::detectionCB, this);
 
@@ -302,6 +317,17 @@ namespace mapManager{
         this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
     }
 
+    void dynamicDetector::alignedDepthCB(const sensor_msgs::ImageConstPtr& img){
+        cv_bridge::CvImagePtr imgPtr = cv_bridge::toCvCopy(img, img->encoding);
+        if (img->encoding == sensor_msgs::image_encodings::TYPE_32FC1){
+            (imgPtr->image).convertTo(imgPtr->image, CV_16UC1, this->depthScale_);
+        }
+        imgPtr->image.copyTo(this->alignedDepthImage_);
+    }
+
+    void dynamicDetector::yoloDetectionCB(const vision_msgs::Detection2DArrayConstPtr& detections){
+        this->yoloDetectionResults_ = *detections;
+    }
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
         cout << "detector CB" << endl;
@@ -405,6 +431,10 @@ namespace mapManager{
 
         // 3. cluster points and get bounding boxes
         this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_);
+    }
+
+    void dynamicDetector::yoloDetectionTo3D(){
+        
     }
 
     void dynamicDetector::filterBBoxes(){
