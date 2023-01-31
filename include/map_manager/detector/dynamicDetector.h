@@ -70,6 +70,10 @@ namespace mapManager{
         int imgCols_, imgRows_;
         Eigen::Matrix4d body2Cam_; // from body frame to camera frame
 
+        // CAMERA ALIGNED DEPTH TO COLOR
+        double fxC_, fyC_, cxC_, cyC_;
+        Eigen::Matrix4d body2CamColor_;
+
 
         // DETECTOR PARAMETETER
         int localizationMode_;
@@ -87,8 +91,10 @@ namespace mapManager{
         // SENSOR DATA
         cv::Mat depthImage_;
         cv::Mat alignedDepthImage_;
-        Eigen::Vector3d position_; // robot position
-        Eigen::Matrix3d orientation_; // robot orientation
+        Eigen::Vector3d position_; // depth camera position
+        Eigen::Matrix3d orientation_; // depth camera orientation
+        Eigen::Vector3d positionColor_; // color camera position
+        Eigen::Matrix3d orientationColor_; // color camera orientation
         Eigen::Vector3d localSensorRange_ {5.0, 5.0, 5.0};
 
         // DETECTOR DATA
@@ -129,7 +135,9 @@ namespace mapManager{
         void dbscanDetect();
         void filterBBoxes();
         void yoloDetectionTo3D();
-    
+        
+        // uv Detector Functions
+        void transformUVBBoxes(std::vector<mapManager::box3D>& bboxes);
 
         // DBSCAN Detector Functionns
         void projectDepthImage();
@@ -156,8 +164,8 @@ namespace mapManager{
         void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx, double res);
         int indexToAddress(const Eigen::Vector3i& idx, double res);
         int posToAddress(const Eigen::Vector3d& pos, double res);
-        void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
-        void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix);
+        void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix);
+        void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix);
         mapManager::Point eigenToDBPoint(const Eigen::Vector3d& p);
         Eigen::Vector3d dbPointToEigen(const mapManager::Point& pDB);
         void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size);
@@ -191,7 +199,7 @@ namespace mapManager{
          return this->indexToAddress(idx, res);
     }
     
-    inline void dynamicDetector::getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix){
+    inline void dynamicDetector::getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix){
         Eigen::Quaterniond quat;
         quat = Eigen::Quaterniond(pose->pose.orientation.w, pose->pose.orientation.x, pose->pose.orientation.y, pose->pose.orientation.z);
         Eigen::Matrix3d rot = quat.toRotationMatrix();
@@ -205,9 +213,10 @@ namespace mapManager{
         map2body(3, 3) = 1.0;
 
         camPoseMatrix = map2body * this->body2Cam_;
+        camPoseColorMatrix = map2body * this->body2CamColor_;
     }
 
-    inline void dynamicDetector::getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix){
+    inline void dynamicDetector::getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix){
         Eigen::Quaterniond quat;
         quat = Eigen::Quaterniond(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x, odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
         Eigen::Matrix3d rot = quat.toRotationMatrix();
@@ -221,6 +230,7 @@ namespace mapManager{
         map2body(3, 3) = 1.0;
 
         camPoseMatrix = map2body * this->body2Cam_;
+        camPoseColorMatrix = map2body * this->body2CamColor_;
     }
     
     inline mapManager::Point dynamicDetector::eigenToDBPoint(const Eigen::Vector3d& p){
