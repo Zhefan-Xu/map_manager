@@ -753,36 +753,45 @@ namespace mapManager{
         uint16_t* rowPtr;
         double depth;
         const double inv_factor = 1.0 / this->depthScale_;
+        int vMin = std::min(topY, this->depthFilterMargin_);
+        int uMin = std::min(topX, this->depthFilterMargin_);
+        int vMax = std::min(topY+yWidth, this->imgRows_-this->depthFilterMargin_);
+        int uMax = std::min(topX+xWidth, this->imgCols_-this->depthFilterMargin_);
         // find min depth value
-        for (int v=topY; v<topY+yWidth; ++v){ // row
+        for (int v=vMin; v<vMax; ++v){ // row
             rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
-            for (int u=topX; u<topX+xWidth; ++u){ // column
+            for (int u=uMin; u<uMax; ++u){ // column
                 depth = (*rowPtr) * inv_factor;
                 if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
                     if (depth < depthMin){
                         depthMin = depth;
                     }
                 }
+                ++rowPtr;
             }
         }
 
         double depthMax = -10.0;
         // search max value in the predefined range
-        for (int v=topY; v<topY+yWidth; ++v){ // row
+        for (int v=vMin; v<vMax; ++v){ // row
             rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
-            for (int u=topX; u<topX+xWidth; ++u){ // column
+            for (int u=uMin; u<uMax; ++u){ // column
                 depth = (*rowPtr) * inv_factor;
                 if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
                     if (depth > depthMax and depth <= depthMin + this->yoloThicknessRange_){
                         depthMax = depth;
                     }
                 }
+                ++rowPtr;
             }
         } 
 
         if (depthMin == 10.0 or depthMax == -10.0){ // in case depth value is not available
             return;
         }                
+
+        cout << "minimum depth is: " << depthMin << endl;
+        cout << "max depth is: " << depthMax << endl;
 
         // 3. project points into 3D in the camera frame
         Eigen::Vector3d pUL, pBR, center;
