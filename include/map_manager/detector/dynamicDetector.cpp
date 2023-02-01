@@ -47,6 +47,15 @@ namespace mapManager{
             cout << this->hint_ << ": Depth topic: " << this->depthTopicName_ << endl;
         }
 
+        // aligned depth topic name
+        if (not this->nh_.getParam(this->ns_ + "/aligned_depth_image_topic", this->alignedDepthTopicName_)){
+            this->alignedDepthTopicName_ = "/camera/aligned_depth_to_color/image_raw";
+            cout << this->hint_ << ": No aligned depth image topic name. Use default: /camera/aligned_depth_to_color/image_raw" << endl;
+        }
+        else{
+            cout << this->hint_ << ": Aligned depth topic: " << this->alignedDepthTopicName_ << endl;
+        }
+
         if (this->localizationMode_ == 0){
             // odom topic name
             if (not this->nh_.getParam(this->ns_ + "/pose_topic", this->poseTopicName_)){
@@ -153,12 +162,38 @@ namespace mapManager{
         // transform matrix: body to camera
         std::vector<double> body2CamVec (16);
         if (not this->nh_.getParam(this->ns_ + "/body_to_camera", body2CamVec)){
-            ROS_ERROR("[OccMap]: Please check body to camera matrix!");
+            ROS_ERROR("[dynamicDetector]: Please check body to camera matrix!");
         }
         else{
             for (int i=0; i<4; ++i){
                 for (int j=0; j<4; ++j){
                     this->body2Cam_(i, j) = body2CamVec[i * 4 + j];
+                }
+            }
+        }
+        
+        std::vector<double> colorIntrinsics (4);
+        if (not this->nh_.getParam(this->ns_ + "/color_intrinsics", colorIntrinsics)){
+            cout << this->hint_ << ": Please check camera intrinsics!" << endl;
+            exit(0);
+        }
+        else{
+            this->fxC_ = colorIntrinsics[0];
+            this->fyC_ = colorIntrinsics[1];
+            this->cxC_ = colorIntrinsics[2];
+            this->cyC_ = colorIntrinsics[3];
+            cout << this->hint_ << ": fxC, fyC, cxC, cyC: " << "["  << this->fxC_ << ", " << this->fyC_  << ", " << this->cxC_ << ", "<< this->cyC_ << "]" << endl;
+        }
+
+        // transform matrix: body to camera color
+        std::vector<double> body2CamColorVec (16);
+        if (not this->nh_.getParam(this->ns_ + "/body_to_camera_color", body2CamVec)){
+            ROS_ERROR("[dynamicDetector]: Please check body to camera color matrix!");
+        }
+        else{
+            for (int i=0; i<4; ++i){
+                for (int j=0; j<4; ++j){
+                    this->body2CamColor_(i, j) = body2CamColorVec[i * 4 + j];
                 }
             }
         }
@@ -240,6 +275,9 @@ namespace mapManager{
         // uv detector bird view pub
         this->uvBirdViewPub_ = it.advertise(this->ns_ + "/bird_view", 1);
 
+        // Yolo 2D bounding box on depth map pub
+        this->detectedAlignedDepthImgPub_ = it.advertise(this->ns_ + "/detected_aligned_depth_map_yolo", 1);
+
         // uv detector bounding box pub
         this->uvBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/uv_bboxes", 10);
 
@@ -271,6 +309,12 @@ namespace mapManager{
             exit(0);
         }
 
+        // aligned depth subscriber
+        this->alignedDepthSub_ = this->nh_.subscribe(this->alignedDepthTopicName_, 10, &dynamicDetector::alignedDepthCB, this);
+
+        // yolo detection results subscriber
+        this->yoloDetectionSub_ = this->nh_.subscribe("yolo_detector/detected_bounding_boxes", 10, &dynamicDetector::yoloDetectionCB, this);
+
         // detection timer
         this->detectionTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicDetector::detectionCB, this);
 
@@ -294,13 +338,18 @@ namespace mapManager{
         imgPtr->image.copyTo(this->depthImage_);
 
         // store current position and orientation (camera)
-        Eigen::Matrix4d camPoseMatrix;
-        this->getCameraPose(pose, camPoseMatrix);
+        Eigen::Matrix4d camPoseMatrix, camPoseColorMatrix;
+        this->getCameraPose(pose, camPoseMatrix, camPoseColorMatrix);
 
         this->position_(0) = camPoseMatrix(0, 3);
         this->position_(1) = camPoseMatrix(1, 3);
         this->position_(2) = camPoseMatrix(2, 3);
         this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+
+        this->positionColor_(0) = camPoseColorMatrix(0, 3);
+        this->positionColor_(1) = camPoseColorMatrix(1, 3);
+        this->positionColor_(2) = camPoseColorMatrix(2, 3);
+        this->orientationColor_ = camPoseColorMatrix.block<3, 3>(0, 0);
     }
 
     void dynamicDetector::depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom){
@@ -312,15 +361,40 @@ namespace mapManager{
         imgPtr->image.copyTo(this->depthImage_);
 
         // store current position and orientation (camera)
-        Eigen::Matrix4d camPoseMatrix;
-        this->getCameraPose(odom, camPoseMatrix);
+        Eigen::Matrix4d camPoseMatrix, camPoseColorMatrix;
+        this->getCameraPose(odom, camPoseMatrix, camPoseColorMatrix);
 
         this->position_(0) = camPoseMatrix(0, 3);
         this->position_(1) = camPoseMatrix(1, 3);
         this->position_(2) = camPoseMatrix(2, 3);
         this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+
+        this->positionColor_(0) = camPoseColorMatrix(0, 3);
+        this->positionColor_(1) = camPoseColorMatrix(1, 3);
+        this->positionColor_(2) = camPoseColorMatrix(2, 3);
+        this->orientationColor_ = camPoseColorMatrix.block<3, 3>(0, 0);
     }
 
+    void dynamicDetector::alignedDepthCB(const sensor_msgs::ImageConstPtr& img){
+        cv_bridge::CvImagePtr imgPtr = cv_bridge::toCvCopy(img, img->encoding);
+        if (img->encoding == sensor_msgs::image_encodings::TYPE_32FC1){
+            (imgPtr->image).convertTo(imgPtr->image, CV_16UC1, this->depthScale_);
+        }
+        imgPtr->image.copyTo(this->alignedDepthImage_);
+
+        cv::Mat depthNormalized;
+        imgPtr->image.copyTo(depthNormalized);
+        double min, max;
+        cv::minMaxIdx(depthNormalized, &min, &max);
+        cv::convertScaleAbs(depthNormalized, depthNormalized, 255. / max);
+        depthNormalized.convertTo(depthNormalized, CV_8UC1);
+        cv::applyColorMap(depthNormalized, depthNormalized, cv::COLORMAP_BONE);
+        this->detectedAlignedDepthImg_ = depthNormalized;
+    }
+
+    void dynamicDetector::yoloDetectionCB(const vision_msgs::Detection2DArrayConstPtr& detections){
+        this->yoloDetectionResults_ = *detections;
+    }
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
         cout << "detector CB" << endl;
@@ -333,6 +407,9 @@ namespace mapManager{
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
         cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+
+
+        this->yoloDetectionTo3D();
 
         this->filterBBoxes();
 
@@ -357,6 +434,8 @@ namespace mapManager{
         this->publish3dBox(this->uvBBoxes_, this->uvBBoxesPub_, 'g');
         this->publishPoints(this->filteredPoints_, this->filteredPointsPub_);
         this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 'r');
+        this->publishYoloImages();
+
         this->publish3dBox(this->filteredBBoxes_, this->filteredBoxesPub_, 'b');
     }
 
@@ -383,43 +462,9 @@ namespace mapManager{
             this->uvDetector_->display_depth();
 
 
-            // transform to the world frame
+            // transform to the world frame (recalculate the boudning boxes)
             std::vector<mapManager::box3D> uvBBoxes;
-            Eigen::Vector3d currPointCam, currPointMap;
-            Eigen::Vector3d currDimCam;
-            for(size_t i = 0; i < this->uvDetector_->box3Ds.size(); ++i){
-                mapManager::box3D box;
-
-
-                double x = this->uvDetector_->box3Ds[i].x; 
-                double y = this->uvDetector_->box3Ds[i].y;
-                double z = this->uvDetector_->box3Ds[i].z;
-                double xWidth = this->uvDetector_->box3Ds[i].x_width;
-                double yWidth = this->uvDetector_->box3Ds[i].y_width;
-                double zWidth = this->uvDetector_->box3Ds[i].z_width;
-                currPointCam(0) = x;
-                currPointCam(1) = y;
-                currPointCam(2) = z;
-                currDimCam(0) = xWidth;
-                currDimCam(1) = yWidth;
-                currDimCam(2) = zWidth;
-                // cout << "curr matrix " << endl;
-                // cout << this->orientation_ << endl;
-                // cout << currDimCam << endl;
-                currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
-                currDimCam = this->orientation_ * currDimCam;
-                
-                box.x = currPointMap(0);
-                box.y = currPointMap(1);
-                box.z = currPointMap(2);
-                box.x_width = currDimCam(0);
-                box.y_width = currDimCam(1);
-                box.z_width = currDimCam(2);
-                // FOR TREMP DEBUGING ONLY
-                box.z_width = -box.z_width; 
-                cout << "test z width" << box.z_width << endl;
-                uvBBoxes.push_back(box);            
-            }
+            this->transformUVBBoxes(uvBBoxes);
             this->uvBBoxes_ = uvBBoxes;
         }
     }
@@ -435,13 +480,80 @@ namespace mapManager{
         this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_);
     }
 
+    void dynamicDetector::yoloDetectionTo3D(){
+        for (size_t i=0; i<this->yoloDetectionResults_.detections.size(); ++i){
+            mapManager::box3D bbox3D;
+            cv::Rect bboxVis;
+            this->getYolo3DBBox(this->yoloDetectionResults_.detections[i], bbox3D, bboxVis);
+            cv::rectangle(this->detectedAlignedDepthImg_, bboxVis, cv::Scalar(0, 255, 0), 5, 8, 0);
+        }   
+
+    }
+
+    void dynamicDetector::transformUVBBoxes(std::vector<mapManager::box3D>& bboxes){
+        bboxes.clear();
+        for(size_t i = 0; i < this->uvDetector_->box3Ds.size(); ++i){
+            mapManager::box3D box;
+            double x = this->uvDetector_->box3Ds[i].x; 
+            double y = this->uvDetector_->box3Ds[i].y;
+            double z = this->uvDetector_->box3Ds[i].z;
+            double xWidth = this->uvDetector_->box3Ds[i].x_width;
+            double yWidth = this->uvDetector_->box3Ds[i].y_width;
+            double zWidth = this->uvDetector_->box3Ds[i].z_width;
+
+            // get 8 bouding boxes coordinates in the camera frame
+            Eigen::Vector3d p1 (x+xWidth/2.0, y+yWidth/2.0, z+zWidth/2.0);
+            Eigen::Vector3d p2 (x+xWidth/2.0, y+yWidth/2.0, z-zWidth/2.0);
+            Eigen::Vector3d p3 (x+xWidth/2.0, y-yWidth/2.0, z+zWidth/2.0);
+            Eigen::Vector3d p4 (x+xWidth/2.0, y-yWidth/2.0, z-zWidth/2.0);
+            Eigen::Vector3d p5 (x-xWidth/2.0, y+yWidth/2.0, z+zWidth/2.0);
+            Eigen::Vector3d p6 (x-xWidth/2.0, y+yWidth/2.0, z-zWidth/2.0);
+            Eigen::Vector3d p7 (x-xWidth/2.0, y-yWidth/2.0, z+zWidth/2.0);
+            Eigen::Vector3d p8 (x-xWidth/2.0, y-yWidth/2.0, z-zWidth/2.0);
+
+            // transform 8 points to the map coordinate frame
+            Eigen::Vector3d p1m = this->orientation_ * p1 + this->position_;
+            Eigen::Vector3d p2m = this->orientation_ * p2 + this->position_;
+            Eigen::Vector3d p3m = this->orientation_ * p3 + this->position_;
+            Eigen::Vector3d p4m = this->orientation_ * p4 + this->position_;
+            Eigen::Vector3d p5m = this->orientation_ * p5 + this->position_;
+            Eigen::Vector3d p6m = this->orientation_ * p6 + this->position_;
+            Eigen::Vector3d p7m = this->orientation_ * p7 + this->position_;
+            Eigen::Vector3d p8m = this->orientation_ * p8 + this->position_;
+            std::vector<Eigen::Vector3d> pointsMap {p1m, p2m, p3m, p4m, p5m, p6m, p7m, p8m};
+
+            // find max min in x, y, z directions
+            double xmin=p1m(0); double xmax=p1m(0); 
+            double ymin=p1m(1); double ymax=p1m(1);
+            double zmin=p1m(2); double zmax=p1m(2);
+            for (Eigen::Vector3d pm : pointsMap){
+                if (pm(0) < xmin){xmin = pm(0);}
+                if (pm(0) > xmax){xmax = pm(0);}
+                if (pm(1) < ymin){ymin = pm(1);}
+                if (pm(1) > ymax){ymax = pm(1);}
+                if (pm(2) < zmin){zmin = pm(2);}
+                if (pm(2) > zmax){zmax = pm(2);}
+            }
+
+            // assign values to bounding boxes in the map frame
+            box.x = (xmin + xmax)/2.0;
+            box.y = (ymin + ymax)/2.0;
+            box.z = (zmin + zmax)/2.0;
+            box.x_width = xmax - xmin;
+            box.y_width = ymax - ymin;
+            box.z_width = zmax - zmin;
+            bboxes.push_back(box);            
+        }        
+    }
+
+
     void dynamicDetector::filterBBoxes(){
-        this->filteredBBoxes_.clear();
+        std::vector<mapManager::box3D> filteredBBoxesTemp;
         for (size_t i=0 ; i<this->uvBBoxes_.size() ; i++){
             for (size_t j=0 ; j<this->dbBBoxes_.size() ; j++){
                 
                 float IOU = this->calBoxIOU(this->uvBBoxes_[i], this->dbBBoxes_[j]);
-                cout <<" get IOU:" << IOU << endl;
+                cout << "IOU: " << IOU << endl;
                 if (IOU > this->boxIOUThresh_){
                     
                     mapManager::box3D box;
@@ -472,9 +584,12 @@ namespace mapManager{
                     cout << "pccluster size " << this->pcClusters_.size() << " j " << j << endl;
                     this->filteredPcClusters_.push_back(this->pcClusters_[j]);
                     ROS_INFO("one loop end");
+                    filteredBBoxesTemp.push_back(box);
+
                 }
             }
         }
+        this->filteredBBoxes_ = filteredBBoxesTemp;
         ROS_INFO("size for both: %lu, %lu",this->filteredBBoxes_.size(), this->filteredPcClusters_.size());
     }
 
@@ -745,6 +860,18 @@ namespace mapManager{
         return IOU;
     }
 
+    void dynamicDetector::getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis){
+        // 1. retrive 2D detection result
+        int topX = int(detection.bbox.center.x); 
+        int topY = int(detection.bbox.center.y); 
+        int xWidth = int(detection.bbox.size_x); 
+        int yWidth = int(detection.bbox.size_y); 
+        bboxVis.x = topX;
+        bboxVis.y = topY;
+        bboxVis.height = yWidth;
+        bboxVis.width = xWidth;
+    }
+
     void dynamicDetector::publishUVImages(){
         sensor_msgs::ImagePtr depthBoxMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", this->uvDetector_->depth_show).toImageMsg();
         sensor_msgs::ImagePtr UmapBoxMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", this->uvDetector_->U_map_show).toImageMsg();
@@ -752,6 +879,11 @@ namespace mapManager{
         this->uvDepthMapPub_.publish(depthBoxMsg);
         this->uDepthMapPub_.publish(UmapBoxMsg); 
         this->uvBirdViewPub_.publish(birdBoxMsg);     
+    }
+
+    void dynamicDetector::publishYoloImages(){
+        sensor_msgs::ImagePtr detectedAlignedImgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", this->detectedAlignedDepthImg_).toImageMsg();
+        this->detectedAlignedDepthImgPub_.publish(detectedAlignedImgMsg);
     }
 
     void dynamicDetector::publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher){
@@ -772,6 +904,7 @@ namespace mapManager{
         pcl::toROSMsg(cloud, cloudMsg);
         publisher.publish(cloudMsg);
     }
+
 
     void dynamicDetector::publish3dBox(const std::vector<box3D>& boxes, const ros::Publisher& publisher, const char color) {
         // visualization using bounding boxes 

@@ -1,16 +1,19 @@
 localization_mode: 0 # 0: pose (default) 1: odom
 
 depth_image_topic: /camera/depth/image_raw
+aligned_depth_image_topic: /camera/depth/image_raw
 pose_topic: /CERLAB/quadcopter/pose
 odom_topic: /CERLAB/quadcopter/odom
 
 # depth_image_topic: /camera/depth/image_rect_raw
+# aligned_depth_image_topic: /camera/aligned_depth_to_color/image_raw
 # pose_topic: /mavros/local_position/pose
 # odom_topic: /vins_estimator/imu_propagate
 
 # Camera Parameters
 # depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
 depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
+color_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation                 
 # depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
 depth_scale_factor: 10 # simulation
 depth_min_value: 0.3
@@ -23,6 +26,10 @@ body_to_camera: [0.0,  0.0,  1.0,  0.09,
                 -1.0,  0.0,  0.0,  0.0 ,   
                  0.0, -1.0,  0.0,  0.095,
                  0.0,  0.0,  0.0,  1.0]
+body_to_camera_color: [0.0,  0.0,  1.0,  0.09,
+                      -1.0,  0.0,  0.0,  0.0 ,   
+                       0.0, -1.0,  0.0,  0.095,
+                       0.0,  0.0,  0.0,  1.0]
 
 # Raycasting (max depth)
 raycast_max_length: 5.0

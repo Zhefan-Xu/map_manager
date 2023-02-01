@@ -15,6 +15,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <vision_msgs/Detection2DArray.h>
 #include <image_transport/image_transport.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -41,6 +42,8 @@ namespace mapManager{
         std::shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odomSub_;
         typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry> depthOdomSync;
         std::shared_ptr<message_filters::Synchronizer<depthOdomSync>> depthOdomSync_;
+        ros::Subscriber alignedDepthSub_; 
+        ros::Subscriber yoloDetectionSub_;
         ros::Timer detectionTimer_;
         ros::Timer trackingTimer_;
         ros::Timer classificationTimer_;
@@ -48,6 +51,7 @@ namespace mapManager{
         image_transport::Publisher uvDepthMapPub_;
         image_transport::Publisher uDepthMapPub_;
         image_transport::Publisher uvBirdViewPub_;
+        image_transport::Publisher detectedAlignedDepthImgPub_;
         ros::Publisher uvBBoxesPub_;
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
@@ -66,10 +70,15 @@ namespace mapManager{
         int imgCols_, imgRows_;
         Eigen::Matrix4d body2Cam_; // from body frame to camera frame
 
+        // CAMERA ALIGNED DEPTH TO COLOR
+        double fxC_, fyC_, cxC_, cyC_;
+        Eigen::Matrix4d body2CamColor_;
+
 
         // DETECTOR PARAMETETER
         int localizationMode_;
         std::string depthTopicName_;
+        std::string alignedDepthTopicName_;
         std::string poseTopicName_;
         std::string odomTopicName_;
         double raycastMaxLength_;
@@ -82,8 +91,11 @@ namespace mapManager{
 
         // SENSOR DATA
         cv::Mat depthImage_;
-        Eigen::Vector3d position_; // robot position
-        Eigen::Matrix3d orientation_; // robot orientation
+        cv::Mat alignedDepthImage_;
+        Eigen::Vector3d position_; // depth camera position
+        Eigen::Matrix3d orientation_; // depth camera orientation
+        Eigen::Vector3d positionColor_; // color camera position
+        Eigen::Matrix3d orientationColor_; // color camera orientation
         Eigen::Vector3d localSensorRange_ {5.0, 5.0, 5.0};
 
         // DETECTOR DATA
@@ -104,6 +116,9 @@ namespace mapManager{
         
 
 
+        std::vector<mapManager::box3D> yoloBBoxes_; // yolo detected bounding boxes
+        vision_msgs::Detection2DArray yoloDetectionResults_; // yolo detected 2D results
+        cv::Mat detectedAlignedDepthImg_;
 
     public:
         dynamicDetector();
@@ -118,6 +133,8 @@ namespace mapManager{
         // callback
         void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
         void depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
+        void alignedDepthCB(const sensor_msgs::ImageConstPtr& img);
+        void yoloDetectionCB(const vision_msgs::Detection2DArrayConstPtr& detections);
         void detectionCB(const ros::TimerEvent&);
         void trackingCB(const ros::TimerEvent&);
         void classificationCB(const ros::TimerEvent&);
@@ -127,7 +144,10 @@ namespace mapManager{
         void uvDetect();
         void dbscanDetect();
         void filterBBoxes();
-    
+        void yoloDetectionTo3D();
+        
+        // uv Detector Functions
+        void transformUVBBoxes(std::vector<mapManager::box3D>& bboxes);
 
         // DBSCAN Detector Functionns
         void projectDepthImage();
@@ -135,16 +155,19 @@ namespace mapManager{
         void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
 
-        // detection helpper functions
+        // detection helper functions
         float calBoxIOU(mapManager::box3D& box1, mapManager::box3D& box2);
         float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
 
         // data association and tracking
         void boxAssociation();
         void genFeatHelper(Eigen::Matrix2d& feature, const std::vector<mapManager::box3D>& boxes);
+        // yolo helper functions
+        void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
 
         // visualization
         void publishUVImages(); 
+        void publishYoloImages();
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, const char color);
 
@@ -154,20 +177,13 @@ namespace mapManager{
         void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx, double res);
         int indexToAddress(const Eigen::Vector3i& idx, double res);
         int posToAddress(const Eigen::Vector3d& pos, double res);
-        void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
-        void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix);
+        void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix);
+        void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix);
         mapManager::Point eigenToDBPoint(const Eigen::Vector3d& p);
         Eigen::Vector3d dbPointToEigen(const mapManager::Point& pDB);
         void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size);
     };
 
-    // inline float dynamicDetector::overlapLengthIfCIOU(float& overlap, float& l1, float& l2, float& width1, float& width2){
-    //     if (std::max(l1, l2) <= std::max(box1.x_width, box2.x)){
-    //         overlap = std::min(box1.x, box2.x);
-    //     }
-    //     return overlap;
-    // }
-    // CIOU: complete-IOU
 
     inline bool dynamicDetector::isInFilterRange(const Eigen::Vector3d& pos){
         if ((pos(0) >= this->position_(0) - this->localSensorRange_(0)) and (pos(0) <= this->position_(0) + this->localSensorRange_(0)) and 
@@ -196,7 +212,7 @@ namespace mapManager{
          return this->indexToAddress(idx, res);
     }
     
-    inline void dynamicDetector::getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix){
+    inline void dynamicDetector::getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix){
         Eigen::Quaterniond quat;
         quat = Eigen::Quaterniond(pose->pose.orientation.w, pose->pose.orientation.x, pose->pose.orientation.y, pose->pose.orientation.z);
         Eigen::Matrix3d rot = quat.toRotationMatrix();
@@ -210,9 +226,10 @@ namespace mapManager{
         map2body(3, 3) = 1.0;
 
         camPoseMatrix = map2body * this->body2Cam_;
+        camPoseColorMatrix = map2body * this->body2CamColor_;
     }
 
-    inline void dynamicDetector::getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix){
+    inline void dynamicDetector::getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix){
         Eigen::Quaterniond quat;
         quat = Eigen::Quaterniond(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x, odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
         Eigen::Matrix3d rot = quat.toRotationMatrix();
@@ -226,6 +243,7 @@ namespace mapManager{
         map2body(3, 3) = 1.0;
 
         camPoseMatrix = map2body * this->body2Cam_;
+        camPoseColorMatrix = map2body * this->body2CamColor_;
     }
     
     inline mapManager::Point dynamicDetector::eigenToDBPoint(const Eigen::Vector3d& p){
