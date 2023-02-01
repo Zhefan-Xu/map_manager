@@ -1,18 +1,18 @@
 localization_mode: 0 # 0: pose (default) 1: odom
 
-# depth_image_topic: /camera/depth/image_raw
-# pose_topic: /CERLAB/quadcopter/pose
-# odom_topic: /CERLAB/quadcopter/odom
+depth_image_topic: /camera/depth/image_raw
+pose_topic: /CERLAB/quadcopter/pose
+odom_topic: /CERLAB/quadcopter/odom
 
-depth_image_topic: /camera/depth/image_rect_raw
-pose_topic: /mavros/local_position/pose
-odom_topic: /vins_estimator/imu_propagate
+# depth_image_topic: /camera/depth/image_rect_raw
+# pose_topic: /mavros/local_position/pose
+# odom_topic: /vins_estimator/imu_propagate
 
 # Camera Parameters
-depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
-# depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
-depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
-# depth_scale_factor: 10 # simulation
+# depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
+depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
+# depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
+depth_scale_factor: 10 # simulation
 depth_min_value: 0.3
 depth_max_value: 5.0
 depth_filter_margin: 10 # filter
@@ -27,6 +27,9 @@ body_to_camera: [0.0,  0.0,  1.0,  0.09,
 # Raycasting (max depth)
 raycast_max_length: 5.0
 
+# time difference
+time_difference: 0.033
+
 # dbscan
 ground_height: 0.1 # height of ground to remove ground points
 dbscan_min_points_cluster: 40
@@ -34,3 +37,6 @@ dbscan_search_range_epsilon: 0.3 # searching range radius
 
 # bounding box filtering
 filtering_BBox_IOU_threshold: 0.05
+
+# tracking and data association
+histroy_size: 5 # size of tracking history
