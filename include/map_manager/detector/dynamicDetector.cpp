@@ -187,7 +187,7 @@ namespace mapManager{
 
         // transform matrix: body to camera color
         std::vector<double> body2CamColorVec (16);
-        if (not this->nh_.getParam(this->ns_ + "/body_to_camera_color", body2CamVec)){
+        if (not this->nh_.getParam(this->ns_ + "/body_to_camera_color", body2CamColorVec)){
             ROS_ERROR("[dynamicDetector]: Please check body to camera color matrix!");
         }
         else{
@@ -219,28 +219,37 @@ namespace mapManager{
         // minimum number of points in each cluster
         if (not this->nh_.getParam(this->ns_ + "/dbscan_min_points_cluster", this->dbMinPointsCluster_)){
             this->dbMinPointsCluster_ = 18;
-            std::cout << this->hint_ << ": No DBSCAN minimum point in each cluster parameter. Use default: 18." << std::endl;
+            cout << this->hint_ << ": No DBSCAN minimum point in each cluster parameter. Use default: 18." << endl;
         }
         else{
-            std::cout << this->hint_ << ": DBSCAN Minimum point in each cluster is set to: " << this->dbMinPointsCluster_ << std::endl;
+            cout << this->hint_ << ": DBSCAN Minimum point in each cluster is set to: " << this->dbMinPointsCluster_ << endl;
         }
 
         // search range
         if (not this->nh_.getParam(this->ns_ + "/dbscan_search_range_epsilon", this->dbEpsilon_)){
             this->dbEpsilon_ = 0.3;
-            std::cout << this->hint_ << ": No DBSCAN epsilon parameter. Use default: 0.3." << std::endl;
+            cout << this->hint_ << ": No DBSCAN epsilon parameter. Use default: 0.3." << endl;
         }
         else{
-            std::cout << this->hint_ << ": DBSCAN epsilon is set to: " << this->dbEpsilon_ << std::endl;
+            cout << this->hint_ << ": DBSCAN epsilon is set to: " << this->dbEpsilon_ << endl;
         }  
 
         // IOU threshold
         if (not this->nh_.getParam(this->ns_ + "/filtering_BBox_IOU_threshold", this->boxIOUThresh_)){
             this->boxIOUThresh_ = 0.5;
-            std::cout << this->hint_ << ": No threshold for boununding box IOU filtering parameter found. Use default: 0.5." << std::endl;
+            cout << this->hint_ << ": No threshold for boununding box IOU filtering parameter found. Use default: 0.5." << endl;
         }
         else{
-            std::cout << this->hint_ << ": The threshold for boununding box IOU filtering is set to: " << this->boxIOUThresh_ << std::endl;
+            cout << this->hint_ << ": The threshold for boununding box IOU filtering is set to: " << this->boxIOUThresh_ << endl;
+        }  
+
+        // yolo thickness range threshold
+        if (not this->nh_.getParam(this->ns_ + "/yolo_thickness_range_thresh", this->yoloThicknessRange_)){
+            this->yoloThicknessRange_ = 1.0;
+            cout << this->hint_ << ": No yolo thickness range threshold. Use default: 1.0." << endl;
+        }
+        else{
+            cout << this->hint_ << ": The yolo thickness range threshold is set to: " << this->yoloThicknessRange_ << endl;
         }  
 
         // tracking history size
@@ -286,6 +295,9 @@ namespace mapManager{
 
         // DBSCAN bounding box pub
         this->dbBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/dbscan_bboxes", 10);
+
+        // yolo bounding box pub
+        this->yoloBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/yolo_3d_bboxes", 10);
 
         // filtered bounding box pub
         this->filteredBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/filtered_bboxes", 10);
@@ -431,12 +443,13 @@ namespace mapManager{
 
     void dynamicDetector::visCB(const ros::TimerEvent&){
         this->publishUVImages();
-        this->publish3dBox(this->uvBBoxes_, this->uvBBoxesPub_, 'g');
+        this->publish3dBox(this->uvBBoxes_, this->uvBBoxesPub_, 0, 1, 0);
         this->publishPoints(this->filteredPoints_, this->filteredPointsPub_);
-        this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 'r');
+        this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 1, 0, 0);
         this->publishYoloImages();
+        this->publish3dBox(this->yoloBBoxes_, this->yoloBBoxesPub_, 1, 0, 1);
 
-        this->publish3dBox(this->filteredBBoxes_, this->filteredBoxesPub_, 'b');
+        this->publish3dBox(this->filteredBBoxes_, this->filteredBoxesPub_, 0, 0, 1);
     }
 
     void dynamicDetector::uvDetect(){
@@ -481,19 +494,21 @@ namespace mapManager{
     }
 
     void dynamicDetector::yoloDetectionTo3D(){
+        std::vector<mapManager::box3D> yoloBBoxesTemp;
         for (size_t i=0; i<this->yoloDetectionResults_.detections.size(); ++i){
             mapManager::box3D bbox3D;
             cv::Rect bboxVis;
             this->getYolo3DBBox(this->yoloDetectionResults_.detections[i], bbox3D, bboxVis);
             cv::rectangle(this->detectedAlignedDepthImg_, bboxVis, cv::Scalar(0, 255, 0), 5, 8, 0);
-        }   
-
+            yoloBBoxesTemp.push_back(bbox3D);
+        }
+        this->yoloBBoxes_ = yoloBBoxesTemp;    
     }
 
     void dynamicDetector::transformUVBBoxes(std::vector<mapManager::box3D>& bboxes){
         bboxes.clear();
         for(size_t i = 0; i < this->uvDetector_->box3Ds.size(); ++i){
-            mapManager::box3D box;
+            mapManager::box3D bbox;
             double x = this->uvDetector_->box3Ds[i].x; 
             double y = this->uvDetector_->box3Ds[i].y;
             double z = this->uvDetector_->box3Ds[i].z;
@@ -501,48 +516,20 @@ namespace mapManager{
             double yWidth = this->uvDetector_->box3Ds[i].y_width;
             double zWidth = this->uvDetector_->box3Ds[i].z_width;
 
-            // get 8 bouding boxes coordinates in the camera frame
-            Eigen::Vector3d p1 (x+xWidth/2.0, y+yWidth/2.0, z+zWidth/2.0);
-            Eigen::Vector3d p2 (x+xWidth/2.0, y+yWidth/2.0, z-zWidth/2.0);
-            Eigen::Vector3d p3 (x+xWidth/2.0, y-yWidth/2.0, z+zWidth/2.0);
-            Eigen::Vector3d p4 (x+xWidth/2.0, y-yWidth/2.0, z-zWidth/2.0);
-            Eigen::Vector3d p5 (x-xWidth/2.0, y+yWidth/2.0, z+zWidth/2.0);
-            Eigen::Vector3d p6 (x-xWidth/2.0, y+yWidth/2.0, z-zWidth/2.0);
-            Eigen::Vector3d p7 (x-xWidth/2.0, y-yWidth/2.0, z+zWidth/2.0);
-            Eigen::Vector3d p8 (x-xWidth/2.0, y-yWidth/2.0, z-zWidth/2.0);
+            Eigen::Vector3d center (x, y, z);
+            Eigen::Vector3d size (xWidth, yWidth, zWidth);
+            Eigen::Vector3d newCenter, newSize;
 
-            // transform 8 points to the map coordinate frame
-            Eigen::Vector3d p1m = this->orientation_ * p1 + this->position_;
-            Eigen::Vector3d p2m = this->orientation_ * p2 + this->position_;
-            Eigen::Vector3d p3m = this->orientation_ * p3 + this->position_;
-            Eigen::Vector3d p4m = this->orientation_ * p4 + this->position_;
-            Eigen::Vector3d p5m = this->orientation_ * p5 + this->position_;
-            Eigen::Vector3d p6m = this->orientation_ * p6 + this->position_;
-            Eigen::Vector3d p7m = this->orientation_ * p7 + this->position_;
-            Eigen::Vector3d p8m = this->orientation_ * p8 + this->position_;
-            std::vector<Eigen::Vector3d> pointsMap {p1m, p2m, p3m, p4m, p5m, p6m, p7m, p8m};
-
-            // find max min in x, y, z directions
-            double xmin=p1m(0); double xmax=p1m(0); 
-            double ymin=p1m(1); double ymax=p1m(1);
-            double zmin=p1m(2); double zmax=p1m(2);
-            for (Eigen::Vector3d pm : pointsMap){
-                if (pm(0) < xmin){xmin = pm(0);}
-                if (pm(0) > xmax){xmax = pm(0);}
-                if (pm(1) < ymin){ymin = pm(1);}
-                if (pm(1) > ymax){ymax = pm(1);}
-                if (pm(2) < zmin){zmin = pm(2);}
-                if (pm(2) > zmax){zmax = pm(2);}
-            }
+            this->transformBBox(center, size, this->position_, this->orientation_, newCenter, newSize);
 
             // assign values to bounding boxes in the map frame
-            box.x = (xmin + xmax)/2.0;
-            box.y = (ymin + ymax)/2.0;
-            box.z = (zmin + zmax)/2.0;
-            box.x_width = xmax - xmin;
-            box.y_width = ymax - ymin;
-            box.z_width = zmax - zmin;
-            bboxes.push_back(box);            
+            bbox.x = newCenter(0);
+            bbox.y = newCenter(1);
+            bbox.z = newCenter(2);
+            bbox.x_width = newSize(0);
+            bbox.y_width = newSize(1);
+            bbox.z_width = newSize(2);
+            bboxes.push_back(bbox);            
         }        
     }
 
@@ -553,7 +540,6 @@ namespace mapManager{
             for (size_t j=0 ; j<this->dbBBoxes_.size() ; j++){
                 
                 float IOU = this->calBoxIOU(this->uvBBoxes_[i], this->dbBBoxes_[j]);
-                cout << "IOU: " << IOU << endl;
                 if (IOU > this->boxIOUThresh_){
                     
                     mapManager::box3D box;
@@ -735,7 +721,6 @@ namespace mapManager{
         // currently there is only one filtered (might include more in the future)
         std::vector<Eigen::Vector3d> voxelFilteredPoints;
         this->voxelFilter(points, voxelFilteredPoints);
-
         filteredPoints = voxelFilteredPoints;
     }
 
@@ -881,6 +866,9 @@ namespace mapManager{
     }
 
     void dynamicDetector::getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis){
+        if (this->alignedDepthImage_.empty()){
+            return;
+        }        
         // 1. retrive 2D detection result
         int topX = int(detection.bbox.center.x); 
         int topY = int(detection.bbox.center.y); 
@@ -890,6 +878,81 @@ namespace mapManager{
         bboxVis.y = topY;
         bboxVis.height = yWidth;
         bboxVis.width = xWidth;
+
+        // 2. get thickness estimation
+        double depthMin = 10.0;
+        uint16_t* rowPtr;
+        double depth;
+        const double inv_factor = 1.0 / this->depthScale_;
+        int vMin = std::min(topY, this->depthFilterMargin_);
+        int uMin = std::min(topX, this->depthFilterMargin_);
+        int vMax = std::min(topY+yWidth, this->imgRows_-this->depthFilterMargin_);
+        int uMax = std::min(topX+xWidth, this->imgCols_-this->depthFilterMargin_);
+        // find min depth value
+        for (int v=vMin; v<vMax; ++v){ // row
+            rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
+            for (int u=uMin; u<uMax; ++u){ // column
+                depth = (*rowPtr) * inv_factor;
+                if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
+                    if (depth < depthMin){
+                        depthMin = depth;
+                    }
+                }
+                ++rowPtr;
+            }
+        }
+
+        double depthMax = -10.0;
+        // search max value in the predefined range
+        for (int v=vMin; v<vMax; ++v){ // row
+            rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
+            for (int u=uMin; u<uMax; ++u){ // column
+                depth = (*rowPtr) * inv_factor;
+                if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
+                    if (depth > depthMax and depth <= depthMin + this->yoloThicknessRange_){
+                        depthMax = depth;
+                    }
+                }
+                ++rowPtr;
+            }
+        } 
+
+        if (depthMin == 10.0 or depthMax == -10.0){ // in case depth value is not available
+            return;
+        }                
+
+        cout << "minimum depth is: " << depthMin << endl;
+        cout << "max depth is: " << depthMax << endl;
+
+        // 3. project points into 3D in the camera frame
+        Eigen::Vector3d pUL, pBR, center;
+        pUL(0) = (topX - this->cxC_) * depthMin / this->fxC_;
+        pUL(1) = (topY - this->cyC_) * depthMin / this->fyC_;
+        pUL(2) = depthMin;
+
+        pBR(0) = (topX + xWidth - this->cxC_) * depthMin / this->fxC_;
+        pBR(1) = (topY + yWidth- this->cyC_) * depthMin / this->fyC_;
+        pBR(2) = depthMin;
+
+        center(0) = (pUL(0) + pBR(0))/2.0;
+        center(1) = (pUL(1) + pBR(1))/2.0;
+        center(2) = (depthMin + depthMax)/2.0;
+
+        double xWidth3D = std::abs(pBR(0) - pUL(0));
+        double yWidth3D = std::abs(pBR(1) - pUL(1));
+        double zWidth3D = depthMax - depthMin;        
+        Eigen::Vector3d size (xWidth3D, yWidth3D, zWidth3D);
+
+        // 4. transform 3D points into world frame
+        Eigen::Vector3d newCenter, newSize;
+        this->transformBBox(center, size, this->positionColor_, this->orientationColor_, newCenter, newSize);
+        bbox3D.x = newCenter(0);
+        bbox3D.y = newCenter(1);
+        bbox3D.z = newCenter(2);
+
+        bbox3D.x_width = newSize(0);
+        bbox3D.y_width = newSize(1);
+        bbox3D.z_width = newSize(2);
     }
 
     void dynamicDetector::publishUVImages(){
@@ -926,7 +989,7 @@ namespace mapManager{
     }
 
 
-    void dynamicDetector::publish3dBox(const std::vector<box3D>& boxes, const ros::Publisher& publisher, const char color) {
+    void dynamicDetector::publish3dBox(const std::vector<box3D>& boxes, const ros::Publisher& publisher, double r, double g, double b) {
         // visualization using bounding boxes 
         visualization_msgs::Marker line;
         visualization_msgs::MarkerArray lines;
@@ -935,17 +998,9 @@ namespace mapManager{
         line.action = visualization_msgs::Marker::ADD;
         line.ns = "box3D";  
         line.scale.x = 0.1;
-
-        if (color=='g') {
-            line.color.g = 1.0;
-        }
-        else if (color=='b') {
-            line.color.b = 1.0;
-        }
-        else {
-            line.color.r = 1.0;
-        }
-
+        line.color.r = r;
+        line.color.g = g;
+        line.color.b = b;
         line.color.a = 1.0;
         line.lifetime = ros::Duration(0.1);
 
@@ -1022,6 +1077,56 @@ namespace mapManager{
         }
         // publish
         publisher.publish(lines);
+    }
+
+    void dynamicDetector::transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
+                                               Eigen::Vector3d& newCenter, Eigen::Vector3d& newSize){
+        double x = center(0); 
+        double y = center(1);
+        double z = center(2);
+        double xWidth = size(0);
+        double yWidth = size(1);
+        double zWidth = size(2);
+
+        // get 8 bouding boxes coordinates in the camera frame
+        Eigen::Vector3d p1 (x+xWidth/2.0, y+yWidth/2.0, z+zWidth/2.0);
+        Eigen::Vector3d p2 (x+xWidth/2.0, y+yWidth/2.0, z-zWidth/2.0);
+        Eigen::Vector3d p3 (x+xWidth/2.0, y-yWidth/2.0, z+zWidth/2.0);
+        Eigen::Vector3d p4 (x+xWidth/2.0, y-yWidth/2.0, z-zWidth/2.0);
+        Eigen::Vector3d p5 (x-xWidth/2.0, y+yWidth/2.0, z+zWidth/2.0);
+        Eigen::Vector3d p6 (x-xWidth/2.0, y+yWidth/2.0, z-zWidth/2.0);
+        Eigen::Vector3d p7 (x-xWidth/2.0, y-yWidth/2.0, z+zWidth/2.0);
+        Eigen::Vector3d p8 (x-xWidth/2.0, y-yWidth/2.0, z-zWidth/2.0);
+
+        // transform 8 points to the map coordinate frame
+        Eigen::Vector3d p1m = orientation * p1 + position;
+        Eigen::Vector3d p2m = orientation * p2 + position;
+        Eigen::Vector3d p3m = orientation * p3 + position;
+        Eigen::Vector3d p4m = orientation * p4 + position;
+        Eigen::Vector3d p5m = orientation * p5 + position;
+        Eigen::Vector3d p6m = orientation * p6 + position;
+        Eigen::Vector3d p7m = orientation * p7 + position;
+        Eigen::Vector3d p8m = orientation * p8 + position;
+        std::vector<Eigen::Vector3d> pointsMap {p1m, p2m, p3m, p4m, p5m, p6m, p7m, p8m};
+
+        // find max min in x, y, z directions
+        double xmin=p1m(0); double xmax=p1m(0); 
+        double ymin=p1m(1); double ymax=p1m(1);
+        double zmin=p1m(2); double zmax=p1m(2);
+        for (Eigen::Vector3d pm : pointsMap){
+            if (pm(0) < xmin){xmin = pm(0);}
+            if (pm(0) > xmax){xmax = pm(0);}
+            if (pm(1) < ymin){ymin = pm(1);}
+            if (pm(1) > ymax){ymax = pm(1);}
+            if (pm(2) < zmin){zmin = pm(2);}
+            if (pm(2) > zmax){zmax = pm(2);}
+        }
+        newCenter(0) = (xmin + xmax)/2.0;
+        newCenter(1) = (ymin + ymax)/2.0;
+        newCenter(2) = (zmin + zmax)/2.0;
+        newSize(0) = xmax - xmin;
+        newSize(1) = ymax - ymin;
+        newSize(2) = zmax - zmin;
     }
 }
 
