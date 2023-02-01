@@ -581,6 +581,7 @@ namespace mapManager{
                     // box.z_width = (this->uvBBoxes_[i].z_width+this->dbBBoxes_[j].z_width)/2;
                     ROS_INFO("in loop");
                     this->filteredBBoxes_.push_back(box);
+                    cout << "dbBBox size " << this->dbBBoxes_[j].x<< endl;
                     cout << "pccluster size " << this->pcClusters_.size() << " j " << j << endl;
                     this->filteredPcClusters_.push_back(this->pcClusters_[j]);
                     ROS_INFO("one loop end");
@@ -604,9 +605,9 @@ namespace mapManager{
             if (this->newDetectFlag_){
 
                 std::vector<mapManager::box3D> propedBoxes;
-                Eigen::Matrix2d propedBoxesFeat(propedBoxes.size(), 6);
-                Eigen::Matrix2d currBoxesFeat(this->filteredBBoxes_.size(),6);
-                Eigen::Matrix2d similarity;
+                // Eigen::MatrixXd propedBoxesFeat(propedBoxes.size(), 6);
+                // Eigen::MatrixXd currBoxesFeat(this->filteredBBoxes_.size(),6);
+                // Eigen::MatrixXd similarity;
                 
                 // linear propagation
                 mapManager::box3D propedBox;
@@ -617,10 +618,18 @@ namespace mapManager{
                     propedBoxes.push_back(propedBox);
                 }
 
+
+                Eigen::MatrixXd propedBoxesFeat(propedBoxes.size(), 6);
+                Eigen::MatrixXd currBoxesFeat(this->filteredBBoxes_.size(),6);
+
+                Eigen::MatrixXd similarity;
+
                 // generate feature
                 this->genFeatHelper(propedBoxesFeat, propedBoxes);
                 this->genFeatHelper(currBoxesFeat, this->filteredBBoxes_);
-                currBoxesFeat = currBoxesFeat.transpose();
+
+                currBoxesFeat.transposeInPlace();
+
                 // propedBoxesFeat.resize(propedBoxes.size());
                 // for (size_t i=0 ; i<propedBoxes.size() ; i++){
                 //     propedBoxesFeat(i)(0) = propedBoxes[i].x;
@@ -643,12 +652,20 @@ namespace mapManager{
                 // calculate association
                 cout<< "propedBoxesFeat "<< propedBoxesFeat << endl;
                 cout<< "rowwise norm "<< propedBoxesFeat.rowwise().norm() << endl;
-                cout << "norm" << propedBoxesFeat.rowwise().norm() << endl;
-                // Eigen::Matrix2d unitPropedBoxesFeat = propedBoxesFeat.rowwise()/propedBoxesFeat.rowwise().norm();
+                cout << "norm" << currBoxesFeat.rowwise().norm() << endl;
+                // Eigen::VectorXd unitPropedBoxesFeat = propedBoxesFeat.rowwise()/propedBoxesFeat.rowwise().norm();
+                // Eigen::MatrixXd unitCurrBoxesFeat = currBoxesFeat.rowwise()/currBoxesFeat.rowwise().norm();
 
-                // cout << "unit feat "<<unitPropedBoxesFeat<<endl;
+                // cout << "unit proposed feat "<<unitPropedBoxesFeat<<endl;
+                // cout << "unit current feat "<<unitCurrBoxesFeat<<endl;
+
+                // similarity = unitPropedBoxesFeat * unitCurrBoxesFeat;
+
+                // similarity = (unitPropedBoxesFeat * currBoxesFeat)/(currBoxesFeat.rowwise().norm());
+
                 // similarity = (propedBoxesFeat.cwiseQuotient() * currBoxesFeat)/();
-                
+                cout << "similarity "<<similarity<<endl;
+
                 // update history
                 // this->boxHist_.push_front(this->filteredBBoxes_[]);
             }
@@ -662,7 +679,7 @@ namespace mapManager{
     }
 
 
-    void dynamicDetector::genFeatHelper(Eigen::Matrix2d& feature, const std::vector<mapManager::box3D>& boxes){ 
+    void dynamicDetector::genFeatHelper(Eigen::MatrixXd& feature, const std::vector<mapManager::box3D>& boxes){ 
         for (size_t i=0 ; i<boxes.size() ; i++){
             feature(i,0) = boxes[i].x;
             feature(i,1) = boxes[i].y;
@@ -754,7 +771,7 @@ namespace mapManager{
 
         // calculate the bounding boxes based on the clusters
         bboxes.clear();
-        bboxes.resize(clusterNum);
+        // bboxes.resize(clusterNum);
         for (size_t i=0; i<pcClusters.size(); ++i){
             mapManager::box3D box;
 
@@ -773,6 +790,7 @@ namespace mapManager{
                 zmax = (pcClusters[i][j](2)>zmax)?pcClusters[i][j](2):zmax;
             }
             box.id = i;
+
             box.x = (xmax + xmin)/2.0;
             box.y = (ymax + ymin)/2.0;
             box.z = (zmax + zmin)/2.0;
@@ -781,6 +799,8 @@ namespace mapManager{
             box.z_width = (zmax - zmin);
             bboxes.push_back(box);
         }
+
+
     }
 
     void dynamicDetector::voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints){
