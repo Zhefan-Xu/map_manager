@@ -18,7 +18,7 @@ color_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, 
 depth_scale_factor: 10 # simulation
 depth_min_value: 0.3
 depth_max_value: 5.0
-depth_filter_margin: 10 # filter
+depth_filter_margin: 2 # filter
 depth_skip_pixel: 1  # filter
 image_cols: 640
 image_rows: 480
@@ -41,3 +41,6 @@ dbscan_search_range_epsilon: 0.3 # searching range radius
 
 # bounding box filtering
 filtering_BBox_IOU_threshold: 0.05
+
+# yolo to 3D detection
+yolo_thickness_range_thresh: 1.0

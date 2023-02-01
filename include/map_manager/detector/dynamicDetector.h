@@ -55,6 +55,7 @@ namespace mapManager{
         ros::Publisher uvBBoxesPub_;
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
+        ros::Publisher yoloBBoxesPub_;
         ros::Publisher filteredBoxesPub_;
 
 
@@ -86,6 +87,7 @@ namespace mapManager{
         int dbMinPointsCluster_;
         double dbEpsilon_;
         float boxIOUThresh_;
+        double yoloThicknessRange_;
         
 
         // SENSOR DATA
@@ -139,7 +141,7 @@ namespace mapManager{
         // uv Detector Functions
         void transformUVBBoxes(std::vector<mapManager::box3D>& bboxes);
 
-        // DBSCAN Detector Functionns
+        // DBSCAN Detector Functions
         void projectDepthImage();
         void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
         void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
@@ -156,10 +158,13 @@ namespace mapManager{
         void publishUVImages(); 
         void publishYoloImages();
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
-        void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, const char color);
+        void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, double r, double g, double b);
 
+        // helper function
+        void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
+                                  Eigen::Vector3d& newCenter, Eigen::Vector3d& newSize);
 
-        // helper functions
+        // inline helper functions
         bool isInFilterRange(const Eigen::Vector3d& pos);
         void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx, double res);
         int indexToAddress(const Eigen::Vector3i& idx, double res);
