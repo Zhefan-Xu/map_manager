@@ -879,8 +879,7 @@ namespace mapManager{
         bboxVis.height = yWidth;
         bboxVis.width = xWidth;
 
-        // 2. get thickness estimation
-        double depthMin = 10.0;
+        // 2. get thickness estimation (MAD: Median Absolute Deviation)
         uint16_t* rowPtr;
         double depth;
         const double inv_factor = 1.0 / this->depthScale_;
@@ -888,51 +887,75 @@ namespace mapManager{
         int uMin = std::min(topX, this->depthFilterMargin_);
         int vMax = std::min(topY+yWidth, this->imgRows_-this->depthFilterMargin_);
         int uMax = std::min(topX+xWidth, this->imgCols_-this->depthFilterMargin_);
-        // find min depth value
+        std::vector<double> depthValues;
+
+
+        // find median depth value
         for (int v=vMin; v<vMax; ++v){ // row
             rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
             for (int u=uMin; u<uMax; ++u){ // column
                 depth = (*rowPtr) * inv_factor;
                 if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
-                    if (depth < depthMin){
-                        depthMin = depth;
-                    }
+                    depthValues.push_back(depth);
                 }
                 ++rowPtr;
             }
         }
 
-        double depthMax = -10.0;
-        // search max value in the predefined range
+        if (depthValues.size() == 0){ // in case of out of range
+            return;
+        }
+        std::sort(depthValues.begin(), depthValues.end());
+        double depthMedian = depthValues[int(depthValues.size()/2)];
+
+
+        // find median absolute deviation
+        std::vector<double> depthMedianDeviation;
         for (int v=vMin; v<vMax; ++v){ // row
             rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
             for (int u=uMin; u<uMax; ++u){ // column
                 depth = (*rowPtr) * inv_factor;
                 if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
-                    if (depth > depthMax and depth <= depthMin + this->yoloThicknessRange_){
+                    depthMedianDeviation.push_back(std::abs(depth - depthMedian));
+                }
+                ++rowPtr;
+            }
+        }        
+        std::sort(depthMedianDeviation.begin(), depthMedianDeviation.end());
+        double MAD = depthMedianDeviation[int(depthMedianDeviation.size()/2)];
+
+        double depthMin = 10.0; double depthMax = -10.0;
+        // find min max depth value
+        for (int v=vMin; v<vMax; ++v){ // row
+            rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
+            for (int u=uMin; u<uMax; ++u){ // column
+                depth = (*rowPtr) * inv_factor;
+                if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
+                    if (depth < depthMin and depth >= depthMedian - 1.5 * MAD){
+                        depthMin = depth;
+                    }
+
+                    if (depth > depthMax and depth <= depthMedian + 1.5 * MAD){
                         depthMax = depth;
                     }
                 }
                 ++rowPtr;
             }
-        } 
-
-        if (depthMin == 10.0 or depthMax == -10.0){ // in case depth value is not available
+        }
+        
+        if (depthMin == 10.0 or depthMax == -10.0){ // in case the depth value is not available
             return;
-        }                
-
-        cout << "minimum depth is: " << depthMin << endl;
-        cout << "max depth is: " << depthMax << endl;
+        }
 
         // 3. project points into 3D in the camera frame
         Eigen::Vector3d pUL, pBR, center;
-        pUL(0) = (topX - this->cxC_) * depthMin / this->fxC_;
-        pUL(1) = (topY - this->cyC_) * depthMin / this->fyC_;
-        pUL(2) = depthMin;
+        pUL(0) = (topX - this->cxC_) * (depthMin + depthMax) / 2.0 / this->fxC_;
+        pUL(1) = (topY - this->cyC_) * (depthMin + depthMax) / 2.0 / this->fyC_;
+        pUL(2) = (depthMin + depthMax) / 2.0;
 
-        pBR(0) = (topX + xWidth - this->cxC_) * depthMin / this->fxC_;
-        pBR(1) = (topY + yWidth- this->cyC_) * depthMin / this->fyC_;
-        pBR(2) = depthMin;
+        pBR(0) = (topX + xWidth - this->cxC_) * (depthMin + depthMax) / 2.0 / this->fxC_;
+        pBR(1) = (topY + yWidth- this->cyC_) * (depthMin + depthMax) / 2.0 / this->fyC_;
+        pBR(2) = (depthMin + depthMax) / 2.0;
 
         center(0) = (pUL(0) + pBR(0))/2.0;
         center(1) = (pUL(1) + pBR(1))/2.0;
