@@ -34,6 +34,9 @@ body_to_camera_color: [0.0,  0.0,  1.0,  0.09,
 # Raycasting (max depth)
 raycast_max_length: 5.0
 
+# time difference
+time_difference: 0.033
+
 # dbscan
 ground_height: 0.1 # height of ground to remove ground points
 dbscan_min_points_cluster: 40
@@ -44,3 +47,6 @@ filtering_BBox_IOU_threshold: 0.05
 
 # yolo to 3D detection
 yolo_thickness_range_thresh: 1.0
+
+# tracking and data association
+histroy_size: 5 # size of tracking history

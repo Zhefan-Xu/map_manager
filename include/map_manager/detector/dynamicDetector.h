@@ -89,6 +89,8 @@ namespace mapManager{
         float boxIOUThresh_;
         double yoloThicknessRange_;
         
+        int histSize_;
+        double dt_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -100,7 +102,6 @@ namespace mapManager{
         Eigen::Vector3d localSensorRange_ {5.0, 5.0, 5.0};
 
         // DETECTOR DATA
-        std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
         std::vector<mapManager::box3D> uvBBoxes_; // uv detector bounding boxes
         int projPointsNum_ = 0;
         std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
@@ -108,6 +109,16 @@ namespace mapManager{
         std::vector<Eigen::Vector3d> filteredPoints_; // filtered point cloud data
         std::vector<mapManager::box3D> dbBBoxes_; // DBSCAN bounding boxes        
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
+        std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
+        std::vector<std::vector<Eigen::Vector3d>> filteredPcClusters_; // pointcloud clusters after filtering by UV and DBSCAN fusion
+
+        // TRACKING AND ASSOCIATION DATA
+        bool newDetectFlag_;
+        std::deque<std::deque<mapManager::box3D>> boxHist_; // data association result: history of filtered bounding boxes for each box in current frame
+        std::deque<std::deque<Eigen::Vector3d>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
+        
+
+
         std::vector<mapManager::box3D> yoloBBoxes_; // yolo detected bounding boxes
         vision_msgs::Detection2DArray yoloDetectionResults_; // yolo detected 2D results
         cv::Mat detectedAlignedDepthImg_;
@@ -151,6 +162,10 @@ namespace mapManager{
         float calBoxIOU(mapManager::box3D& box1, mapManager::box3D& box2);
         float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
 
+        // data association and tracking
+        void boxAssociation();
+        void genFeatHelper(Eigen::Matrix2d& feature, const std::vector<mapManager::box3D>& boxes);
+        
         // yolo helper functions
         void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
 
@@ -262,6 +277,8 @@ namespace mapManager{
             pointsDB.push_back(pDB);
         }
     }
+
+    
 
 }
 
