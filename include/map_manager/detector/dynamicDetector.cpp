@@ -270,6 +270,15 @@ namespace mapManager{
             std::cout << this->hint_ << ": The time difference for the system is set to: " << this->dt_ << std::endl;
         }  
 
+        // similarity threshold for data association 
+        if (not this->nh_.getParam(this->ns_ + "/similarity_threshold", this->simThresh_)){
+            this->simThresh_ = 0.9;
+            std::cout << this->hint_ << ": No similarity threshold parameter found. Use default: 0.9." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The similarity threshold for the system is set to: " << this->simThresh_ << std::endl;
+        }  
+
 
     }
 
@@ -536,10 +545,11 @@ namespace mapManager{
 
     void dynamicDetector::filterBBoxes(){
         std::vector<mapManager::box3D> filteredBBoxesTemp;
+        std::vector<std::vector<Eigen::Vector3d>> filteredPcClustersTemp;
         for (size_t i=0 ; i<this->uvBBoxes_.size() ; i++){
             for (size_t j=0 ; j<this->dbBBoxes_.size() ; j++){
-                
                 float IOU = this->calBoxIOU(this->uvBBoxes_[i], this->dbBBoxes_[j]);
+                // cout << "IOU " <<IOU << endl;
                 if (IOU > this->boxIOUThresh_){
                     
                     mapManager::box3D box;
@@ -557,6 +567,8 @@ namespace mapManager{
                     box.x_width = xmax-xmin;
                     box.y_width = ymax-ymin;
                     box.z_width = zmax-zmin;
+                    box.Vx = 0;
+                    box.Vy = 0;
 
                     // take average
                     // box.x = (this->uvBBoxes_[i].x+this->dbBBoxes_[j].x)/2;
@@ -565,95 +577,145 @@ namespace mapManager{
                     // box.x_width = (this->uvBBoxes_[i].x_width+this->dbBBoxes_[j].x_width)/2;
                     // box.y_width = (this->uvBBoxes_[i].y_width+this->dbBBoxes_[j].y_width)/2;
                     // box.z_width = (this->uvBBoxes_[i].z_width+this->dbBBoxes_[j].z_width)/2;
-                    ROS_INFO("in loop");
-                    this->filteredBBoxes_.push_back(box);
-                    cout << "dbBBox size " << this->dbBBoxes_[j].x<< endl;
-                    cout << "pccluster size " << this->pcClusters_.size() << " j " << j << endl;
-                    this->filteredPcClusters_.push_back(this->pcClusters_[j]);
-                    ROS_INFO("one loop end");
+                    // this->filteredBBoxes_.push_back(box);
+                    // this->filteredPcClusters_.push_back(this->pcClusters_[j]);
+                    
                     filteredBBoxesTemp.push_back(box);
+                    filteredPcClustersTemp.push_back(this->pcClusters_[j]);
 
                 }
             }
         }
         this->filteredBBoxes_ = filteredBBoxesTemp;
-        ROS_INFO("size for both: %lu, %lu",this->filteredBBoxes_.size(), this->filteredPcClusters_.size());
+        this->filteredPcClusters_ = filteredPcClustersTemp;
     }
 
     void dynamicDetector::boxAssociation(){
+        if (this->filteredBBoxes_.size() != this->filteredPcClusters_.size()){
+            ROS_ERROR("box and pc size mismatch! box %lu, pc %lu", this->filteredBBoxes_.size(), this->filteredPcClusters_.size());
+        }
+
+        int numObjs = this->filteredBBoxes_.size();
         // init history for the first frame
         if (!this->boxHist_.size()){
-            this->boxHist_.resize(this->filteredBBoxes_.size());
-            ROS_INFO(" first frame, association not started yet. filtered boxes size: %lu", this->filteredBBoxes_.size());
+            
+            this->boxHist_.resize(numObjs);
+            this->pcHist_.resize(numObjs);
+
+            for (size_t i=0 ; i<numObjs ; i++){
+                this->boxHist_[i].push_back(this->filteredBBoxes_[i]);
+                this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
+            }
+            ROS_INFO(" box first frame, association not started yet. filtered boxes size: %lu", this->filteredBBoxes_.size());
         }
         else{
             // start association only if a new detection is available
             if (this->newDetectFlag_){
 
                 std::vector<mapManager::box3D> propedBoxes;
-                // Eigen::MatrixXd propedBoxesFeat(propedBoxes.size(), 6);
-                // Eigen::MatrixXd currBoxesFeat(this->filteredBBoxes_.size(),6);
-                // Eigen::MatrixXd similarity;
                 
                 // linear propagation
                 mapManager::box3D propedBox;
                 for (size_t i=0 ; i<this->boxHist_.size() ; i++){
                     propedBox = this->boxHist_[i][0];
-                    propedBox.x = propedBox.Vx*this->dt_;
-                    propedBox.y = propedBox.Vy*this->dt_;
+                    propedBox.x += propedBox.Vx*this->dt_;
+                    propedBox.y += propedBox.Vy*this->dt_;
                     propedBoxes.push_back(propedBox);
                 }
+                cout << " linear prop finished "<< endl;
 
-
-                Eigen::MatrixXd propedBoxesFeat(propedBoxes.size(), 6);
-                Eigen::MatrixXd currBoxesFeat(this->filteredBBoxes_.size(),6);
+                std::vector<Eigen::VectorXd> propedBoxesFeat(propedBoxes.size());
+                std::vector<Eigen::VectorXd> currBoxesFeat(numObjs);
 
                 Eigen::MatrixXd similarity;
 
                 // generate feature
                 this->genFeatHelper(propedBoxesFeat, propedBoxes);
                 this->genFeatHelper(currBoxesFeat, this->filteredBBoxes_);
+                cout << " genFeat finished "<< endl;
 
-                currBoxesFeat.transposeInPlace();
+                // calculate association: find best match
+                std::vector<double> bestSims;
+                std::vector<int> bestMatch;
+                bestSims.resize(numObjs);
+                bestMatch.resize(numObjs);
+                for (size_t i=0 ; i<numObjs ; i++){
+                    double bestSim = -1.;
+                    int bestMatchInd = -1;
+                    for (size_t j=0 ; j<propedBoxes.size() ; j++){
+                        double sim = propedBoxesFeat[j].dot(currBoxesFeat[i])/(propedBoxesFeat[j].norm()*currBoxesFeat[i].norm());
+                        // cout << "i " << i << "j  " << j << " sim: " << sim << " bestSIm " <<bestSim <<endl;
+                        if (sim >= bestSim){
+                            bestSim = sim;
+                            bestSims[i] = sim;
+                            bestMatchInd = j;
+                        }
+                    }
 
-                // propedBoxesFeat.resize(propedBoxes.size());
-                // for (size_t i=0 ; i<propedBoxes.size() ; i++){
-                //     propedBoxesFeat(i)(0) = propedBoxes[i].x;
-                //     propedBoxesFeat(i)(1) = propedBoxes[i].y;
-                //     propedBoxesFeat(i)(2) = propedBoxes[i].z;
-                //     propedBoxesFeat(i)(3) = propedBoxes[i].x_width;
-                //     propedBoxesFeat(i)(4) = propedBoxes[i].y_width;
-                //     propedBoxesFeat(i)(5) = propedBoxes[i].z_width;
-                // }
-                // currBoxesFeat.resize(this->filteredBoxes.size());
-                // for (size_t i=0 ; i<this->filteredBoxes.size() ; i++){
-                //     propedBoxesFeat(0)(i) = this->filteredBoxes[i].x;
-                //     propedBoxesFeat(i)(1) = this->filteredBoxes[i].y;
-                //     propedBoxesFeat(i)(2) = this->filteredBoxes[i].z;
-                //     propedBoxesFeat(i)(3) = this->filteredBoxes[i].x_width;
-                //     propedBoxesFeat(i)(4) = this->filteredBoxes[i].y_width;
-                //     propedBoxesFeat(i)(5) = this->filteredBoxes[i].z_width;
-                // }
+                    double iou = calBoxIOU(this->filteredBBoxes_[i], propedBoxes[bestMatchInd]);
+                    cout <<" bestsim " << bestSims[i] << endl;
+                    cout<<"iou "<<iou<<endl;
+                    if(!(bestSims[i]>this->simThresh_ && calBoxIOU(this->filteredBBoxes_[i], propedBoxes[bestMatchInd])>this->boxIOUThresh_)){
+                        bestSims[i] = 0;
+                        bestMatch[i] = -1;
+                    }
+                    else {
+                        bestMatch[i] = bestMatchInd;
+                    }
 
-                // calculate association
-                cout<< "propedBoxesFeat "<< propedBoxesFeat << endl;
-                cout<< "rowwise norm "<< propedBoxesFeat.rowwise().norm() << endl;
-                cout << "norm" << currBoxesFeat.rowwise().norm() << endl;
-                // Eigen::VectorXd unitPropedBoxesFeat = propedBoxesFeat.rowwise()/propedBoxesFeat.rowwise().norm();
-                // Eigen::MatrixXd unitCurrBoxesFeat = currBoxesFeat.rowwise()/currBoxesFeat.rowwise().norm();
+                }
 
-                // cout << "unit proposed feat "<<unitPropedBoxesFeat<<endl;
-                // cout << "unit current feat "<<unitCurrBoxesFeat<<endl;
+                for (size_t i=0 ; i<bestMatch.size() ; i++){
+                    cout <<"best match "<< i << " "<< bestMatch[i]<<endl;
+                }
 
-                // similarity = unitPropedBoxesFeat * unitCurrBoxesFeat;
 
-                // similarity = (unitPropedBoxesFeat * currBoxesFeat)/(currBoxesFeat.rowwise().norm());
-
-                // similarity = (propedBoxesFeat.cwiseQuotient() * currBoxesFeat)/();
-                cout << "similarity "<<similarity<<endl;
 
                 // update history
                 // this->boxHist_.push_front(this->filteredBBoxes_[]);
+                // pop if num of hist > size limit
+                
+                // std::deque<std::deque<mapManager::box3D>> boxHistTemp; 
+                // std::deque<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp; 
+                // boxHistTemp = this->boxHist_;
+                // pcHistTemp = this->pcHist_;
+                // for (size_t i=0 ; i<numObjs ; i++){
+                    
+                //     // inheret history
+                //     // if new box found in current frame, add an empty history
+                //     if (bestMatch[i] == -1){ 
+                //         if (numObjs <= this->boxHist_.size()){
+                //             ROS_ERROR( "num of box in current frame does not decrease. check similarity calculation!" );
+                //         }
+                //         else {
+                //             std::deque<mapManager::box3D> newSingleBoxHist;
+                //             std::deque<std::vector<Eigen::Vector3d>> newSinglePcHist; 
+                //             this->boxHist_.push_back(newSingleBoxHist);
+                //             this->pcHist_.push_back(newSinglePcHist);
+                //             bestMatch[i] = this->boxHist_.size()-1; // index at lastInd+1
+                //         }
+                        
+                //     }
+
+                //     // exchange history
+                //     this->boxHist_[i] = boxHistTemp[bestMatch[i]];
+                //     this->pcHist_[i] = pcHistTemp[bestMatch[i]];
+
+                //     // if less box found in current frame, delete all others 
+                //     if (numObjs < this->boxHist_.size()){
+                //         this->boxHist_.resize(numObjs); // truncate to numObjs if the new size is less than old one
+                //     }
+
+                //     // pop old data if len of hist > size limit
+                //     if (this->boxHist_[i].size() == this->histSize_){
+                //         this->boxHist_[i].pop_front();
+                //         this->pcHist_[i].pop_front();
+                //     }
+
+                //     // push new data into history
+                //     this->boxHist_[i].push_back(this->filteredBBoxes_[i]);
+                //     this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
+                // }
             }
             else {
                 ROS_INFO("new detect not comming");
@@ -661,18 +723,25 @@ namespace mapManager{
 
         }
 
+        // for (size_t i=0 ; i<this->boxHist_.size() ; i++){
+        //     for (size_t j=0 ; j<this->boxHist_[i].size() ; j++)
+        //     cout << "boxhist " << i << " :"<< this->boxHist_[i][j].x << " " << this->boxHist_[i][j].y << endl;
+        // }
+
         this->newDetectFlag_ = false; // the most recent detection has been associated
     }
 
 
-    void dynamicDetector::genFeatHelper(Eigen::MatrixXd& feature, const std::vector<mapManager::box3D>& boxes){ 
+    void dynamicDetector::genFeatHelper(std::vector<Eigen::VectorXd>& features, const std::vector<mapManager::box3D>& boxes){ 
         for (size_t i=0 ; i<boxes.size() ; i++){
-            feature(i,0) = boxes[i].x;
-            feature(i,1) = boxes[i].y;
-            feature(i,2) = boxes[i].z;
-            feature(i,3) = boxes[i].x_width;
-            feature(i,4) = boxes[i].y_width;
-            feature(i,5) = boxes[i].z_width;
+            Eigen::VectorXd feature(6);
+            features[i] = feature;
+            features[i](0) = boxes[i].x;
+            features[i](1) = boxes[i].y;
+            features[i](2) = boxes[i].z;
+            features[i](3) = boxes[i].x_width;
+            features[i](4) = boxes[i].y_width;
+            features[i](5) = boxes[i].z_width;
         }
     }
 
@@ -779,8 +848,8 @@ namespace mapManager{
             box.x = (xmax + xmin)/2.0;
             box.y = (ymax + ymin)/2.0;
             box.z = (zmax + zmin)/2.0;
-            box.x_width = (xmax - xmin);
-            box.y_width = (ymax - ymin);
+            box.x_width = (xmax - xmin)>0.1?(xmax-xmin):0.1;
+            box.y_width = (ymax - ymin)>0.1?(ymax-ymin):0.1;
             box.z_width = (zmax - zmin);
             bboxes.push_back(box);
         }
@@ -836,9 +905,14 @@ namespace mapManager{
         float overlapX = std::min( l1X , l2X );
         float overlapY = std::min( l1Y , l2Y );
         float overlapZ = std::min( l1Z , l2Z );
-        cout << box1.z <<" " << box1.z_width << " " <<box2.z << " " << box2.z_width << endl;
-        cout << l1Z <<" "<<l2Z <<endl;
-        cout << "ovelap xyz" << overlapX << " " << overlapY << " " <<overlapZ << endl;
+        // cout << "X dir" << endl;
+        // cout << box1.x <<" " << box1.x_width << " " <<box2.x << " " << box2.x_width << endl;
+        // // cout << l1X <<" "<<l2X <<endl;
+
+        // cout << "Y dir" << endl;
+        // cout << box1.y <<" " << box1.y_width << " " <<box2.y << " " << box2.y_width << endl;
+        // cout << l1Y <<" "<<l2Y <<endl;
+        // cout << "ovelap xyz" << overlapX << " " << overlapY << " " <<overlapZ << endl;
         // include: C-IOU
         if (std::max(l1X, l2X)<=std::max(box1.x_width,box2.x_width)){ 
             overlapX = std::min(box1.x_width, box2.x_width);
@@ -856,7 +930,7 @@ namespace mapManager{
 
         float overlapVolume = overlapX * overlapY *  overlapZ;
         float IOU = overlapVolume / (box1Volume+box2Volume-overlapVolume);
-        cout << "overlap volume " << overlapVolume <<endl;
+        // cout << "overlap volume " << overlapVolume <<endl;
         
         // D-IOU
         if (overlapX<=0 || overlapY<=0 ||overlapZ<=0){

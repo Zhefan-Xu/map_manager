@@ -50,3 +50,4 @@ yolo_thickness_range_thresh: 1.0
 
 # tracking and data association
 histroy_size: 5 # size of tracking history
+similarity_threshold: 0.1 # similiary threshold for data association matching comparison

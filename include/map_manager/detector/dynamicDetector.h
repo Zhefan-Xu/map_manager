@@ -87,10 +87,10 @@ namespace mapManager{
         int dbMinPointsCluster_;
         double dbEpsilon_;
         float boxIOUThresh_;
-        double yoloThicknessRange_;
-        
+        double yoloThicknessRange_; 
         int histSize_;
         double dt_;
+        double simThresh_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -115,7 +115,7 @@ namespace mapManager{
         // TRACKING AND ASSOCIATION DATA
         bool newDetectFlag_;
         std::deque<std::deque<mapManager::box3D>> boxHist_; // data association result: history of filtered bounding boxes for each box in current frame
-        std::deque<std::deque<Eigen::Vector3d>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
+        std::deque<std::deque<std::vector<Eigen::Vector3d>>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
         
 
 
@@ -164,7 +164,9 @@ namespace mapManager{
 
         // data association and tracking
         void boxAssociation();
-        void genFeatHelper(Eigen::MatrixXd& feature, const std::vector<mapManager::box3D>& boxes);
+        void genFeatHelper(std::vector<Eigen::VectorXd>& feature, const std::vector<mapManager::box3D>& boxes);
+        
+
         // yolo helper functions
         void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
 
