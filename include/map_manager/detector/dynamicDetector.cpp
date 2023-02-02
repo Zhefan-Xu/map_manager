@@ -597,12 +597,12 @@ namespace mapManager{
 
         int numObjs = this->filteredBBoxes_.size();
         // init history for the first frame
-        if (!this->boxHist_.size()){
+        if (this->boxHist_.size() == 0){
             
             this->boxHist_.resize(numObjs);
             this->pcHist_.resize(numObjs);
 
-            for (size_t i=0 ; i<numObjs ; i++){
+            for (int i=0 ; i<numObjs ; i++){
                 this->boxHist_[i].push_back(this->filteredBBoxes_[i]);
                 this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
             }
@@ -640,7 +640,7 @@ namespace mapManager{
         this->linearProp(propedBoxes);
 
         // generate feature
-        this->genFeat(propedBoxesFeat, currBoxesFeat, propedBoxes, numObjs);
+        this->genFeat(propedBoxes, numObjs, propedBoxesFeat, currBoxesFeat);
 
         // calculate association: find best match
         this->findBestMatch(propedBoxesFeat, currBoxesFeat, propedBoxes, bestMatch);
@@ -649,7 +649,7 @@ namespace mapManager{
         this->updateHist(bestMatch);
     }
 
-    void dynamicDetector::genFeat(std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, const int& numObjs){
+    void dynamicDetector::genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat){
         propedBoxesFeat.resize(propedBoxes.size());
         currBoxesFeat.resize(numObjs);
         this->genFeatHelper(propedBoxesFeat, propedBoxes);
@@ -683,10 +683,10 @@ namespace mapManager{
     void dynamicDetector::findBestMatch(const std::vector<Eigen::VectorXd>& propedBoxesFeat, const std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, std::vector<int>& bestMatch){
         
         int numObjs = this->filteredBBoxes_.size();
-        std::vector<double> bestSims;
+        std::vector<double> bestSims; // best similarity
         bestSims.resize(numObjs);
 
-        for (size_t i=0 ; i<numObjs ; i++){
+        for (int i=0 ; i<numObjs ; i++){
             double bestSim = -1.;
             int bestMatchInd = -1;
             for (size_t j=0 ; j<propedBoxes.size() ; j++){
@@ -719,13 +719,13 @@ namespace mapManager{
 
     void dynamicDetector::updateHist(const std::vector<int>& bestMatch){
         
-        std::deque<std::deque<mapManager::box3D>> boxHistTemp; 
-        std::deque<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp;
+        std::vector<std::deque<mapManager::box3D>> boxHistTemp; 
+        std::vector<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp;
         std::deque<mapManager::box3D> newSingleBoxHist;
         std::deque<std::vector<Eigen::Vector3d>> newSinglePcHist; 
         int numObjs = this->filteredBBoxes_.size();
 
-        for (size_t i=0 ; i<numObjs ; i++){
+        for (int i=0 ; i<numObjs ; i++){
             
             // inheret history. push history one by one
             if (bestMatch[i]>=0){
@@ -741,7 +741,7 @@ namespace mapManager{
             // cout << "pop old" << endl;
             
             // pop old data if len of hist > size limit
-            if (boxHistTemp[i].size() == this->histSize_){
+            if (int(boxHistTemp[i].size()) == this->histSize_){
                 boxHistTemp[i].pop_front();
                 pcHistTemp[i].pop_front();
             }

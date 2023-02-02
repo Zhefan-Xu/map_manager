@@ -114,8 +114,8 @@ namespace mapManager{
 
         // TRACKING AND ASSOCIATION DATA
         bool newDetectFlag_;
-        std::deque<std::deque<mapManager::box3D>> boxHist_; // data association result: history of filtered bounding boxes for each box in current frame
-        std::deque<std::deque<std::vector<Eigen::Vector3d>>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
+        std::vector<std::deque<mapManager::box3D>> boxHist_; // data association result: history of filtered bounding boxes for each box in current frame
+        std::vector<std::deque<std::vector<Eigen::Vector3d>>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
         
 
 
@@ -165,7 +165,7 @@ namespace mapManager{
         // data association and tracking
         void boxAssociation();
         void boxAssociationHelper();
-        void genFeat(std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, const int& numObjs);
+        void genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat);
         void genFeatHelper(std::vector<Eigen::VectorXd>& feature, const std::vector<mapManager::box3D>& boxes);
         void linearProp(std::vector<mapManager::box3D>& propedBoxes);
         void findBestMatch(const std::vector<Eigen::VectorXd>& propedBoxesFeat, const std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, std::vector<int>& bestMatch);
