@@ -164,11 +164,18 @@ namespace mapManager{
 
         // data association and tracking
         void boxAssociation();
+<<<<<<< HEAD
         void genFeatHelper(std::vector<Eigen::VectorXd>& feature, const std::vector<mapManager::box3D>& boxes);
         
 
+=======
+        void genFeatHelper(Eigen::MatrixXd& feature, const std::vector<mapManager::box3D>& boxes);
+        
+>>>>>>> 28e502836a52e890f2fd3c3d4bd7fbe470589ec7
         // yolo helper functions
         void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
+        void calculateMAD(std::vector<double>& depthValues, double& depthMedian, double& MAD);
+
 
         // visualization
         void publishUVImages(); 

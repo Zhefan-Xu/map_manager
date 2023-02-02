@@ -953,8 +953,7 @@ namespace mapManager{
         bboxVis.height = yWidth;
         bboxVis.width = xWidth;
 
-        // 2. get thickness estimation
-        double depthMin = 10.0;
+        // 2. get thickness estimation (double MAD: double Median Absolute Deviation)
         uint16_t* rowPtr;
         double depth;
         const double inv_factor = 1.0 / this->depthScale_;
@@ -962,51 +961,61 @@ namespace mapManager{
         int uMin = std::min(topX, this->depthFilterMargin_);
         int vMax = std::min(topY+yWidth, this->imgRows_-this->depthFilterMargin_);
         int uMax = std::min(topX+xWidth, this->imgCols_-this->depthFilterMargin_);
-        // find min depth value
+        std::vector<double> depthValues;
+
+
+        // record the depth values in the potential regions
         for (int v=vMin; v<vMax; ++v){ // row
             rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
             for (int u=uMin; u<uMax; ++u){ // column
                 depth = (*rowPtr) * inv_factor;
                 if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
-                    if (depth < depthMin){
-                        depthMin = depth;
-                    }
+                    depthValues.push_back(depth);
                 }
                 ++rowPtr;
             }
         }
+        if (depthValues.size() == 0){ // in case of out of range
+            return;
+        }
 
-        double depthMax = -10.0;
-        // search max value in the predefined range
+        // double MAD calculation
+        double depthMedian, MAD;
+        this->calculateMAD(depthValues, depthMedian, MAD);
+        // cout << "MAD: " << MAD << endl;
+
+        double depthMin = 10.0; double depthMax = -10.0;
+        // find min max depth value
         for (int v=vMin; v<vMax; ++v){ // row
             rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
             for (int u=uMin; u<uMax; ++u){ // column
                 depth = (*rowPtr) * inv_factor;
                 if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
-                    if (depth > depthMax and depth <= depthMin + this->yoloThicknessRange_){
+                    if ((depth < depthMin) and (depth >= depthMedian - 1.5 * MAD)){
+                        depthMin = depth;
+                    }
+
+                    if ((depth > depthMax) and (depth <= depthMedian + 1.5 * MAD)){
                         depthMax = depth;
                     }
                 }
                 ++rowPtr;
             }
-        } 
-
-        if (depthMin == 10.0 or depthMax == -10.0){ // in case depth value is not available
+        }
+        
+        if (depthMin == 10.0 or depthMax == -10.0){ // in case the depth value is not available
             return;
-        }                
-
-        cout << "minimum depth is: " << depthMin << endl;
-        cout << "max depth is: " << depthMax << endl;
+        }
 
         // 3. project points into 3D in the camera frame
         Eigen::Vector3d pUL, pBR, center;
-        pUL(0) = (topX - this->cxC_) * depthMin / this->fxC_;
-        pUL(1) = (topY - this->cyC_) * depthMin / this->fyC_;
-        pUL(2) = depthMin;
+        pUL(0) = (topX - this->cxC_) * (depthMin + depthMax) / 2.0 / this->fxC_;
+        pUL(1) = (topY - this->cyC_) * (depthMin + depthMax) / 2.0 / this->fyC_;
+        pUL(2) = (depthMin + depthMax) / 2.0;
 
-        pBR(0) = (topX + xWidth - this->cxC_) * depthMin / this->fxC_;
-        pBR(1) = (topY + yWidth- this->cyC_) * depthMin / this->fyC_;
-        pBR(2) = depthMin;
+        pBR(0) = (topX + xWidth - this->cxC_) * (depthMin + depthMax) / 2.0 / this->fxC_;
+        pBR(1) = (topY + yWidth- this->cyC_) * (depthMin + depthMax) / 2.0 / this->fyC_;
+        pBR(2) = (depthMin + depthMax) / 2.0;
 
         center(0) = (pUL(0) + pBR(0))/2.0;
         center(1) = (pUL(1) + pBR(1))/2.0;
@@ -1027,6 +1036,20 @@ namespace mapManager{
         bbox3D.x_width = newSize(0);
         bbox3D.y_width = newSize(1);
         bbox3D.z_width = newSize(2);
+    }
+
+
+    void dynamicDetector::calculateMAD(std::vector<double>& depthValues, double& depthMedian, double& MAD){
+        std::sort(depthValues.begin(), depthValues.end());
+        int medianIdx = int(depthValues.size()/2);
+        depthMedian = depthValues[medianIdx]; // median of all data
+
+        std::vector<double> deviations;
+        for (size_t i=0; i<depthValues.size(); ++i){
+            deviations.push_back(std::abs(depthValues[i] - depthMedian));
+        }
+        std::sort(deviations.begin(), deviations.end());
+        MAD = deviations[int(deviations.size()/2)];
     }
 
     void dynamicDetector::publishUVImages(){
