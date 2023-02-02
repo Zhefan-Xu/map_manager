@@ -159,12 +159,17 @@ namespace mapManager{
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
 
         // detection helper functions
-        float calBoxIOU(mapManager::box3D& box1, mapManager::box3D& box2);
-        float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
+        float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
+        // float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
 
         // data association and tracking
         void boxAssociation();
+        void boxAssociationHelper();
+        void genFeat(std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, const int& numObjs);
         void genFeatHelper(std::vector<Eigen::VectorXd>& feature, const std::vector<mapManager::box3D>& boxes);
+        void linearProp(std::vector<mapManager::box3D>& propedBoxes);
+        void findBestMatch(const std::vector<Eigen::VectorXd>& propedBoxesFeat, const std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, std::vector<int>& bestMatch);
+        void updateHist(const std::vector<int>& bestMatch);
         
 
         // yolo helper functions
