@@ -879,7 +879,7 @@ namespace mapManager{
         bboxVis.height = yWidth;
         bboxVis.width = xWidth;
 
-        // 2. get thickness estimation (MAD: Median Absolute Deviation)
+        // 2. get thickness estimation (double MAD: double Median Absolute Deviation)
         uint16_t* rowPtr;
         double depth;
         const double inv_factor = 1.0 / this->depthScale_;
@@ -890,7 +890,7 @@ namespace mapManager{
         std::vector<double> depthValues;
 
 
-        // find median depth value
+        // record the depth values in the potential regions
         for (int v=vMin; v<vMax; ++v){ // row
             rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
             for (int u=uMin; u<uMax; ++u){ // column
@@ -901,28 +901,14 @@ namespace mapManager{
                 ++rowPtr;
             }
         }
-
         if (depthValues.size() == 0){ // in case of out of range
             return;
         }
-        std::sort(depthValues.begin(), depthValues.end());
-        double depthMedian = depthValues[int(depthValues.size()/2)];
 
-
-        // find median absolute deviation
-        std::vector<double> depthMedianDeviation;
-        for (int v=vMin; v<vMax; ++v){ // row
-            rowPtr = this->alignedDepthImage_.ptr<uint16_t>(v);
-            for (int u=uMin; u<uMax; ++u){ // column
-                depth = (*rowPtr) * inv_factor;
-                if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
-                    depthMedianDeviation.push_back(std::abs(depth - depthMedian));
-                }
-                ++rowPtr;
-            }
-        }        
-        std::sort(depthMedianDeviation.begin(), depthMedianDeviation.end());
-        double MAD = depthMedianDeviation[int(depthMedianDeviation.size()/2)];
+        // double MAD calculation
+        double depthMedian, MAD;
+        this->calculateMAD(depthValues, depthMedian, MAD);
+        // cout << "MAD: " << MAD << endl;
 
         double depthMin = 10.0; double depthMax = -10.0;
         // find min max depth value
@@ -931,11 +917,11 @@ namespace mapManager{
             for (int u=uMin; u<uMax; ++u){ // column
                 depth = (*rowPtr) * inv_factor;
                 if (depth >= this->depthMinValue_ and depth <= this->depthMaxValue_){
-                    if (depth < depthMin and depth >= depthMedian - 1.5 * MAD){
+                    if ((depth < depthMin) and (depth >= depthMedian - 1.5 * MAD)){
                         depthMin = depth;
                     }
 
-                    if (depth > depthMax and depth <= depthMedian + 1.5 * MAD){
+                    if ((depth > depthMax) and (depth <= depthMedian + 1.5 * MAD)){
                         depthMax = depth;
                     }
                 }
@@ -976,6 +962,20 @@ namespace mapManager{
         bbox3D.x_width = newSize(0);
         bbox3D.y_width = newSize(1);
         bbox3D.z_width = newSize(2);
+    }
+
+
+    void dynamicDetector::calculateMAD(std::vector<double>& depthValues, double& depthMedian, double& MAD){
+        std::sort(depthValues.begin(), depthValues.end());
+        int medianIdx = int(depthValues.size()/2);
+        depthMedian = depthValues[medianIdx]; // median of all data
+
+        std::vector<double> deviations;
+        for (size_t i=0; i<depthValues.size(); ++i){
+            deviations.push_back(std::abs(depthValues[i] - depthMedian));
+        }
+        std::sort(deviations.begin(), deviations.end());
+        MAD = deviations[int(deviations.size()/2)];
     }
 
     void dynamicDetector::publishUVImages(){
