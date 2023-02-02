@@ -644,7 +644,7 @@ namespace mapManager{
                     int bestMatchInd = -1;
                     for (size_t j=0 ; j<propedBoxes.size() ; j++){
                         double sim = propedBoxesFeat[j].dot(currBoxesFeat[i])/(propedBoxesFeat[j].norm()*currBoxesFeat[i].norm());
-                        // cout << "i " << i << "j  " << j << " sim: " << sim << " bestSIm " <<bestSim <<endl;
+                        cout << "i " << i << "j  " << j << " sim: " << sim << " bestSIm " <<bestSim <<endl;
                         if (sim >= bestSim){
                             bestSim = sim;
                             bestSims[i] = sim;
@@ -675,47 +675,54 @@ namespace mapManager{
                 // this->boxHist_.push_front(this->filteredBBoxes_[]);
                 // pop if num of hist > size limit
                 
-                // std::deque<std::deque<mapManager::box3D>> boxHistTemp; 
-                // std::deque<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp; 
-                // boxHistTemp = this->boxHist_;
-                // pcHistTemp = this->pcHist_;
-                // for (size_t i=0 ; i<numObjs ; i++){
+                 
+            
+                for (size_t i=0 ; i<numObjs ; i++){
                     
-                //     // inheret history
-                //     // if new box found in current frame, add an empty history
-                //     if (bestMatch[i] == -1){ 
-                //         if (numObjs <= this->boxHist_.size()){
-                //             ROS_ERROR( "num of box in current frame does not decrease. check similarity calculation!" );
-                //         }
-                //         else {
-                //             std::deque<mapManager::box3D> newSingleBoxHist;
-                //             std::deque<std::vector<Eigen::Vector3d>> newSinglePcHist; 
-                //             this->boxHist_.push_back(newSingleBoxHist);
-                //             this->pcHist_.push_back(newSinglePcHist);
-                //             bestMatch[i] = this->boxHist_.size()-1; // index at lastInd+1
-                //         }
+                    // inheret history
+                    // if new box found in current frame, add an empty history
+                    if (bestMatch[i] == -1){ 
+                        if (numObjs <= this->boxHist_.size()){
+                            ROS_WARN( "num of box in current frame does not decrease. check similarity calculation!" );
+                        }
+                        cout << "in else" << endl;
+                        std::deque<mapManager::box3D> newSingleBoxHist;
+                        std::deque<std::vector<Eigen::Vector3d>> newSinglePcHist; 
+                        this->boxHist_.push_back(newSingleBoxHist);
+                        this->pcHist_.push_back(newSinglePcHist);
+                        bestMatch[i] = this->boxHist_.size()-1; // index at lastInd+1
+                        cout << "end else, boxHist size: " << this->boxHist_.size()  << endl;
+                    
                         
-                //     }
+                    }
 
-                //     // exchange history
-                //     this->boxHist_[i] = boxHistTemp[bestMatch[i]];
-                //     this->pcHist_[i] = pcHistTemp[bestMatch[i]];
+                    cout << "exchange history, bestmatch i" << bestMatch[i] << endl;
+                    // exchange history
+                    std::deque<std::deque<mapManager::box3D>> boxHistTemp; 
+                    std::deque<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp;
+                    boxHistTemp = this->boxHist_;
+                    pcHistTemp = this->pcHist_;
+                    this->boxHist_[i] = boxHistTemp[bestMatch[i]];
+                    this->pcHist_[i] = pcHistTemp[bestMatch[i]];
 
-                //     // if less box found in current frame, delete all others 
-                //     if (numObjs < this->boxHist_.size()){
-                //         this->boxHist_.resize(numObjs); // truncate to numObjs if the new size is less than old one
-                //     }
 
-                //     // pop old data if len of hist > size limit
-                //     if (this->boxHist_[i].size() == this->histSize_){
-                //         this->boxHist_[i].pop_front();
-                //         this->pcHist_[i].pop_front();
-                //     }
+                    cout << "less box" << endl;
+                    // if less box found in current frame, delete all others 
+                    if (numObjs < this->boxHist_.size()){
+                        this->boxHist_.resize(numObjs); // truncate to numObjs if the new size is less than old one
+                    }
 
-                //     // push new data into history
-                //     this->boxHist_[i].push_back(this->filteredBBoxes_[i]);
-                //     this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
-                // }
+                    cout << "pop old" << endl;
+                    // pop old data if len of hist > size limit
+                    if (this->boxHist_[i].size() == this->histSize_){
+                        this->boxHist_[i].pop_front();
+                        this->pcHist_[i].pop_front();
+                    }
+
+                    // push new data into history
+                    this->boxHist_[i].push_back(this->filteredBBoxes_[i]);
+                    this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
+                }
             }
             else {
                 ROS_INFO("new detect not comming");
