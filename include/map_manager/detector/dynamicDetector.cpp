@@ -310,7 +310,10 @@ namespace mapManager{
 
         // filtered bounding box pub
         this->filteredBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/filtered_bboxes", 10);
-    }
+
+        // history trajectory pub
+        this->historyTrajPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/history_trajectories", 10);
+    }   
 
     void dynamicDetector::registerCallback(){
         // depth pose callback
@@ -457,8 +460,8 @@ namespace mapManager{
         this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 1, 0, 0);
         this->publishYoloImages();
         this->publish3dBox(this->yoloBBoxes_, this->yoloBBoxesPub_, 1, 0, 1);
-
         this->publish3dBox(this->filteredBBoxes_, this->filteredBoxesPub_, 0, 0, 1);
+        this->publishHistoryTraj();
     }
 
     void dynamicDetector::uvDetect(){
@@ -660,9 +663,9 @@ namespace mapManager{
         for (size_t i=0 ; i<boxes.size() ; i++){
             Eigen::VectorXd feature(6);
             features[i] = feature;
-            features[i](0) = boxes[i].x;
-            features[i](1) = boxes[i].y;
-            features[i](2) = boxes[i].z;
+            features[i](0) = boxes[i].x - this->position_(0);
+            features[i](1) = boxes[i].y - this->position_(1);
+            features[i](2) = boxes[i].z - this->position_(2);
             features[i](3) = boxes[i].x_width;
             features[i](4) = boxes[i].y_width;
             features[i](5) = boxes[i].z_width;
@@ -1185,6 +1188,39 @@ namespace mapManager{
         }
         // publish
         publisher.publish(lines);
+    }
+
+    void dynamicDetector::publishHistoryTraj(){
+        visualization_msgs::MarkerArray trajMsg;
+        int countMarker = 0;
+        for (size_t i=0; i<this->boxHist_.size(); ++i){
+            visualization_msgs::Marker traj;
+            traj.header.frame_id = "map";
+            traj.header.stamp = ros::Time::now();
+            traj.ns = "dynamic_detector";
+            traj.id = i;
+            traj.type = visualization_msgs::Marker::LINE_LIST;
+            traj.scale.x = 0.03;
+            traj.scale.y = 0.03;
+            traj.scale.z = 0.03;
+            traj.color.a = 1.0; // Don't forget to set the alpha!
+            traj.color.r = 0.0;
+            traj.color.g = 1.0;
+            traj.color.b = 0.0;
+            for (size_t j=0; j<this->boxHist_[i].size()-1; ++j){
+                geometry_msgs::Point p1, p2;
+                mapManager::box3D box1 = this->boxHist_[i][j];
+                mapManager::box3D box2 = this->boxHist_[i][j+1];
+                p1.x = box1.x; p1.y = box1.y; p1.z = box1.z;
+                p2.x = box2.x; p2.y = box2.y; p2.z = box2.z;
+                traj.points.push_back(p1);
+                traj.points.push_back(p2);
+            }
+
+            ++countMarker;
+            trajMsg.markers.push_back(traj);
+        }
+        this->historyTrajPub_.publish(trajMsg);
     }
 
     void dynamicDetector::transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,

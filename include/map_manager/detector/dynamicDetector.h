@@ -57,6 +57,7 @@ namespace mapManager{
         ros::Publisher dbBBoxesPub_;
         ros::Publisher yoloBBoxesPub_;
         ros::Publisher filteredBoxesPub_;
+        ros::Publisher historyTrajPub_;
 
 
         // DETECTOR
@@ -184,6 +185,7 @@ namespace mapManager{
         void publishYoloImages();
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, double r, double g, double b);
+        void publishHistoryTraj();
 
         // helper function
         void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,

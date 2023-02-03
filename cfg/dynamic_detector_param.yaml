@@ -45,9 +45,7 @@ dbscan_search_range_epsilon: 0.3 # searching range radius
 # bounding box filtering
 filtering_BBox_IOU_threshold: 0.05
 
-# yolo to 3D detection
-yolo_thickness_range_thresh: 1.0
 
 # tracking and data association
-histroy_size: 5 # size of tracking history
+history_size: 20 # size of tracking history
 similarity_threshold: 0.1 # similiary threshold for data association matching comparison
