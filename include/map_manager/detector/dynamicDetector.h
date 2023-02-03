@@ -57,6 +57,7 @@ namespace mapManager{
         ros::Publisher dbBBoxesPub_;
         ros::Publisher yoloBBoxesPub_;
         ros::Publisher filteredBoxesPub_;
+        ros::Publisher historyTrajPub_;
 
 
         // DETECTOR
@@ -112,11 +113,13 @@ namespace mapManager{
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
         std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClusters_; // pointcloud clusters after filtering by UV and DBSCAN fusion
+        std::vector<mapManager::box3D> trackedBBoxes_; // bboxes tracked from kalman filtering
+
 
         // TRACKING AND ASSOCIATION DATA
         bool newDetectFlag_;
-        std::deque<std::deque<mapManager::box3D>> boxHist_; // data association result: history of filtered bounding boxes for each box in current frame
-        std::deque<std::deque<std::vector<Eigen::Vector3d>>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
+        std::vector<std::deque<mapManager::box3D>> boxHist_; // data association result: history of filtered bounding boxes for each box in current frame
+        std::vector<std::deque<std::vector<Eigen::Vector3d>>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
         
 
 
@@ -166,7 +169,7 @@ namespace mapManager{
         // data association and tracking
         void boxAssociation();
         void boxAssociationHelper();
-        void genFeat(std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, const int& numObjs);
+        void genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat);
         void genFeatHelper(std::vector<Eigen::VectorXd>& feature, const std::vector<mapManager::box3D>& boxes);
         void linearProp(std::vector<mapManager::box3D>& propedBoxes);
         void findBestMatch(const std::vector<Eigen::VectorXd>& propedBoxesFeat, const std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, std::vector<int>& bestMatch);
@@ -183,6 +186,7 @@ namespace mapManager{
         void publishYoloImages();
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, double r, double g, double b);
+        void publishHistoryTraj();
 
         // helper function
         void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,

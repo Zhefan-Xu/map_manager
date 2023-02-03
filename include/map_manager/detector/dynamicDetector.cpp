@@ -318,7 +318,10 @@ namespace mapManager{
 
         // filtered bounding box pub
         this->filteredBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/filtered_bboxes", 10);
-    }
+
+        // history trajectory pub
+        this->historyTrajPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/history_trajectories", 10);
+    }   
 
     void dynamicDetector::registerCallback(){
         // depth pose callback
@@ -450,7 +453,7 @@ namespace mapManager{
         // data association
         this->boxAssociation();
 
-        // kalman filter tracking
+        // kalman filter tracking (TODO: the new bounding boxes should be added when the tracking process is done)
 
     }
 
@@ -513,8 +516,8 @@ namespace mapManager{
         this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 1, 0, 0);
         this->publishYoloImages();
         this->publish3dBox(this->yoloBBoxes_, this->yoloBBoxesPub_, 1, 0, 1);
-
         this->publish3dBox(this->filteredBBoxes_, this->filteredBoxesPub_, 0, 0, 1);
+        this->publishHistoryTraj();
     }
 
     void dynamicDetector::uvDetect(){
@@ -653,12 +656,12 @@ namespace mapManager{
 
         int numObjs = this->filteredBBoxes_.size();
         // init history for the first frame
-        if (!this->boxHist_.size()){
+        if (this->boxHist_.size() == 0){
             
             this->boxHist_.resize(numObjs);
             this->pcHist_.resize(numObjs);
 
-            for (size_t i=0 ; i<numObjs ; i++){
+            for (int i=0 ; i<numObjs ; i++){
                 this->boxHist_[i].push_back(this->filteredBBoxes_[i]);
                 this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
             }
@@ -696,16 +699,16 @@ namespace mapManager{
         this->linearProp(propedBoxes);
 
         // generate feature
-        this->genFeat(propedBoxesFeat, currBoxesFeat, propedBoxes, numObjs);
+        this->genFeat(propedBoxes, numObjs, propedBoxesFeat, currBoxesFeat);
 
         // calculate association: find best match
         this->findBestMatch(propedBoxesFeat, currBoxesFeat, propedBoxes, bestMatch);
 
-        // update history                 
+        // update history  (TODO: this step should be done after the tracking process!!!!!!)               
         this->updateHist(bestMatch);
     }
 
-    void dynamicDetector::genFeat(std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, const int& numObjs){
+    void dynamicDetector::genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat){
         propedBoxesFeat.resize(propedBoxes.size());
         currBoxesFeat.resize(numObjs);
         this->genFeatHelper(propedBoxesFeat, propedBoxes);
@@ -716,9 +719,9 @@ namespace mapManager{
         for (size_t i=0 ; i<boxes.size() ; i++){
             Eigen::VectorXd feature(6);
             features[i] = feature;
-            features[i](0) = boxes[i].x;
-            features[i](1) = boxes[i].y;
-            features[i](2) = boxes[i].z;
+            features[i](0) = boxes[i].x - this->position_(0);
+            features[i](1) = boxes[i].y - this->position_(1);
+            features[i](2) = boxes[i].z - this->position_(2);
             features[i](3) = boxes[i].x_width;
             features[i](4) = boxes[i].y_width;
             features[i](5) = boxes[i].z_width;
@@ -739,10 +742,10 @@ namespace mapManager{
     void dynamicDetector::findBestMatch(const std::vector<Eigen::VectorXd>& propedBoxesFeat, const std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, std::vector<int>& bestMatch){
         
         int numObjs = this->filteredBBoxes_.size();
-        std::vector<double> bestSims;
+        std::vector<double> bestSims; // best similarity
         bestSims.resize(numObjs);
 
-        for (size_t i=0 ; i<numObjs ; i++){
+        for (int i=0 ; i<numObjs ; i++){
             double bestSim = -1.;
             int bestMatchInd = -1;
             for (size_t j=0 ; j<propedBoxes.size() ; j++){
@@ -775,13 +778,13 @@ namespace mapManager{
 
     void dynamicDetector::updateHist(const std::vector<int>& bestMatch){
         
-        std::deque<std::deque<mapManager::box3D>> boxHistTemp; 
-        std::deque<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp;
+        std::vector<std::deque<mapManager::box3D>> boxHistTemp; 
+        std::vector<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp;
         std::deque<mapManager::box3D> newSingleBoxHist;
         std::deque<std::vector<Eigen::Vector3d>> newSinglePcHist; 
         int numObjs = this->filteredBBoxes_.size();
 
-        for (size_t i=0 ; i<numObjs ; i++){
+        for (int i=0 ; i<numObjs ; i++){
             
             // inheret history. push history one by one
             if (bestMatch[i]>=0){
@@ -797,13 +800,13 @@ namespace mapManager{
             // cout << "pop old" << endl;
             
             // pop old data if len of hist > size limit
-            if (boxHistTemp[i].size() == this->histSize_){
+            if (int(boxHistTemp[i].size()) == this->histSize_){
                 boxHistTemp[i].pop_front();
                 pcHistTemp[i].pop_front();
             }
 
             // push new data into history
-            boxHistTemp[i].push_back(this->filteredBBoxes_[i]);
+            boxHistTemp[i].push_back(this->filteredBBoxes_[i]);  // TODO: should be tracked bboxes !!!!!!!!
             pcHistTemp[i].push_back(this->filteredPcClusters_[i]);
         }
 
@@ -1241,6 +1244,39 @@ namespace mapManager{
         }
         // publish
         publisher.publish(lines);
+    }
+
+    void dynamicDetector::publishHistoryTraj(){
+        visualization_msgs::MarkerArray trajMsg;
+        int countMarker = 0;
+        for (size_t i=0; i<this->boxHist_.size(); ++i){
+            visualization_msgs::Marker traj;
+            traj.header.frame_id = "map";
+            traj.header.stamp = ros::Time::now();
+            traj.ns = "dynamic_detector";
+            traj.id = i;
+            traj.type = visualization_msgs::Marker::LINE_LIST;
+            traj.scale.x = 0.03;
+            traj.scale.y = 0.03;
+            traj.scale.z = 0.03;
+            traj.color.a = 1.0; // Don't forget to set the alpha!
+            traj.color.r = 0.0;
+            traj.color.g = 1.0;
+            traj.color.b = 0.0;
+            for (size_t j=0; j<this->boxHist_[i].size()-1; ++j){
+                geometry_msgs::Point p1, p2;
+                mapManager::box3D box1 = this->boxHist_[i][j];
+                mapManager::box3D box2 = this->boxHist_[i][j+1];
+                p1.x = box1.x; p1.y = box1.y; p1.z = box1.z;
+                p2.x = box2.x; p2.y = box2.y; p2.z = box2.z;
+                traj.points.push_back(p1);
+                traj.points.push_back(p2);
+            }
+
+            ++countMarker;
+            trajMsg.markers.push_back(traj);
+        }
+        this->historyTrajPub_.publish(trajMsg);
     }
 
     void dynamicDetector::transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
