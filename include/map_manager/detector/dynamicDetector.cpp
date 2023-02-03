@@ -276,9 +276,17 @@ namespace mapManager{
             std::cout << this->hint_ << ": No similarity threshold parameter found. Use default: 0.9." << std::endl;
         }
         else{
-            std::cout << this->hint_ << ": The similarity threshold for the system is set to: " << this->simThresh_ << std::endl;
+            std::cout << this->hint_ << ": The similarity threshold for data association is set to: " << this->simThresh_ << std::endl;
         }  
 
+        // similarity threshold for data association 
+        if (not this->nh_.getParam(this->ns_ + "/frame_skip", this->skipFrame_)){
+            this->skipFrame_ = 5;
+            std::cout << this->hint_ << ": No skip frame parameter found. Use default: 5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The frames skiped in classification when comparing two point cloud is set to: " << this->skipFrame_ << std::endl;
+        }  
 
     }
 
@@ -448,6 +456,54 @@ namespace mapManager{
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
         cout << "classification CB not implemented yet." << endl;
+        for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
+            cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
+        }
+
+        std::vector<Eigen::Vector3d> currPc;
+        std::vector<Eigen::Vector3d> prevPc;
+        
+        for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
+
+            // history length is not enough to run classification
+            if (this->pcHist_[i].size()<this->skipFrame_+1){
+                continue;
+            }
+            
+            cout <<"pcHist size "<< this->pcHist_.size() << " " <<this->pcHist_[i].size()<<endl;
+            currPc = this->filteredPcClusters_[i];
+            prevPc = this->pcHist_[i][this->skipFrame_];
+            ROS_INFO("asisgned pc");
+            double Vavg = 0.;
+            int numPoints = currPc.size();
+
+            // find nearest neighbor
+            for (size_t j=0 ; j<numPoints ; j++){
+                int nnInd = -1; // ind for the nearest neighbor
+                double minDist = 2;
+                
+                for (size_t k=0 ; k<prevPc.size() ; k++){
+                    // find closer point: update 
+                    ROS_INFO("dist");
+                    double dist = (currPc[j]-prevPc[k]).norm();
+                    if (dist < minDist){
+                        nnInd = k;
+                        minDist = dist;
+                    }
+                }
+
+                // update Vavg
+                Vavg += minDist/(this->dt_*this->skipFrame_*numPoints);
+                if (minDist == -2){
+                    ROS_WARN("no neighbor found within 2 meters");
+                }
+            }
+
+            
+            
+            cout << "V_AVG for obj "<<i << " is "<<Vavg << endl;
+
+        }
     }
 
     void dynamicDetector::visCB(const ros::TimerEvent&){

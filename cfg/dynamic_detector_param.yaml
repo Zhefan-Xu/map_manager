@@ -49,5 +49,8 @@ filtering_BBox_IOU_threshold: 0.05
 yolo_thickness_range_thresh: 1.0
 
 # tracking and data association
-histroy_size: 5 # size of tracking history
+histroy_size: 10 # size of tracking history
 similarity_threshold: 0.1 # similiary threshold for data association matching comparison
+
+# classification
+frame_skip: 5 # num of frames skiped when comparing 2 point clouds

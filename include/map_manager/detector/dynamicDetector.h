@@ -91,6 +91,7 @@ namespace mapManager{
         int histSize_;
         double dt_;
         double simThresh_;
+        int skipFrame_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
