@@ -442,7 +442,7 @@ namespace mapManager{
         // data association
         this->boxAssociation();
 
-        // kalman filter tracking
+        // kalman filter tracking (TODO: the new bounding boxes should be added when the tracking process is done)
 
     }
 
@@ -645,7 +645,7 @@ namespace mapManager{
         // calculate association: find best match
         this->findBestMatch(propedBoxesFeat, currBoxesFeat, propedBoxes, bestMatch);
 
-        // update history                 
+        // update history  (TODO: this step should be done after the tracking process!!!!!!)               
         this->updateHist(bestMatch);
     }
 
@@ -747,7 +747,7 @@ namespace mapManager{
             }
 
             // push new data into history
-            boxHistTemp[i].push_back(this->filteredBBoxes_[i]);
+            boxHistTemp[i].push_back(this->filteredBBoxes_[i]);  // TODO: should be tracked bboxes !!!!!!!!
             pcHistTemp[i].push_back(this->filteredPcClusters_[i]);
         }
 

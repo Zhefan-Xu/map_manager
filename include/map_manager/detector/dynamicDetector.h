@@ -111,6 +111,8 @@ namespace mapManager{
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
         std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClusters_; // pointcloud clusters after filtering by UV and DBSCAN fusion
+        std::vector<mapManager::box3D> trackedBBoxes_; // bboxes tracked from kalman filtering
+
 
         // TRACKING AND ASSOCIATION DATA
         bool newDetectFlag_;
