@@ -52,4 +52,5 @@ similarity_threshold: 0.1 # similiary threshold for data association matching co
 
 # classification
 frame_skip: 5 # num of frames skiped when comparing 2 point clouds
-dynamic_velocity_threshold: 0.35
+dynamic_velocity_threshold: 0.2
+dynamic_voting_threshold: 0.5
