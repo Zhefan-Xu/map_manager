@@ -288,6 +288,15 @@ namespace mapManager{
             std::cout << this->hint_ << ": The frames skiped in classification when comparing two point cloud is set to: " << this->skipFrame_ << std::endl;
         }  
 
+        // velocity threshold for dynamic classification
+        if (not this->nh_.getParam(this->ns_ + "/dynamic_velocity_threshold", this->dynaVelThresh_)){
+            this->dynaVelThresh_ = 0.35;
+            std::cout << this->hint_ << ": No dynamic velocity threshold parameter found. Use default: 5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The velocity threshold for dynamic classification is set to: " << this->dynaVelThresh_ << std::endl;
+        }  
+
     }
 
     void dynamicDetector::registerPub(){
@@ -318,6 +327,9 @@ namespace mapManager{
 
         // filtered bounding box pub
         this->filteredBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/filtered_bboxes", 10);
+
+        // dynamic bounding box pub
+        this->dynamicBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/dynamic_bboxes", 10);
 
         // history trajectory pub
         this->historyTrajPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/history_trajectories", 10);
@@ -458,6 +470,7 @@ namespace mapManager{
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
+        ros::Time clStartTime = ros::Time::now();
         cout << "classification CB not implemented yet." << endl;
         for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
             cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
@@ -465,48 +478,58 @@ namespace mapManager{
 
         std::vector<Eigen::Vector3d> currPc;
         std::vector<Eigen::Vector3d> prevPc;
+        std::vector<mapManager::box3D> dynamicBBoxesTemp;
         
-        for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
+        for (size_t i=0 ; i<this->pcHist_.size() ; i++){
 
             // history length is not enough to run classification
             if (this->pcHist_[i].size()<this->skipFrame_+1){
                 continue;
             }
-            
-            cout <<"pcHist size "<< this->pcHist_.size() << " " <<this->pcHist_[i].size()<<endl;
-            currPc = this->filteredPcClusters_[i];
+
+            currPc = this->pcHist_[i][0];
             prevPc = this->pcHist_[i][this->skipFrame_];
-            ROS_INFO("asisgned pc");
-            double Vavg = 0.;
+            Eigen::Vector3d Vavg(0.,0.,0.);
             int numPoints = currPc.size();
 
             // find nearest neighbor
-            for (size_t j=0 ; j<numPoints ; j++){
+            for (int j=0 ; j<numPoints ; j++){
                 int nnInd = -1; // ind for the nearest neighbor
                 double minDist = 2;
-                
+                Eigen::Vector3d nearestVect;
                 for (size_t k=0 ; k<prevPc.size() ; k++){
                     // find closer point: update 
-                    ROS_INFO("dist");
+                    // ROS_INFO("dist");
                     double dist = (currPc[j]-prevPc[k]).norm();
-                    if (dist < minDist){
+                    if (abs(dist) < minDist){
                         nnInd = k;
                         minDist = dist;
+                        nearestVect = currPc[j]-prevPc[k];
                     }
                 }
-
                 // update Vavg
-                Vavg += minDist/(this->dt_*this->skipFrame_*numPoints);
+                Vavg += nearestVect/(this->dt_*this->skipFrame_*numPoints);
                 if (minDist == -2){
                     ROS_WARN("no neighbor found within 2 meters");
                 }
             }
 
+            cout << "V_AVG for obj "<<i << " is "<<Vavg.norm() << endl;
             
-            
-            cout << "V_AVG for obj "<<i << " is "<<Vavg << endl;
+            // update dynamic boxes
+            if (Vavg.norm() > this->dynaVelThresh_){
+                ROS_INFO(
+                    "============================DYNAMIC OBJ %i DETECTED!==========================",i
+                );
+                dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
+            }
 
         }
+
+        this->dynamicBBoxes_ = dynamicBBoxesTemp;
+
+        ros::Time clEndTime = ros::Time::now();
+        cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
     }
 
     void dynamicDetector::visCB(const ros::TimerEvent&){
@@ -517,6 +540,7 @@ namespace mapManager{
         this->publishYoloImages();
         this->publish3dBox(this->yoloBBoxes_, this->yoloBBoxesPub_, 1, 0, 1);
         this->publish3dBox(this->filteredBBoxes_, this->filteredBoxesPub_, 0, 0, 1);
+        this->publish3dBox(this->dynamicBBoxes_, this->dynamicBBoxesPub_, 0, 1, 1);
         this->publishHistoryTraj();
     }
 

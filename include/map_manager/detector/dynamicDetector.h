@@ -56,6 +56,7 @@ namespace mapManager{
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
         ros::Publisher yoloBBoxesPub_;
+        ros::Publisher dynamicBBoxesPub_;
         ros::Publisher filteredBoxesPub_;
         ros::Publisher historyTrajPub_;
 
@@ -93,6 +94,7 @@ namespace mapManager{
         double dt_;
         double simThresh_;
         int skipFrame_;
+        double dynaVelThresh_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -114,6 +116,7 @@ namespace mapManager{
         std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClusters_; // pointcloud clusters after filtering by UV and DBSCAN fusion
         std::vector<mapManager::box3D> trackedBBoxes_; // bboxes tracked from kalman filtering
+        std::vector<mapManager::box3D> dynamicBBoxes_; // boxes classified as dynamic
 
 
         // TRACKING AND ASSOCIATION DATA
