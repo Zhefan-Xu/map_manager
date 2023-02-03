@@ -500,11 +500,16 @@ namespace mapManager{
             prevPc = this->pcHist_[i][this->skipFrame_];
             Eigen::Vector3d Vavg(0.,0.,0.);
             Eigen::Vector3d Vcur(0.,0.,0.);
-            int numPoints = currPc.size();
+            Eigen::Vector3d Vbox(0.,0.,0.);
+            int numPoints = currPc.size(); // it changes within loop
             int votes = 0;
 
+            Vbox(0) = (this->boxHist_[i][0].x - this->boxHist_[i][this->skipFrame_].x)/(this->dt_*this->skipFrame_);
+            Vbox(1) = (this->boxHist_[i][0].y - this->boxHist_[i][this->skipFrame_].y)/(this->dt_*this->skipFrame_);
+            Vbox(2) = (this->boxHist_[i][0].z - this->boxHist_[i][this->skipFrame_].z)/(this->dt_*this->skipFrame_);
+
             // find nearest neighbor
-            for (int j=0 ; j<numPoints ; j++){
+            for (int j=0 ; j<currPc.size() ; j++){
                 int nnInd = -1; // ind for the nearest neighbor
                 double minDist = 2;
                 Eigen::Vector3d nearestVect;
@@ -520,20 +525,34 @@ namespace mapManager{
                 }
                 // update Vavg
                 Vcur = nearestVect/(this->dt_*this->skipFrame_);
-                Vavg += Vcur/numPoints;
-                if (minDist == -2){
-                    ROS_WARN("no neighbor found within 2 meters");
-                }
-                if (Vcur.norm()>this->dynaVelThresh_){
-                    votes++;
-                }
-            }
+                Vcur(2) = 0;
+                double velSim = Vcur.dot(Vbox)/(Vcur.norm()*Vbox.norm());
 
-            cout << "V_AVG for obj "<<i << " is "<<Vavg.norm() << endl;
-            cout << "votes percentage "<<i << " is "<<double(votes)/double(numPoints) << endl;
+                Vavg += Vcur;
+                if (minDist == -2 || velSim < 0){
+                    numPoints--;
+                    // cout << "velSim" << velSim <<endl;
+                    // cout << Vbox <<endl;
+                    // cout <<Vcur <<endl;
+                }
+                else{
+                    if (Vcur.norm()>this->dynaVelThresh_){
+                        votes++;
+                    }
+                }
+                
+            }
+            
             
             // update dynamic boxes
-            if (double(votes)/double(numPoints) > this->dynaVoteThresh_){
+            Vavg /= numPoints;
+            double disturbance = double(votes)/double(numPoints);
+            double displacement = Vavg.norm();
+            cout << "votes percentage(disturbance) "<<i << " is "<<double(votes)/double(numPoints) << endl;
+            cout << "V_AVG for obj(displacement) "<<i << " is "<<Vavg.norm() << endl;
+            cout << "score: " << disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_  <<endl;
+            if (disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_ >= 1){
+            // if (disturbance>=this->dynaVoteThresh_ && displacement>=this->dynaVelThresh_){
                 ROS_INFO(
                     "============================DYNAMIC OBJ %i DETECTED!==========================",i
                 );
