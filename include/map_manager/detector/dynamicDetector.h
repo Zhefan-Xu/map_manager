@@ -56,7 +56,9 @@ namespace mapManager{
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
         ros::Publisher yoloBBoxesPub_;
+        ros::Publisher dynamicBBoxesPub_;
         ros::Publisher filteredBoxesPub_;
+        ros::Publisher historyTrajPub_;
 
 
         // DETECTOR
@@ -91,6 +93,9 @@ namespace mapManager{
         int histSize_;
         double dt_;
         double simThresh_;
+        int skipFrame_;
+        double dynaVelThresh_;
+        double dynaVoteThresh_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -111,6 +116,9 @@ namespace mapManager{
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
         std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClusters_; // pointcloud clusters after filtering by UV and DBSCAN fusion
+        std::vector<mapManager::box3D> trackedBBoxes_; // bboxes tracked from kalman filtering
+        std::vector<mapManager::box3D> dynamicBBoxes_; // boxes classified as dynamic
+
 
         // TRACKING AND ASSOCIATION DATA
         bool newDetectFlag_;
@@ -182,6 +190,7 @@ namespace mapManager{
         void publishYoloImages();
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, double r, double g, double b);
+        void publishHistoryTraj();
 
         // helper function
         void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
