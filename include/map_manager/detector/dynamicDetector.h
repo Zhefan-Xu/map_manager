@@ -25,6 +25,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/detector/dbscan.h>
 #include <map_manager/detector/uv_detector.h>
+#include <map_manager/detector/kalman_filter.h>
 #include <map_manager/detector/utils.h>
 
 namespace mapManager{
@@ -56,8 +57,9 @@ namespace mapManager{
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
         ros::Publisher yoloBBoxesPub_;
+        ros::Publisher filteredBBoxesPub_;
+        ros::Publisher trackedBBoxesPub_;
         ros::Publisher dynamicBBoxesPub_;
-        ros::Publisher filteredBoxesPub_;
         ros::Publisher historyTrajPub_;
 
 
@@ -124,7 +126,7 @@ namespace mapManager{
         bool newDetectFlag_;
         std::vector<std::deque<mapManager::box3D>> boxHist_; // data association result: history of filtered bounding boxes for each box in current frame
         std::vector<std::deque<std::vector<Eigen::Vector3d>>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
-        
+        std::vector<mapManager::kalman_filter> filters_; // kalman filter for each objects
 
 
         std::vector<mapManager::box3D> yoloBBoxes_; // yolo detected bounding boxes
@@ -156,6 +158,18 @@ namespace mapManager{
         void dbscanDetect();
         void filterBBoxes();
         void yoloDetectionTo3D();
+
+        // data association and tracking
+        void boxAssociation(std::vector<int>& bestMatch);
+        void boxAssociationHelper(std::vector<int>& bestMatch);
+        void genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat);
+        void genFeatHelper(std::vector<Eigen::VectorXd>& feature, const std::vector<mapManager::box3D>& boxes);
+        void linearProp(std::vector<mapManager::box3D>& propedBoxes);
+        void findBestMatch(const std::vector<Eigen::VectorXd>& propedBoxesFeat, const std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, std::vector<int>& bestMatch);
+        void kalmanFilterAndUpdateHist(const std::vector<int>& bestMatch);
+        void kalmanFilterMatrix(const mapManager::box3D &currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R);
+        void getKalmanObersevation(const mapManager::box3D &currDetectedBBox, const mapManager::box3D &prevMatchBBox, MatrixXd& Z);
+
         
         // uv Detector Functions
         void transformUVBBoxes(std::vector<mapManager::box3D>& bboxes);
@@ -170,15 +184,7 @@ namespace mapManager{
         float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
         // float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
 
-        // data association and tracking
-        void boxAssociation();
-        void boxAssociationHelper();
-        void genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat);
-        void genFeatHelper(std::vector<Eigen::VectorXd>& feature, const std::vector<mapManager::box3D>& boxes);
-        void linearProp(std::vector<mapManager::box3D>& propedBoxes);
-        void findBestMatch(const std::vector<Eigen::VectorXd>& propedBoxesFeat, const std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, std::vector<int>& bestMatch);
-        void updateHist(const std::vector<int>& bestMatch);
-        
+
 
         // yolo helper functions
         void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
