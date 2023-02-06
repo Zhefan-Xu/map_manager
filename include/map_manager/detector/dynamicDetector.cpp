@@ -973,6 +973,8 @@ namespace mapManager{
         std::vector<Eigen::Vector3d> voxelFilteredPoints;
         this->voxelFilter(points, voxelFilteredPoints);
         filteredPoints = voxelFilteredPoints;
+
+        // close voxelFilter
         // filteredPoints = points;
     }
 
@@ -1042,7 +1044,7 @@ namespace mapManager{
 
     void dynamicDetector::voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints){
         const double res = 0.1; // resolution of voxel
-        int xVoxels = ceil(this->localSensorRange_(0)/res); int yVoxels = ceil(this->localSensorRange_(1)/res); int zVoxels = ceil(this->localSensorRange_(2)/res);
+        int xVoxels = ceil(2*this->localSensorRange_(0)/res); int yVoxels = ceil(2*this->localSensorRange_(1)/res); int zVoxels = ceil(2*this->localSensorRange_(2)/res);
         int totalVoxels = xVoxels * yVoxels * zVoxels;
         // std::vector<bool> voxelOccupancyVec (totalVoxels, false);
         std::vector<int> voxelOccupancyVec (totalVoxels, 0);
@@ -1074,6 +1076,7 @@ namespace mapManager{
                     filteredPoints.push_back(p);
                 }
             }
+            // filteredPoints.push_back(p);
         }  
     }
 

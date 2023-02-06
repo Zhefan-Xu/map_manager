@@ -234,13 +234,15 @@ namespace mapManager{
     }
 
     inline int dynamicDetector::indexToAddress(const Eigen::Vector3i& idx, double res){
-        // return idx(0) * ceil(2*this->localSensorRange_(1)/res) * ceil(2*this->localSensorRange_(2)/res) + idx(1) * ceil(2*this->localSensorRange_(2)/res) + idx(2);
-        return idx(0) * ceil(this->localSensorRange_(0)/res) + idx(1) * ceil(this->localSensorRange_(1)/res) + idx(2);
+        return idx(0) * ceil(2*this->localSensorRange_(1)/res) * ceil(2*this->localSensorRange_(2)/res) + idx(1) * ceil(2*this->localSensorRange_(2)/res) + idx(2);
+        // return idx(0) * ceil(this->localSensorRange_(0)/res) + idx(1) * ceil(this->localSensorRange_(1)/res) + idx(2);
     }
 
     inline int dynamicDetector::posToAddress(const Eigen::Vector3d& pos, double res){
         Eigen::Vector3i idx;
         this->posToIndex(pos, idx, res);
+        // ROS_INFO("passed posToIndex, idx: %i", idx);
+        // cout << "PASSED posToIndex, idx: " << idx <<endl;
         return this->indexToAddress(idx, res);
     }
 

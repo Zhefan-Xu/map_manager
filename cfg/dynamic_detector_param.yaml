@@ -50,7 +50,7 @@ filtering_BBox_IOU_threshold: 0.05
 
 
 # tracking and data association
-history_size: 20 # size of tracking history. history[0] is current detection
+history_size: 200 # size of tracking history. history[0] is current detection
 similarity_threshold: 0.1 # similiary threshold for data association matching comparison
 
 # classification
