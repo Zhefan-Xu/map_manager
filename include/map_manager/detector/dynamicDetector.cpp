@@ -4,7 +4,7 @@
     function implementation of dynamic osbtacle detector
 */
 #include <map_manager/detector/dynamicDetector.h>
-
+#include <math.h>
 
 namespace mapManager{
     dynamicDetector::dynamicDetector(){
@@ -207,6 +207,15 @@ namespace mapManager{
             cout << this->hint_ << ": Raycast max length: " << this->raycastMaxLength_ << endl;
         }
 
+        // min num of points for a voxel to be occupied in voxel filter
+        if (not this->nh_.getParam(this->ns_ + "/voxel_occupied_thresh", this->voxelOccThresh_)){
+            this->voxelOccThresh_ = 10;
+            cout << this->hint_ << ": No voxel_occupied_threshold. Use default: 10." << endl;
+        }
+        else{
+            cout << this->hint_ << ": min num of points for a voxel to be occupied in voxel filter is set to be: " << this->voxelOccThresh_ << endl;
+        }
+
         // ground height
         if (not this->nh_.getParam(this->ns_ + "/ground_height", this->groundHeight_)){
             this->groundHeight_ = 0.1;
@@ -304,6 +313,15 @@ namespace mapManager{
         }
         else{
             std::cout << this->hint_ << ": The percentage threshold for dynamic voting is set to: " << this->dynaVoteThresh_ << std::endl;
+        }  
+
+        // if the percentage of skipped points(because of being out of previous FOV) are higher than this, it will not be voted as dynamic
+        if (not this->nh_.getParam(this->ns_ + "/maximum_skip_ratio", this->maxSkipRatio_)){
+            this->maxSkipRatio_ = 0.5;
+            std::cout << this->hint_ << ": No maximum_skip_ratio parameter found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The the upper limit of points skipping in classification is set to: " << this->maxSkipRatio_ << std::endl;
         }  
 
     }
@@ -481,9 +499,9 @@ namespace mapManager{
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
         ros::Time clStartTime = ros::Time::now();
         // cout << "classification CB not implemented yet." << endl;
-        // for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
-        //     cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
-        // }
+        for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
+            cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
+        }
 
         std::vector<Eigen::Vector3d> currPc;
         std::vector<Eigen::Vector3d> prevPc;
@@ -509,7 +527,17 @@ namespace mapManager{
             Vbox(2) = (this->boxHist_[i][0].z - this->boxHist_[i][this->skipFrame_].z)/(this->dt_*this->skipFrame_);
 
             // find nearest neighbor
+            int numSkip = 0;
             for (int j=0 ; j<currPc.size() ; j++){
+
+                // don't perform classification for points unseen in previous frame
+                if (!this->isInFov(this->positionHist_[this->skipFrame_], this->orientationHist_[this->skipFrame_], currPc[j])){
+                    // ROS_WARN("skiped one new point");
+                    numSkip++;
+                    numPoints--;
+                    continue;
+                }
+
                 int nnInd = -1; // ind for the nearest neighbor
                 double minDist = 2;
                 Eigen::Vector3d nearestVect;
@@ -531,6 +559,7 @@ namespace mapManager{
                 Vavg += Vcur;
                 if (minDist == -2 || velSim < 0){
                     numPoints--;
+                    numSkip++;
                     // cout << "velSim" << velSim <<endl;
                     // cout << Vbox <<endl;
                     // cout <<Vcur <<endl;
@@ -546,13 +575,14 @@ namespace mapManager{
             
             // update dynamic boxes
             Vavg /= numPoints;
-            double disturbance = double(votes)/double(numPoints);
+            double disturbance = (numPoints>0)?double(votes)/double(numPoints):0;
             double displacement = Vavg.norm();
             cout << "votes percentage(disturbance) "<<i << " is "<<double(votes)/double(numPoints) << endl;
             cout << "V_AVG for obj(displacement) "<<i << " is "<<Vavg.norm() << endl;
             cout << "score: " << disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_  <<endl;
-            if (disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_ >= 1){
-            // if (disturbance>=this->dynaVoteThresh_ && displacement>=this->dynaVelThresh_){
+            cout << "skip " << numSkip << " points, rest: "<< numPoints<< "votes: " <<votes<<endl;
+            // if (disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_ >= 1){
+            if (disturbance>=this->dynaVoteThresh_ && displacement>=this->dynaVelThresh_ && double(numSkip)/double(numPoints)<this->maxSkipRatio_){
                 ROS_INFO(
                     "============================DYNAMIC OBJ %i DETECTED!==========================",i
                 );
@@ -613,10 +643,15 @@ namespace mapManager{
         // 1. get pointcloud
         this->projectDepthImage();
 
-        // 2. filter points
-        this->filterPoints(this->projPoints_, this->filteredPoints_);
+        // 2. update pose history
+        this->updatePoseHist();
 
-        // 3. cluster points and get bounding boxes
+        // 3. filter points
+        this->filterPoints(this->projPoints_, this->filteredPoints_);
+        // this->filteredPoints_ = this->projPoints_;
+        // cout << "size: " << this->filteredPoints_.size() << endl;
+
+        // 4. cluster points and get bounding boxes
         this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_);
     }
 
@@ -706,6 +741,21 @@ namespace mapManager{
         }
         this->filteredBBoxes_ = filteredBBoxesTemp;
         this->filteredPcClusters_ = filteredPcClustersTemp;
+    }
+
+    void dynamicDetector::updatePoseHist(){
+        if (this->positionHist_.size() == this->skipFrame_){
+            this->positionHist_.pop_back();
+        }
+        else{
+            this->positionHist_.push_front(this->position_);
+        }
+        if (this->orientationHist_.size() == this->skipFrame_){
+            this->orientationHist_.pop_back();
+        }
+        else{
+            this->orientationHist_.push_front(this->orientation_);
+        }
     }
 
     void dynamicDetector::boxAssociation(){
@@ -855,9 +905,6 @@ namespace mapManager{
                 pcHistTemp.push_back(newSinglePcHist);
             }
 
-            // cout << "boxHistTemp size " << boxHistTemp.size() << " pcHistTemp size " << pcHistTemp.size() <<endl;
-            // cout << "pop old" << endl;
-            
             // pop old data if len of hist > size limit
             if (int(boxHistTemp[i].size()) == this->histSize_){
                 boxHistTemp[i].pop_back();
@@ -872,6 +919,8 @@ namespace mapManager{
         // update history member variable
         this->boxHist_ = boxHistTemp;
         this->pcHist_ = pcHistTemp;
+
+        
     }
 
     void dynamicDetector::projectDepthImage(){
@@ -913,6 +962,10 @@ namespace mapManager{
                 this->projPointsNum_ = this->projPointsNum_ + 1;
             }
         } 
+        // if (this->projPointsNum_ != this->projPoints_.size()){
+        //     ROS_ERROR("num mismatch");
+        //     cout << this->projPointsNum_ << " " << this->projPoints_.size() << endl;
+        // }
     }
 
     void dynamicDetector::filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints){
@@ -920,6 +973,7 @@ namespace mapManager{
         std::vector<Eigen::Vector3d> voxelFilteredPoints;
         this->voxelFilter(points, voxelFilteredPoints);
         filteredPoints = voxelFilteredPoints;
+        // filteredPoints = points;
     }
 
 
@@ -995,10 +1049,12 @@ namespace mapManager{
 
         // Iterate through each points in the cloud
         filteredPoints.clear();
+        
         for (int i=0; i<this->projPointsNum_; ++i){
             Eigen::Vector3d p = points[i];
 
             if (this->isInFilterRange(p) and p(2) >= this->groundHeight_ and this->pointsDepth_[i] <= this->raycastMaxLength_){
+            // if (1){
                 // find the corresponding voxel id in the vector and check whether it is occupied
                 int pID = this->posToAddress(p, res);
 
@@ -1014,7 +1070,7 @@ namespace mapManager{
                 //     filteredPoints.push_back(p);
                 // }
                 // add only if 5 points are found
-                if (voxelOccupancyVec[pID] == 10){
+                if (voxelOccupancyVec[pID] == 1){
                     filteredPoints.push_back(p);
                 }
             }
@@ -1387,5 +1443,47 @@ namespace mapManager{
         newSize(1) = ymax - ymin;
         newSize(2) = zmax - zmin;
     }
+
+    bool dynamicDetector::isInFov(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation, Eigen::Vector3d& point){
+
+        Eigen::Vector3d worldRay = point - position;
+        Eigen::Vector3d camUnitX(1,0,0);
+        Eigen::Vector3d camUnitY(0,1,0);
+        Eigen::Vector3d camUnitZ(0,0,1);
+        // Eigen::Vector3d camUnitX;
+        // Eigen::Vector3d camUnitY;
+        // Eigen::Vector3d camUnitZ;
+        Eigen::Vector3d camRay;
+        Eigen::Vector3d displacement; 
+        
+
+        // camUnitX = orientation.inverse()*(worldUnitX);
+        // camUnitY = orientation.inverse()*(worldUnitY);
+        // camUnitZ = orientation.inverse()*(worldUnitZ);
+
+        // z is in depth direction in camera coord
+        camRay = orientation.inverse()*worldRay;
+
+        // cout << " worldRay: " << endl;
+        // cout << worldRay << endl;
+        // cout << " camRay: " << endl;
+        // cout << camRay << endl;
+  
+
+        double camRayX = abs(camRay.dot(camUnitX));
+        double camRayY = abs(camRay.dot(camUnitY));
+        double camRayZ = abs(camRay.dot(camUnitZ));
+
+        // cout << camRayX << " " << camRayY << " " << camRayX << endl;
+
+        double htan = camRayX/camRayZ;
+        double vtan = camRayY/camRayZ;
+
+        double pi = 3.1415926;
+        // cout <<" htan: " << htan << " vtan: " << vtan <<endl;
+        return htan<tan(31*pi/180) && vtan<tan(21.8*pi/180) && camRayZ<this->depthMaxValue_;
+
+    }
 }
+
 

@@ -96,6 +96,8 @@ namespace mapManager{
         int skipFrame_;
         double dynaVelThresh_;
         double dynaVoteThresh_;
+        double maxSkipRatio_;
+        double voxelOccThresh_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -124,6 +126,8 @@ namespace mapManager{
         bool newDetectFlag_;
         std::vector<std::deque<mapManager::box3D>> boxHist_; // data association result: history of filtered bounding boxes for each box in current frame
         std::vector<std::deque<std::vector<Eigen::Vector3d>>> pcHist_; // data association result: history of filtered pc clusteres for each pc cluster in current frame
+        std::deque<Eigen::Vector3d> positionHist_; // current position
+		std::deque<Eigen::Matrix3d> orientationHist_; // current orientation
         
 
 
@@ -165,6 +169,7 @@ namespace mapManager{
         void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
         void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
+        void updatePoseHist();
 
         // detection helper functions
         float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
@@ -195,12 +200,14 @@ namespace mapManager{
         // helper function
         void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
                                   Eigen::Vector3d& newCenter, Eigen::Vector3d& newSize);
+        bool isInFov(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation, Eigen::Vector3d& point);
 
         // inline helper functions
         bool isInFilterRange(const Eigen::Vector3d& pos);
         void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx, double res);
         int indexToAddress(const Eigen::Vector3i& idx, double res);
         int posToAddress(const Eigen::Vector3d& pos, double res);
+        void indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos, double res);
         void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix);
         void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix);
         mapManager::Point eigenToDBPoint(const Eigen::Vector3d& p);
@@ -227,14 +234,21 @@ namespace mapManager{
     }
 
     inline int dynamicDetector::indexToAddress(const Eigen::Vector3i& idx, double res){
+        // return idx(0) * ceil(2*this->localSensorRange_(1)/res) * ceil(2*this->localSensorRange_(2)/res) + idx(1) * ceil(2*this->localSensorRange_(2)/res) + idx(2);
         return idx(0) * ceil(this->localSensorRange_(0)/res) + idx(1) * ceil(this->localSensorRange_(1)/res) + idx(2);
     }
 
     inline int dynamicDetector::posToAddress(const Eigen::Vector3d& pos, double res){
-         Eigen::Vector3i idx;
-         this->posToIndex(pos, idx, res);
-         return this->indexToAddress(idx, res);
+        Eigen::Vector3i idx;
+        this->posToIndex(pos, idx, res);
+        return this->indexToAddress(idx, res);
     }
+
+    inline void dynamicDetector::indexToPos(const Eigen::Vector3i& idx, Eigen::Vector3d& pos, double res){
+		pos(0) = (idx(0) + 0.5) * res - localSensorRange_(0) + this->position_(0);
+		pos(1) = (idx(1) + 0.5) * res - localSensorRange_(1) + this->position_(1);
+		pos(2) = (idx(2) + 0.5) * res - localSensorRange_(2) + this->position_(2);
+	}
     
     inline void dynamicDetector::getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix, Eigen::Matrix4d& camPoseColorMatrix){
         Eigen::Quaterniond quat;
