@@ -12,40 +12,43 @@
 using Eigen::MatrixXd;
 using namespace std;
 
-class kalman_filter
-{
-    private:
-    // members
-    bool is_initialized;
-    MatrixXd states;
-    MatrixXd A; // state matrix
-    MatrixXd B; // input matrix
-    MatrixXd H; // observation matrix
-    MatrixXd P; // uncertianty
-    MatrixXd Q; // process noise
-    MatrixXd R; // obsevation noise
+namespace mapManager{
+    class kalman_filter
+    {
+        private:
+        // members
+        bool is_initialized;
+        MatrixXd states;
+        MatrixXd A; // state matrix
+        MatrixXd B; // input matrix
+        MatrixXd H; // observation matrix
+        MatrixXd P; // uncertianty
+        MatrixXd Q; // process noise
+        MatrixXd R; // obsevation noise
 
-    public:
-    // constructor
-    kalman_filter();
+        public:
+        // constructor
+        kalman_filter();
 
-    // set up the filter
-    void setup( MatrixXd states,
-                MatrixXd A,
-                MatrixXd B,
-                MatrixXd H,
-                MatrixXd P,
-                MatrixXd Q,
-                MatrixXd R);
+        // set up the filter
+        void setup(const MatrixXd& states,
+                   const MatrixXd& A,
+                   const MatrixXd& B,
+                   const MatrixXd& H,
+                   const MatrixXd& P,
+                   const MatrixXd& Q,
+                   const MatrixXd& R);
 
-    // set A (sometimes sampling time will differ)
-    void setA(MatrixXd A);
+        // set A (sometimes sampling time will differ)
+        void setA(const MatrixXd& A);
 
-    // state estimate
-    void estimate(MatrixXd z, MatrixXd u);
+        // state estimate
+        void estimate(const MatrixXd& z, const MatrixXd& u);
 
-    // read output from the state
-    double output(int state_index);
-};
+        // read output from the state
+        double output(int state_index);
+
+    };
+}
 
 #endif
