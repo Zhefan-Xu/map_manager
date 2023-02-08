@@ -14,7 +14,7 @@ odom_topic: /CERLAB/quadcopter/odom
 # depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
 depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
 color_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
-# color_intrinsics: [610.7835693359375, 610.7835693359375, 322.6005859375, 236.9488067626953]                 
+# color_intrinsics: [610.7835693359375, 610.7835693359375, 322.6005859375, 236.9488067626953] # intel realsense
 # depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
 depth_scale_factor: 10 # simulation
 depth_min_value: 0.5
@@ -46,12 +46,14 @@ dbscan_search_range_epsilon: 0.3 # searching range radius
 # bounding box filtering
 filtering_BBox_IOU_threshold: 0.05
 
-
 # tracking and data association
-history_size: 100 # size of tracking history. history[0] is current detection
+history_size: 300 # size of tracking history. history[0] is current detection
 similarity_threshold: 0.1 # similiary threshold for data association matching comparison
+e_p: 0.05
+e_q: 0.05
+e_r: 0.02
 
 # classification
 frame_skip: 5 # num of frames skiped when comparing 2 point clouds
-dynamic_velocity_threshold: 0.2
-dynamic_voting_threshold: 0.5
+dynamic_velocity_threshold: 0.4
+dynamic_voting_threshold: 0.8

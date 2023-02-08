@@ -98,6 +98,9 @@ namespace mapManager{
         int skipFrame_;
         double dynaVelThresh_;
         double dynaVoteThresh_;
+        double eP_;
+        double eQ_;
+        double eR_;
 
         // SENSOR DATA
         cv::Mat depthImage_;

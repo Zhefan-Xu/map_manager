@@ -47,6 +47,7 @@ namespace mapManager{
 
         // read output from the state
         double output(int state_index);
+
     };
 }
 

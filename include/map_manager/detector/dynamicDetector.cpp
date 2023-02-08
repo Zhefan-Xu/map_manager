@@ -297,15 +297,32 @@ namespace mapManager{
             std::cout << this->hint_ << ": The velocity threshold for dynamic classification is set to: " << this->dynaVelThresh_ << std::endl;
         }  
 
-        // voting percentage threshold for dynamic classification
-        if (not this->nh_.getParam(this->ns_ + "/dynamic_vote_threshold", this->dynaVoteThresh_)){
-            this->dynaVoteThresh_ = 0.5;
-            std::cout << this->hint_ << ": No dynamic voting percentage parameter found. Use default: 0.5." << std::endl;
+        // covariance for Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_p", this->eP_)){
+            this->eP_ = 0.5;
+            std::cout << this->hint_ << ": No covariance parameter found. Use default: 0.5." << std::endl;
         }
         else{
-            std::cout << this->hint_ << ": The percentage threshold for dynamic voting is set to: " << this->dynaVoteThresh_ << std::endl;
+            std::cout << this->hint_ << ": The covariance for kalman filter is set to: " << this->eP_ << std::endl;
         }  
 
+        // noise for prediction in Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_q", this->eP_)){
+            this->eQ_ = 0.5;
+            std::cout << this->hint_ << ": No noise for prediction in Kalman Filter parameter found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The noise for prediction in Kalman Filter is set to: " << this->eQ_ << std::endl;
+        }  
+
+        // noise for measurement in Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_r", this->eR_)){
+            this->eR_ = 0.5;
+            std::cout << this->hint_ << ": No noise for measurement in Kalman Filter parameter found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The noise for measurement in Kalman Filter is set to: " << this->eR_ << std::endl;
+        }  
     }
 
     void dynamicDetector::registerPub(){
@@ -480,6 +497,7 @@ namespace mapManager{
 
         // kalman filter tracking (TODO: the new bounding boxes should be added when the tracking process is done)
         this->kalmanFilterAndUpdateHist(bestMatch);
+
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
@@ -533,8 +551,8 @@ namespace mapManager{
                 }
             }
 
-            cout << "V_AVG for obj "<<i << " is "<<Vavg.norm() << endl;
-            cout << "votes percentage "<<i << " is "<<double(votes)/double(numPoints) << endl;
+            // cout << "V_AVG for obj "<<i << " is "<<Vavg.norm() << endl;
+            // cout << "votes percentage "<<i << " is "<<double(votes)/double(numPoints) << endl;
             
             // update dynamic boxes
             if (double(votes)/double(numPoints) > this->dynaVoteThresh_){
@@ -680,6 +698,7 @@ namespace mapManager{
 
         // calculate association: find best match
         this->findBestMatch(propedBoxesFeat, currBoxesFeat, propedBoxes, bestMatch);
+    
     }
 
     void dynamicDetector::genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat){
@@ -743,6 +762,10 @@ namespace mapManager{
                 bestMatch[i] = bestMatchInd;
             }
         }
+
+        // for (int i=0 ; i<numObjs ; i++){
+        //     cout << "best match " << i << ": " << bestMatch[i] << endl;
+        // }
     }
 
 
@@ -768,11 +791,11 @@ namespace mapManager{
 
                 // kalman filter to get new state estimation
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
-                mapManager::box3D prevMatchBBox = this->boxHist_[bestMatch[i]].back();
+                mapManager::box3D prevMatchBBox = this->boxHist_[bestMatch[i]][0];
 
                 Eigen::MatrixXd Z;
                 this->getKalmanObersevation(currDetectedBBox, prevMatchBBox, Z);
-                this->filters_[bestMatch[i]].estimate(Z, MatrixXd::Zero(4,1));
+                filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
                 newEstimatedBBox.x = this->filters_[bestMatch[i]].output(0);
                 newEstimatedBBox.y = this->filters_[bestMatch[i]].output(1);
                 newEstimatedBBox.z = currDetectedBBox.z;
@@ -781,10 +804,12 @@ namespace mapManager{
                 newEstimatedBBox.x_width = currDetectedBBox.x_width;
                 newEstimatedBBox.y_width = currDetectedBBox.y_width;
                 newEstimatedBBox.z_width = currDetectedBBox.z_width;
+                cout <<"obj "<<i<< " vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
             }
             else{
                 boxHistTemp.push_back(newSingleBoxHist);
                 pcHistTemp.push_back(newSinglePcHist);
+
                 // create new kalman filter for this object
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
                 MatrixXd states, A, B, H, P, Q, R;                
@@ -792,11 +817,9 @@ namespace mapManager{
                 newFilter.setup(states, A, B, H, P, Q, R);
                 filtersTemp.push_back(newFilter);
                 newEstimatedBBox = currDetectedBBox;
+                
             }
 
-            // cout << "boxHistTemp size " << boxHistTemp.size() << " pcHistTemp size " << pcHistTemp.size() <<endl;
-            // cout << "pop old" << endl;
-            
             // pop old data if len of hist > size limit
             if (int(boxHistTemp[i].size()) == this->histSize_){
                 boxHistTemp[i].pop_back();
@@ -811,8 +834,6 @@ namespace mapManager{
             trackedBBoxesTemp.push_back(newEstimatedBBox);
         }
 
-
-
         // update history member variable
         this->boxHist_ = boxHistTemp;
         this->pcHist_ = pcHistTemp;
@@ -820,15 +841,18 @@ namespace mapManager{
 
         // update tracked bounding boxes
         this->trackedBBoxes_=  trackedBBoxesTemp;
+
     }
 
     void dynamicDetector::kalmanFilterMatrix(const mapManager::box3D &currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R){
         states.resize(4,1);
         states(0) = currDetectedBBox.x;
         states(1) = currDetectedBBox.y;
-        states(2) = currDetectedBBox.Vx;
-        states(3) = currDetectedBBox.Vy;
-        
+        // states(2) = currDetectedBBox.Vx;
+        // states(3) = currDetectedBBox.Vy;
+        states(2) = 0.;
+        states(3) = 0.;
+
         MatrixXd ATemp;
         ATemp.resize(4,4);
         ATemp <<  0, 0, 1, 0,
@@ -839,9 +863,9 @@ namespace mapManager{
         A = MatrixXd::Identity(4, 4) + this->dt_*ATemp;
         B = MatrixXd::Zero(4, 4);
         H = MatrixXd::Identity(4, 4);
-        P = MatrixXd::Identity(4, 4) * 0.04;
-        Q = MatrixXd::Identity(4, 4) * 0.04;
-        R = MatrixXd::Identity(4, 4) * 0.04;
+        P = MatrixXd::Identity(4, 4) * this->eP_;
+        Q = MatrixXd::Identity(4, 4) * this->eQ_;
+        R = MatrixXd::Identity(4, 4) * this->eR_;
 
     }
 
@@ -908,8 +932,6 @@ namespace mapManager{
                     box.x_width = xmax-xmin;
                     box.y_width = ymax-ymin;
                     box.z_width = zmax-zmin;
-                    box.Vx = 0;
-                    box.Vy = 0;
 
                     // take average
                     // box.x = (this->uvBBoxes_[i].x+this->dbBBoxes_[j].x)/2;
@@ -1287,10 +1309,11 @@ namespace mapManager{
         line.color.b = b;
         line.color.a = 1.0;
         line.lifetime = ros::Duration(0.1);
+        
 
         for(size_t i = 0; i < boxes.size(); i++){
             // visualization msgs
-
+            line.text = " Vx " + std::to_string(boxes[i].Vx) + " Vy " + std::to_string(boxes[i].Vy);
             double x = boxes[i].x; 
             double y = boxes[i].y; 
             double z = boxes[i].z; 

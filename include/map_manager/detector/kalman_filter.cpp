@@ -5,7 +5,7 @@
 */
 #include <Eigen/Dense>
 #include <map_manager/detector/kalman_filter.h>
-
+#include <iostream>
 using Eigen::MatrixXd;
 
 namespace mapManager{
@@ -41,7 +41,6 @@ namespace mapManager{
         MatrixXd S = this->R + this->H * this->P * this->H.transpose(); // innovation matrix
         MatrixXd K = this->P * this->H.transpose() * S.inverse(); // kalman gain
         this->states = this->states + K * (z - this->H * this->states);
-
         this->P = (MatrixXd::Identity(this->P.rows(),this->P.cols()) - K * this->H) * this->P;
     }
 
@@ -56,4 +55,5 @@ namespace mapManager{
             return 0;
         }
     }
+
 }
