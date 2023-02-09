@@ -15,6 +15,7 @@ namespace mapManager{
         float x_width, y_width, z_width;
         float id;
         float Vx, Vy;
+        float Ax, Ay;
     };
 }
 

@@ -497,16 +497,16 @@ namespace mapManager{
     }
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
-        // cout << "detector CB" << endl;
+        cout << "detector CB" << endl;
         ros::Time dbStartTime = ros::Time::now();
         this->dbscanDetect();
         ros::Time dbEndTime = ros::Time::now();
-        // cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
+        cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
 
         ros::Time uvStartTime = ros::Time::now();
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
-        // cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+        cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
 
 
         this->yoloDetectionTo3D();
@@ -517,19 +517,22 @@ namespace mapManager{
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
-        // cout << "Box assoication done, Kalman filter Not implemented yet." << endl;
+        cout << "tracking CB" << endl;
+        ros::Time trackingStartTime = ros::Time::now();
         // data association
         std::vector<int> bestMatch; // for each current detection, which index of previous obstacle match
         this->boxAssociation(bestMatch);
 
         // kalman filter tracking (TODO: the new bounding boxes should be added when the tracking process is done)
         this->kalmanFilterAndUpdateHist(bestMatch);
-
+        ros::Time trackingEndTime = ros::Time::now();
+        cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
+        cout << "classification CB " << endl;
         ros::Time clStartTime = ros::Time::now();
-        // cout << "classification CB not implemented yet." << endl;
+        
         for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
             cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
         }
@@ -591,6 +594,8 @@ namespace mapManager{
                 double velSim = Vcur.dot(Vbox)/(Vcur.norm()*Vbox.norm());
 
                 Vavg += Vcur;
+
+                // remove this ??
                 if (minDist == -2 || velSim < 0){
                     numPoints--;
                     numSkip++;
@@ -632,7 +637,7 @@ namespace mapManager{
         this->dynamicBBoxes_ = dynamicBBoxesTemp;
 
         ros::Time clEndTime = ros::Time::now();
-        // cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
+        cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
     }
 
     void dynamicDetector::visCB(const ros::TimerEvent&){
@@ -1007,27 +1012,30 @@ namespace mapManager{
     }
 
     void dynamicDetector::kalmanFilterMatrix(const mapManager::box3D &currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R){
-        states.resize(4,1);
+        states.resize(6,1);
         states(0) = currDetectedBBox.x;
         states(1) = currDetectedBBox.y;
-        // states(2) = currDetectedBBox.Vx;
-        // states(3) = currDetectedBBox.Vy;
+        // init vel and acc to zeros
         states(2) = 0.;
         states(3) = 0.;
+        states(4) = 0.;
+        states(5) = 0.;
 
         MatrixXd ATemp;
-        ATemp.resize(4,4);
-        ATemp <<  0, 0, 1, 0,
-                  0, 0, 0, 1,
-                  0, 0, 0, 0,
-                  0 ,0, 0, 0;
+        ATemp.resize(6, 6);
+        ATemp <<  0, 0, 1, 0, 0, 0,
+                  0, 0, 0, 1, 0, 0,
+                  0, 0, 0, 0, 1, 0,
+                  0 ,0, 0, 0, 0, 1,
+                  0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0;
 
-        A = MatrixXd::Identity(4, 4) + this->dt_*ATemp;
-        B = MatrixXd::Zero(4, 4);
-        H = MatrixXd::Identity(4, 4);
-        P = MatrixXd::Identity(4, 4) * this->eP_;
-        Q = MatrixXd::Identity(4, 4) * this->eQ_;
-        R = MatrixXd::Identity(4, 4) * this->eR_;
+        A = MatrixXd::Identity(6, 6) + this->dt_*ATemp;
+        B = MatrixXd::Zero(6, 6);
+        H = MatrixXd::Identity(6, 6);
+        P = MatrixXd::Identity(6, 6) * this->eP_;
+        Q = MatrixXd::Identity(6, 6) * this->eQ_;
+        R = MatrixXd::Identity(6, 6) * this->eR_;
 
     }
 
@@ -1189,7 +1197,7 @@ namespace mapManager{
                 //     filteredPoints.push_back(p);
                 // }
                 // add only if 5 points are found
-                if (voxelOccupancyVec[pID] == 1){
+                if (voxelOccupancyVec[pID] == this->voxelOccThresh_){
                     filteredPoints.push_back(p);
                 }
             }

@@ -1,26 +1,26 @@
 localization_mode: 0 # 0: pose (default) 1: odom
 
-depth_image_topic: /camera/depth/image_raw
-aligned_depth_image_topic: /camera/depth/image_raw
-pose_topic: /CERLAB/quadcopter/pose
-odom_topic: /CERLAB/quadcopter/odom
+# depth_image_topic: /camera/depth/image_raw
+# aligned_depth_image_topic: /camera/depth/image_raw
+# pose_topic: /CERLAB/quadcopter/pose
+# odom_topic: /CERLAB/quadcopter/odom
 
-# depth_image_topic: /camera/depth/image_rect_raw
-# aligned_depth_image_topic: /camera/aligned_depth_to_color/image_raw
-# pose_topic: /mavros/local_position/pose
-# odom_topic: /vins_estimator/imu_propagate
+depth_image_topic: /camera/depth/image_rect_raw
+aligned_depth_image_topic: /camera/aligned_depth_to_color/image_raw
+pose_topic: /mavros/local_position/pose
+odom_topic: /vins_estimator/imu_propagate
 
 # Camera Parameters
-# depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
-depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
-color_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
-# color_intrinsics: [610.7835693359375, 610.7835693359375, 322.6005859375, 236.9488067626953] # intel realsense
-# depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
-depth_scale_factor: 10 # simulation
+depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
+# depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
+# color_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
+color_intrinsics: [610.7835693359375, 610.7835693359375, 322.6005859375, 236.9488067626953] # intel realsense
+depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
+# depth_scale_factor: 10 # simulation
 depth_min_value: 0.5
 depth_max_value: 5.0
 depth_filter_margin: 10 # filter
-depth_skip_pixel: 1  # filter
+depth_skip_pixel: 2  # filter
 image_cols: 640
 image_rows: 480
 body_to_camera: [0.0,  0.0,  1.0,  0.09,
@@ -39,7 +39,7 @@ raycast_max_length: 5.0
 time_difference: 0.033
 
 # sensor data processing
-voxel_occupied_thresh: 1 # min num of points for a voxel to be occupied in voxel filter
+voxel_occupied_thresh: 15 # min num of points for a voxel to be occupied in voxel filter
 
 # dbscan
 ground_height: 0.1 # height of ground to remove ground points
@@ -58,7 +58,7 @@ e_r: 0.1
 
 # classification
 frame_skip: 5 # num of frames skiped when comparing 2 point clouds
-dynamic_velocity_threshold: 0.35
-dynamic_voting_threshold: 0.4
+dynamic_velocity_threshold: 0.15
+dynamic_voting_threshold: 0.3
 maximum_skip_ratio: 0.5 # the upper limit of points that are skipped(out of previous FOV) to be classfified as dynamic
 
