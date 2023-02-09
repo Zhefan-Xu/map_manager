@@ -956,22 +956,32 @@ namespace mapManager{
                 pcHistTemp.push_back(this->pcHist_[bestMatch[i]]);
                 filtersTemp.push_back(this->filters_[bestMatch[i]]);
 
-                // kalman filter to get new state estimation
-                mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
-                mapManager::box3D prevMatchBBox = this->boxHist_[bestMatch[i]][0];
-
-                Eigen::MatrixXd Z;
-                this->getKalmanObersevation(currDetectedBBox, prevMatchBBox, Z);
-                filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
-                newEstimatedBBox.x = this->filters_[bestMatch[i]].output(0);
-                newEstimatedBBox.y = this->filters_[bestMatch[i]].output(1);
-                newEstimatedBBox.z = currDetectedBBox.z;
-                newEstimatedBBox.Vx = this->filters_[bestMatch[i]].output(2);
-                newEstimatedBBox.Vy = this->filters_[bestMatch[i]].output(3);
-                newEstimatedBBox.x_width = currDetectedBBox.x_width;
-                newEstimatedBBox.y_width = currDetectedBBox.y_width;
-                newEstimatedBBox.z_width = currDetectedBBox.z_width;
-                cout <<"obj "<<i<< " vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
+                if (this->boxHist_[bestMatch[i]].size()>=1){
+                    cout <<"box history size "<<boxHist_[bestMatch[i]].size()<<endl;
+                    // kalman filter to get new state estimation
+                    cout <<"kalman filter started "<<endl;
+                    mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
+                    mapManager::box3D prevMatchBBox = this->boxHist_[bestMatch[i]][0];
+                    mapManager::box3D firstMatchBBox = this->boxHist_[bestMatch[i]][1];
+                    Eigen::MatrixXd Z;
+                    this->getKalmanObersevation(currDetectedBBox, prevMatchBBox, firstMatchBBox, Z);
+                    filtersTemp.back().estimate(Z, MatrixXd::Zero(6,1));
+                    newEstimatedBBox.x = this->filters_[bestMatch[i]].output(0);
+                    newEstimatedBBox.y = this->filters_[bestMatch[i]].output(1);
+                    newEstimatedBBox.z = currDetectedBBox.z;
+                    newEstimatedBBox.Vx = this->filters_[bestMatch[i]].output(2);
+                    newEstimatedBBox.Vy = this->filters_[bestMatch[i]].output(3);
+                    newEstimatedBBox.Ax = this->filters_[bestMatch[i]].output(4);
+                    newEstimatedBBox.Ay = this->filters_[bestMatch[i]].output(5);
+                    newEstimatedBBox.x_width = currDetectedBBox.x_width;
+                    newEstimatedBBox.y_width = currDetectedBBox.y_width;
+                    newEstimatedBBox.z_width = currDetectedBBox.z_width;
+                    cout <<"obj "<<i<< " prev x " << prevMatchBBox.x << " y " << prevMatchBBox.y <<" prev vx " << prevMatchBBox.Vx << " vy " << prevMatchBBox.Vy << endl;
+                    cout <<"obj "<<i<< " first x " << firstMatchBBox.x << " y " << firstMatchBBox.y << " first vx " << firstMatchBBox.Vx << " vy " << firstMatchBBox.Vy << endl;
+                    cout <<"dt " <<this->dt_<<endl;
+                    cout <<"obj "<<i<< " vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << " Ax " << newEstimatedBBox.Ax << " Ay " << newEstimatedBBox.Ay << endl;
+                    cout <<"obj "<<i<< " current_x " << Z(0) << " current_y " <<Z(1) << " measure_vx " << Z(2) << " measure_vy " << Z(3) << " Ax " << Z(4) << " Ay " << Z(5) << endl;
+                }
             }
             else{
                 boxHistTemp.push_back(newSingleBoxHist);
@@ -979,16 +989,20 @@ namespace mapManager{
 
                 // create new kalman filter for this object
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
-                MatrixXd states, A, B, H, P, Q, R;                
-                this->kalmanFilterMatrix(currDetectedBBox, states, A, B, H, P, Q, R);
-                newFilter.setup(states, A, B, H, P, Q, R);
-                filtersTemp.push_back(newFilter);
+                if (boxHistTemp.size()<2){
+                    MatrixXd states, A, B, H, P, Q, R;                
+                    this->kalmanFilterMatrix(currDetectedBBox, states, A, B, H, P, Q, R);
+                    newFilter.setup(states, A, B, H, P, Q, R);
+                    filtersTemp.push_back(newFilter);
+                }
                 newEstimatedBBox = currDetectedBBox;
                 
             }
-
+            cout <<"box history Temp1 size "<<boxHistTemp.size()<<endl;
+            cout <<"i "<<i<<endl;
             // pop old data if len of hist > size limit
-            if (int(boxHistTemp[i].size()) == this->histSize_){
+            if (int(boxHistTemp[i].size()) >= this->histSize_){
+                cout <<"box history Temp size "<<boxHist_[i].size()<<endl;
                 boxHistTemp[i].pop_back();
                 pcHistTemp[i].pop_back();
             }
@@ -1023,8 +1037,8 @@ namespace mapManager{
 
         MatrixXd ATemp;
         ATemp.resize(6, 6);
-        ATemp <<  0, 0, 1, 0, 0, 0,
-                  0, 0, 0, 1, 0, 0,
+        ATemp <<  0, 0, 1, 0, this->dt_/2, 0,
+                  0, 0, 0, 1, 0, this->dt_/2,
                   0, 0, 0, 0, 1, 0,
                   0 ,0, 0, 0, 0, 1,
                   0, 0, 0, 0, 0, 0,
@@ -1039,13 +1053,14 @@ namespace mapManager{
 
     }
 
-    void dynamicDetector::getKalmanObersevation(const mapManager::box3D &currDetectedBBox, const mapManager::box3D &prevMatchBBox, MatrixXd& Z){
-        Z.resize(4,1);
+    void dynamicDetector::getKalmanObersevation(const mapManager::box3D &currDetectedBBox, const mapManager::box3D &prevMatchBBox, const mapManager::box3D &firstMatchBBox,MatrixXd& Z){
+        Z.resize(6,1);
         Z(0) = currDetectedBBox.x; 
         Z(1) = currDetectedBBox.y;
         Z(2) = (currDetectedBBox.x-prevMatchBBox.x)/this->dt_;
         Z(3) = (currDetectedBBox.y-prevMatchBBox.y)/this->dt_;
-
+        Z(4) = (currDetectedBBox.x+firstMatchBBox.x-2*prevMatchBBox.x)/(this->dt_*this->dt_);
+        Z(5) = (currDetectedBBox.y+firstMatchBBox.y-2*prevMatchBBox.y)/(this->dt_*this->dt_);
     }
  
     void dynamicDetector::projectDepthImage(){
