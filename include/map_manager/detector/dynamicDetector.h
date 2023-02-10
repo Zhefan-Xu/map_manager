@@ -61,6 +61,7 @@ namespace mapManager{
         ros::Publisher trackedBBoxesPub_;
         ros::Publisher dynamicBBoxesPub_;
         ros::Publisher historyTrajPub_;
+        ros::Publisher velVisPub_;
 
 
         // DETECTOR
@@ -205,6 +206,7 @@ namespace mapManager{
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, double r, double g, double b);
         void publishHistoryTraj();
+        void publishVelVis();
 
         // helper function
         void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,

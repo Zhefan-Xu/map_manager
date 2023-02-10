@@ -389,6 +389,9 @@ namespace mapManager{
 
         // history trajectory pub
         this->historyTrajPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/history_trajectories", 10);
+
+        // velocity visualization pub
+        this->velVisPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/velocity_visualizaton", 10);
     }   
 
     void dynamicDetector::registerCallback(){
@@ -657,8 +660,8 @@ namespace mapManager{
         this->publish3dBox(this->filteredBBoxes_, this->filteredBBoxesPub_, 0, 0, 1);
         this->publish3dBox(this->trackedBBoxes_, this->trackedBBoxesPub_, 1, 1, 0);
         this->publish3dBox(this->dynamicBBoxes_, this->dynamicBBoxesPub_, 0, 1, 1);
-
         this->publishHistoryTraj();
+        this->publishVelVis();
     }
 
     void dynamicDetector::uvDetect(){
@@ -1578,7 +1581,7 @@ namespace mapManager{
             traj.header.frame_id = "map";
             traj.header.stamp = ros::Time::now();
             traj.ns = "dynamic_detector";
-            traj.id = i;
+            traj.id = countMarker;
             traj.type = visualization_msgs::Marker::LINE_LIST;
             traj.scale.x = 0.03;
             traj.scale.y = 0.03;
@@ -1601,6 +1604,38 @@ namespace mapManager{
             trajMsg.markers.push_back(traj);
         }
         this->historyTrajPub_.publish(trajMsg);
+    }
+
+    void dynamicDetector::publishVelVis(){ // publish velocities for all tracked objects
+        visualization_msgs::MarkerArray velVisMsg;
+        int countMarker = 0;
+        for (size_t i=0; i<this->trackedBBoxes_.size(); ++i){
+            visualization_msgs::Marker velMarker;
+            velMarker.header.frame_id = "map";
+            velMarker.header.stamp = ros::Time::now();
+            velMarker.ns = "dynamic_detector";
+            velMarker.id =  countMarker;
+            velMarker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+            velMarker.pose.position.x = this->trackedBBoxes_[i].x;
+            velMarker.pose.position.y = this->trackedBBoxes_[i].y;
+            velMarker.pose.position.z = this->trackedBBoxes_[i].z + this->trackedBBoxes_[i].z_width/2. + 0.3;
+            velMarker.scale.x = 0.15;
+            velMarker.scale.y = 0.15;
+            velMarker.scale.z = 0.15;
+            velMarker.color.a = 1.0;
+            velMarker.color.r = 1.0;
+            velMarker.color.g = 0.0;
+            velMarker.color.b = 0.0;
+            velMarker.lifetime = ros::Duration(0.1);
+            double vx = this->trackedBBoxes_[i].Vx;
+            double vy = this->trackedBBoxes_[i].Vy;
+            double vNorm = sqrt(vx*vx+vy*vy);
+            std::string velText = "Vx=" + std::to_string(vx) + ", Vy=" + std::to_string(vy) + ", |V|=" + std::to_string(vNorm);
+            velMarker.text = velText;
+            velVisMsg.markers.push_back(velMarker);
+            ++countMarker;
+        }
+        this->velVisPub_.publish(velVisMsg);
     }
 
     void dynamicDetector::transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
