@@ -1225,8 +1225,6 @@ namespace mapManager{
             box.z_width = (zmax - zmin);
             bboxes.push_back(box);
         }
-
-
     }
 
     void dynamicDetector::voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints){
