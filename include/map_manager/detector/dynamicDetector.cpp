@@ -881,7 +881,8 @@ namespace mapManager{
                 this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
                 cout << "init kalman" << endl;
                 MatrixXd states, A, B, H, P, Q, R;                
-                this->kalmanFilterMatrix(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
+                this->kalmanFilterMatrixVel(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
+                // this->kalmanFilterMatrixAcc(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
 		cout << "after kf matrix formation" << endl;
                 mapManager::kalman_filter newFilter;
                 newFilter.setup(states, A, B, H, P, Q, R);
@@ -1000,7 +1001,6 @@ namespace mapManager{
 
 
     void dynamicDetector::kalmanFilterAndUpdateHist(const std::vector<int>& bestMatch){
-	cout << " in kalman " << endl;
         std::vector<std::deque<mapManager::box3D>> boxHistTemp; 
         std::vector<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp;
         std::vector<mapManager::kalman_filter> filtersTemp;
@@ -1025,11 +1025,8 @@ namespace mapManager{
                 mapManager::box3D prevMatchBBox = this->boxHist_[bestMatch[i]][0];
 
                 Eigen::MatrixXd Z;
-		cout << "get observation" << endl;
-                this->getKalmanObersevation(currDetectedBBox, prevMatchBBox, Z);
-		cout << "estimte" << endl;
+                this->getKalmanObservationVel(currDetectedBBox, prevMatchBBox, Z);
                 filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
-		cout << "after estimation" << endl;
                 newEstimatedBBox.x = this->filters_[bestMatch[i]].output(0);
                 newEstimatedBBox.y = this->filters_[bestMatch[i]].output(1);
                 newEstimatedBBox.z = currDetectedBBox.z;
@@ -1038,18 +1035,16 @@ namespace mapManager{
                 newEstimatedBBox.x_width = currDetectedBBox.x_width;
                 newEstimatedBBox.y_width = currDetectedBBox.y_width;
                 newEstimatedBBox.z_width = currDetectedBBox.z_width;
-                newEstimatedBBox.is_dynamic = currDetectedBBox.is_dynamic;
                 cout <<"obj "<<i<< " vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
             }
             else{
-		cout << "in else: " << endl;
                 boxHistTemp.push_back(newSingleBoxHist);
                 pcHistTemp.push_back(newSinglePcHist);
 
                 // create new kalman filter for this object
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
-                MatrixXd states, A, B, H, P, Q, R;
-                this->kalmanFilterMatrix(currDetectedBBox, states, A, B, H, P, Q, R);
+                MatrixXd states, A, B, H, P, Q, R;                
+                this->kalmanFilterMatrixVel(currDetectedBBox, states, A, B, H, P, Q, R);
                 newFilter.setup(states, A, B, H, P, Q, R);
                 filtersTemp.push_back(newFilter);
                 newEstimatedBBox = currDetectedBBox;
@@ -1063,7 +1058,7 @@ namespace mapManager{
             }
 
             // push new data into history
-            boxHistTemp[i].push_front(newEstimatedBBox); 
+            boxHistTemp[i].push_front(newEstimatedBBox);  // TODO: should be tracked bboxes !!!!!!!!
             pcHistTemp[i].push_front(this->filteredPcClusters_[i]);
 
             // update new tracked bounding boxes
@@ -1080,7 +1075,7 @@ namespace mapManager{
 
     }
 
-    void dynamicDetector::kalmanFilterMatrix(const mapManager::box3D &currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R){
+    void dynamicDetector::kalmanFilterMatrixVel(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R){
 	cout << "in matrix " << endl;
         states.resize(4,1);
         states(0) = currDetectedBBox.x;
@@ -1104,13 +1099,49 @@ namespace mapManager{
 
     }
 
-    void dynamicDetector::getKalmanObersevation(const mapManager::box3D &currDetectedBBox, const mapManager::box3D &prevMatchBBox, MatrixXd& Z){
+    void dynamicDetector::kalmanFilterMatrixAcc(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R){
+        states.resize(6,1);
+        states(0) = currDetectedBBox.x;
+        states(1) = currDetectedBBox.y;
+        // init vel and acc to zeros
+        states(2) = 0.;
+        states(3) = 0.;
+        states(4) = 0.;
+        states(5) = 0.;
+
+        MatrixXd ATemp;
+        ATemp.resize(6, 6);
+
+        ATemp <<  1, 0, this->dt_, 0, 0.5*pow(this->dt_, 2), 0,
+                  0, 1, 0, this->dt_, 0, 0.5*pow(this->dt_, 2),
+                  0, 0, 1, 0, this->dt_, 0,
+                  0 ,0, 0, 1, 0, this->dt_,
+                  0, 0, 0, 0, 1, 0,
+                  0, 0, 0, 0, 0, 1;
+        A = ATemp;
+        B = MatrixXd::Zero(6, 6);
+        H = MatrixXd::Identity(6, 6);
+        P = MatrixXd::Identity(6, 6) * this->eP_;
+        Q = MatrixXd::Identity(6, 6) * this->eQ_;
+        R = MatrixXd::Identity(6, 6) * this->eR_;       
+    }
+
+    void dynamicDetector::getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z){
         Z.resize(4,1);
         Z(0) = currDetectedBBox.x; 
         Z(1) = currDetectedBBox.y;
         Z(2) = (currDetectedBBox.x-prevMatchBBox.x)/this->dt_;
         Z(3) = (currDetectedBBox.y-prevMatchBBox.y)/this->dt_;
+    }
 
+    void dynamicDetector::getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z){
+        Z.resize(6, 1);
+        Z(0) = currDetectedBBox.x;
+        Z(1) = currDetectedBBox.y;
+        Z(2) = (currDetectedBBox.x - prevMatchBBox.x)/this->dt_;
+        Z(3) = (currDetectedBBox.y - prevMatchBBox.y)/this->dt_;
+        Z(4) = (currDetectedBBox.Vx - prevMatchBBox.Vx)/this->dt_;
+        Z(5) = (currDetectedBBox.Vy - prevMatchBBox.Vy)/this->dt_;
     }
  
     void dynamicDetector::projectDepthImage(){
