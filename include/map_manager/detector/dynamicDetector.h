@@ -91,7 +91,7 @@ namespace mapManager{
         int dbMinPointsCluster_;
         double dbEpsilon_;
         float boxIOUThresh_;
-        double yoloThicknessRange_; 
+        double yoloOverwriteDistance_; // distance that yolo can overwrite the detection results
         int histSize_;
         double dt_;
         double simThresh_;
@@ -100,9 +100,9 @@ namespace mapManager{
         double dynaVoteThresh_;
         double maxSkipRatio_;
         double voxelOccThresh_;
-        double eP_;
-        double eQ_;
-        double eR_;
+        double eP_; // kalman filter initial uncertainty matrix
+        double eQ_; // motion model uncertainty matrix
+        double eR_; // observation uncertainty matrix
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -175,7 +175,7 @@ namespace mapManager{
         void findBestMatch(const std::vector<Eigen::VectorXd>& propedBoxesFeat, const std::vector<Eigen::VectorXd>& currBoxesFeat, const std::vector<mapManager::box3D>& propedBoxes, std::vector<int>& bestMatch);
         void kalmanFilterAndUpdateHist(const std::vector<int>& bestMatch);
         void kalmanFilterMatrix(const mapManager::box3D &currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R);
-        void getKalmanObersevation(const mapManager::box3D &currDetectedBBox, const mapManager::box3D &prevMatchBBox, const mapManager::box3D &firstMatchBBox, MatrixXd& Z);
+        void getKalmanObersevation(const mapManager::box3D &currDetectedBBox, const mapManager::box3D &prevMatchBBox, MatrixXd& Z);
 
         
         // uv Detector Functions
