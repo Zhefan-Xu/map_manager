@@ -751,27 +751,27 @@ namespace mapManager{
     void dynamicDetector::filterBBoxes(){
         std::vector<mapManager::box3D> filteredBBoxesTemp;
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClustersTemp;
-        for (size_t i=0 ; i<this->uvBBoxes_.size() ; ++i){
-            float maxIOU = 0;
-            int maxIOUIdx = 0;
-            for (size_t j=0; j<this->dbBBoxes_.size(); ++j){
-                float IOU = this->calBoxIOU(this->uvBBoxes_[i], this->dbBBoxes_[j]);
-                if (IOU > maxIOU){
-                    maxIOU = IOU;
-                    maxIOUIdx = j;
-                }
-            }
+        // find best IOU match for both uv and dbscan. If they are best for each other, then add to filtered bbox and fuse.
+        for (size_t i=0 ; i<this->uvBBoxes_.size(); ++i){
+            mapManager::box3D uvBBox = this->uvBBoxes_[i];
+            float bestIOUForUVBBox, bestIOUForDBBBox;
+            int bestMatchForUVBBox = this->getBestOverlapBBox(uvBBox, this->dbBBoxes_, bestIOUForUVBBox);
+            if (bestMatchForUVBBox == -1) continue; // no match at all
+            mapManager::box3D matchedDBBBox = this->dbBBoxes_[bestMatchForUVBBox]; 
+            std::vector<Eigen::Vector3d> matchedPcCluster = this->pcClusters_[bestMatchForUVBBox];
+            int bestMatchForDBBBox = this->getBestOverlapBBox(matchedDBBBox, this->uvBBoxes_, bestIOUForDBBBox);
 
-            if (maxIOU > this->boxIOUThresh_){
+            // if best match is each other and both the IOU is greater than the threshold
+            if (bestMatchForDBBBox == int(i) and bestIOUForUVBBox > this->boxIOUThresh_ and bestIOUForDBBBox > this->boxIOUThresh_){
                 mapManager::box3D bbox;
                 
                 // take concervative strategy
-                float xmax = std::max(this->uvBBoxes_[i].x+this->uvBBoxes_[i].x_width/2, this->dbBBoxes_[maxIOUIdx].x+this->dbBBoxes_[maxIOUIdx].x_width/2);
-                float xmin = std::min(this->uvBBoxes_[i].x-this->uvBBoxes_[i].x_width/2, this->dbBBoxes_[maxIOUIdx].x-this->dbBBoxes_[maxIOUIdx].x_width/2);
-                float ymax = std::max(this->uvBBoxes_[i].y+this->uvBBoxes_[i].y_width/2, this->dbBBoxes_[maxIOUIdx].y+this->dbBBoxes_[maxIOUIdx].y_width/2);
-                float ymin = std::min(this->uvBBoxes_[i].y-this->uvBBoxes_[i].y_width/2, this->dbBBoxes_[maxIOUIdx].y-this->dbBBoxes_[maxIOUIdx].y_width/2);
-                float zmax = std::max(this->uvBBoxes_[i].z+this->uvBBoxes_[i].z_width/2, this->dbBBoxes_[maxIOUIdx].z+this->dbBBoxes_[maxIOUIdx].z_width/2);
-                float zmin = std::min(this->uvBBoxes_[i].z-this->uvBBoxes_[i].z_width/2, this->dbBBoxes_[maxIOUIdx].z-this->dbBBoxes_[maxIOUIdx].z_width/2);
+                float xmax = std::max(uvBBox.x+uvBBox.x_width/2, matchedDBBBox.x+matchedDBBBox.x_width/2);
+                float xmin = std::min(uvBBox.x-uvBBox.x_width/2, matchedDBBBox.x-matchedDBBBox.x_width/2);
+                float ymax = std::max(uvBBox.y+uvBBox.y_width/2, matchedDBBBox.y+matchedDBBBox.y_width/2);
+                float ymin = std::min(uvBBox.y-uvBBox.y_width/2, matchedDBBBox.y-matchedDBBBox.y_width/2);
+                float zmax = std::max(uvBBox.z+uvBBox.z_width/2, matchedDBBBox.z+matchedDBBBox.z_width/2);
+                float zmin = std::min(uvBBox.z-uvBBox.z_width/2, matchedDBBBox.z-matchedDBBBox.z_width/2);
                 bbox.x = (xmin+xmax)/2;
                 bbox.y = (ymin+ymax)/2;
                 bbox.z = (zmin+zmax)/2;
@@ -782,7 +782,7 @@ namespace mapManager{
                 bbox.Vy = 0;
                 
                 filteredBBoxesTemp.push_back(bbox);
-                filteredPcClustersTemp.push_back(this->pcClusters_[maxIOUIdx]);                
+                filteredPcClustersTemp.push_back(matchedPcCluster);                  
             }
         }
 
@@ -790,51 +790,36 @@ namespace mapManager{
         if (this->yoloBBoxes_.size() != 0){ // if no detected or not using yolo, this will not triggered
             std::vector<mapManager::box3D> filteredBBoxesTempCopy = filteredBBoxesTemp;
             std::vector<std::vector<Eigen::Vector3d>> filteredPcClustersTempCopy = filteredPcClustersTemp;
-            std::vector<Eigen::Vector3d> emptyPoints;
+            std::vector<Eigen::Vector3d> emptyPoints {Eigen::Vector3d {0, 0, 0}};
             for (size_t i=0; i<this->yoloBBoxes_.size(); ++i){
+                mapManager::box3D yoloBBox = this->yoloBBoxes_[i]; yoloBBox.is_dynamic = true; // dynamic obstacle detected by yolo
                 Eigen::Vector3d bboxPos (this->yoloBBoxes_[i].x, this->yoloBBoxes_[i].y, this->yoloBBoxes_[i].z);
                 double distanceToCamera = (bboxPos - this->position_).norm();
-                if (distanceToCamera >= this->yoloOverwriteDistance_){ // if distance is greater than overwrite distance, directly add box to filtered box
-                    float maxIOU = 0;
-                    int maxIOUIdx = 0;
-                    for (size_t j=0; j<filteredBBoxesTemp.size(); ++j){
-                        float IOU = this->calBoxIOU(this->yoloBBoxes_[i], filteredBBoxesTemp[j]);
-                        if (IOU > maxIOU){
-                            maxIOU = IOU;
-                            maxIOUIdx = j;
-                        }
+                float bestIOUForYoloBBox, bestIOUForFilteredBBox;
+                int bestMatchForYoloBBox = this->getBestOverlapBBox(yoloBBox, filteredBBoxesTemp, bestIOUForYoloBBox);
+                if (bestMatchForYoloBBox == -1){ // no match for yolo bounding boxes with any filtered bbox. 2 reasons: a) distance too far, filtered boxes no detection, b) distance not far but cannot match. Probably Yolo error
+                    if (distanceToCamera >= this->yoloOverwriteDistance_){ // a) distance too far, filtered boxes no detection. directly add results
+                        filteredBBoxesTempCopy.push_back(yoloBBox); // add yolo bbox because filtered bbox is not able to get detection results at far distance
+                        filteredPcClustersTempCopy.push_back(emptyPoints); // no pc need for yolo 
                     }
-                    this->yoloBBoxes_[i].is_dynamic = true;
-                    if (maxIOU > this->boxIOUThresh_){
-                        filteredBBoxesTempCopy[maxIOUIdx] = this->yoloBBoxes_[i];
-                        filteredPcClustersTempCopy[maxIOUIdx] = emptyPoints;
+                    else{ // b) distance not far but cannot match. Probably Yolo error, ignore results
+                        continue;
                     }
-                    else{
-                        filteredBBoxesTempCopy.push_back(this->yoloBBoxes_[i]);
-                        filteredPcClustersTempCopy.push_back(emptyPoints);
-                    }
-
                 }
-                else{
-                    float maxIOU = 0;
-                    int maxIOUIdx = 0;
-                    for (size_t j=0; j<filteredBBoxesTemp.size(); ++j){
-                        float IOU = this->calBoxIOU(this->yoloBBoxes_[i], filteredBBoxesTemp[j]);
-                        if (IOU > maxIOU){
-                            maxIOU = IOU;
-                            maxIOUIdx = j;
-                        }
-                    }
-                    if (maxIOU > this->boxIOUThresh_){
-                        mapManager::box3D bbox;
+                else{ // find best match for yolo bbox
+                    mapManager::box3D matchedFilteredBBox = filteredBBoxesTemp[bestMatchForYoloBBox];
+                    int bestMatchForFilteredBBox = this->getBestOverlapBBox(matchedFilteredBBox, this->yoloBBoxes_, bestIOUForFilteredBBox);
+                    // if best match is each other and both the IOU is greater than the threshold
+                    if (bestMatchForFilteredBBox == int(i) and bestIOUForYoloBBox > this->boxIOUThresh_ and bestIOUForFilteredBBox > this->boxIOUThresh_){
+                        mapManager::box3D bbox; bbox.is_dynamic = true;
                         
                         // take concervative strategy
-                        float xmax = std::max(this->yoloBBoxes_[i].x+this->yoloBBoxes_[i].x_width/2, filteredBBoxesTemp[maxIOUIdx].x+filteredBBoxesTemp[maxIOUIdx].x_width/2);
-                        float xmin = std::min(this->yoloBBoxes_[i].x-this->yoloBBoxes_[i].x_width/2, filteredBBoxesTemp[maxIOUIdx].x-filteredBBoxesTemp[maxIOUIdx].x_width/2);
-                        float ymax = std::max(this->yoloBBoxes_[i].y+this->yoloBBoxes_[i].y_width/2, filteredBBoxesTemp[maxIOUIdx].y+filteredBBoxesTemp[maxIOUIdx].y_width/2);
-                        float ymin = std::min(this->yoloBBoxes_[i].y-this->yoloBBoxes_[i].y_width/2, filteredBBoxesTemp[maxIOUIdx].y-filteredBBoxesTemp[maxIOUIdx].y_width/2);
-                        float zmax = std::max(this->yoloBBoxes_[i].z+this->yoloBBoxes_[i].z_width/2, filteredBBoxesTemp[maxIOUIdx].z+filteredBBoxesTemp[maxIOUIdx].z_width/2);
-                        float zmin = std::min(this->yoloBBoxes_[i].z-this->yoloBBoxes_[i].z_width/2, filteredBBoxesTemp[maxIOUIdx].z-filteredBBoxesTemp[maxIOUIdx].z_width/2);
+                        float xmax = std::max(yoloBBox.x+yoloBBox.x_width/2, matchedFilteredBBox.x+matchedFilteredBBox.x_width/2);
+                        float xmin = std::min(yoloBBox.x-yoloBBox.x_width/2, matchedFilteredBBox.x-matchedFilteredBBox.x_width/2);
+                        float ymax = std::max(yoloBBox.y+yoloBBox.y_width/2, matchedFilteredBBox.y+matchedFilteredBBox.y_width/2);
+                        float ymin = std::min(yoloBBox.y-yoloBBox.y_width/2, matchedFilteredBBox.y-matchedFilteredBBox.y_width/2);
+                        float zmax = std::max(yoloBBox.z+yoloBBox.z_width/2, matchedFilteredBBox.z+matchedFilteredBBox.z_width/2);
+                        float zmin = std::min(yoloBBox.z-yoloBBox.z_width/2, matchedFilteredBBox.z-matchedFilteredBBox.z_width/2);
                         bbox.x = (xmin+xmax)/2;
                         bbox.y = (ymin+ymax)/2;
                         bbox.z = (zmin+zmax)/2;
@@ -843,17 +828,16 @@ namespace mapManager{
                         bbox.z_width = zmax-zmin;
                         bbox.Vx = 0;
                         bbox.Vy = 0;
-                        bbox.is_dynamic = true;
                         
-                        filteredBBoxesTempCopy[maxIOUIdx] = bbox;
-                        filteredPcClustersTempCopy[maxIOUIdx] = emptyPoints;
+        
+                        filteredBBoxesTempCopy[bestMatchForYoloBBox] = bbox; // replace the filtered bbox with the new fused bounding box
+                        filteredPcClustersTempCopy[bestMatchForYoloBBox] = emptyPoints;      // since it is yolo based, we dont need pointcloud for classification                     
                     }
                 }
             }
             filteredBBoxesTemp = filteredBBoxesTempCopy;
             filteredPcClustersTemp = filteredPcClustersTempCopy;
         }
-
 
         this->filteredBBoxes_ = filteredBBoxesTemp;
         this->filteredPcClusters_ = filteredPcClustersTemp;
@@ -1075,7 +1059,7 @@ namespace mapManager{
             }
 
             // push new data into history
-            boxHistTemp[i].push_front(newEstimatedBBox);  // TODO: should be tracked bboxes !!!!!!!!
+            boxHistTemp[i].push_front(newEstimatedBBox); 
             pcHistTemp[i].push_front(this->filteredPcClusters_[i]);
 
             // update new tracked bounding boxes
@@ -1696,6 +1680,21 @@ namespace mapManager{
         return htan<tan(31*pi/180) && vtan<tan(21.8*pi/180) && camRayZ<this->depthMaxValue_;
 
     }
+    
+    int dynamicDetector::getBestOverlapBBox(const mapManager::box3D& currBBox, const std::vector<mapManager::box3D>& targetBBoxes, float& bestIOU){
+        bestIOU = 0.0;
+        int bestIOUIdx = -1; // no match
+        for (size_t i=0; i<targetBBoxes.size(); ++i){
+            mapManager::box3D targetBBox = targetBBoxes[i];
+            float IOU = this->calBoxIOU(currBBox, targetBBox);
+            if (IOU > bestIOU){
+                bestIOU = IOU;
+                bestIOUIdx = i;
+            }
+        }
+        return bestIOUIdx;
+    }
+
 }
 
 
