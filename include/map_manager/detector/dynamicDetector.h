@@ -181,7 +181,7 @@ namespace mapManager{
         void kalmanFilterAndUpdateHist(const std::vector<int>& bestMatch);
         void kalmanFilterMatrixVel(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R);
         void kalmanFilterMatrixAcc(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R);
-        void getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z);
+        void getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
         void getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z);
 
         
