@@ -324,6 +324,24 @@ namespace mapManager{
             std::cout << this->hint_ << ": The the upper limit of points skipping in classification is set to: " << this->maxSkipRatio_ << std::endl;
         }  
 
+        // History threshold for fixing box size
+        if (not this->nh_.getParam(this->ns_ + "/fix_size_history_threshold", this->fixSizeHistThresh_)){
+            this->fixSizeHistThresh_ = 10;
+            std::cout << this->hint_ << ": History threshold for fixing size parameter found. Use default: 10." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": History threshold for fixing size parameter is set to: " << this->fixSizeHistThresh_ << std::endl;
+        }  
+
+        // Dimension threshold for fixing box size
+        if (not this->nh_.getParam(this->ns_ + "/fix_size_dimension_threshold", this->fixSizeDimThresh_)){
+            this->fixSizeDimThresh_ = 0.4;
+            std::cout << this->hint_ << ": Dimension threshold for fixing size parameter found. Use default: 0.4." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": Dimension threshold for fixing size parameter is set to: " << this->fixSizeDimThresh_ << std::endl;
+        } 
+
         // covariance for Kalman Filter
         if (not this->nh_.getParam(this->ns_ + "/e_p", this->eP_)){
             this->eP_ = 0.5;
@@ -354,7 +372,7 @@ namespace mapManager{
         // frames to froce dynamic
         if (not this->nh_.getParam(this->ns_ + "/frames_force_dynamic", this->forceDynaFrames_)){
             this->forceDynaFrames_ = 20;
-            std::cout << this->hint_ << ": Range of searching dynamic obstacles in box history found. Use default: 0.5." << std::endl;
+            std::cout << this->hint_ << ": Range of searching dynamic obstacles in box history found. Use default: 20." << std::endl;
         }
         else{
             std::cout << this->hint_ << ": Range of searching dynamic obstacles in box history is set to: " << this->forceDynaFrames_ << std::endl;
@@ -362,7 +380,7 @@ namespace mapManager{
 
         if (not this->nh_.getParam(this->ns_ + "/frames_force_dynamic_check_range", this->forceDynaCheckRange_)){
             this->forceDynaCheckRange_ = 30;
-            std::cout << this->hint_ << ": Threshold for forcing dynamic obstacles found. Use default: 0.5." << std::endl;
+            std::cout << this->hint_ << ": Threshold for forcing dynamic obstacles found. Use default: 30." << std::endl;
         }
         else{
             std::cout << this->hint_ << ": Threshold for forcing dynamic obstacles is set to: " << this->forceDynaCheckRange_ << std::endl;
@@ -917,6 +935,26 @@ namespace mapManager{
             filteredPcClusterStdsTemp = filteredPcClusterStdsTempCopy;
         }
 
+        // if (this->boxHist_.size()){
+        //     for (size_t i=0; i<filteredBBoxesTemp.size(); ++i){ 
+        //         cout <<" index "<<i<<endl;
+        //         cout <<"history box size "<<boxHist_[i].size()<<endl;
+        //         if (this->boxHist_[i].size() >= this->fixSizeHistThresh_){
+        //             cout <<"x for BBOX "<<filteredBBoxesTemp[i].x_width<<" x for history bbox "<<this->boxHist_[i][0].x_width <<endl;
+        //             cout <<"y for BBOX "<<filteredBBoxesTemp[i].y_width<<" y for history bbox "<<this->boxHist_[i][0].y_width <<endl;
+        //             if ((filteredBBoxesTemp[i].x_width-this->boxHist_[i][0].x_width)/this->boxHist_[i][0].x_width <= this->fixSizeDimThresh_ &&
+        //                 (filteredBBoxesTemp[i].y_width-this->boxHist_[i][0].y_width)/this->boxHist_[i][0].y_width <= this->fixSizeDimThresh_&&
+        //                 (filteredBBoxesTemp[i].z_width-this->boxHist_[i][0].z_width)/this->boxHist_[i][0].z_width <= this->fixSizeDimThresh_){
+        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].x_width;
+        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].y_width;
+        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].z_width;
+        //             }
+
+        //         }
+        //     }
+        // }
+        
+
         this->filteredBBoxes_ = filteredBBoxesTemp;
         this->filteredPcClusters_ = filteredPcClustersTemp;
         this->filteredPcClusterCenters_ = filteredPcClusterCentersTemp;
@@ -1118,6 +1156,8 @@ namespace mapManager{
         mapManager::kalman_filter newFilter;
         std::vector<mapManager::box3D> trackedBBoxesTemp;
 
+        newSingleBoxHist.resize(0);
+        newSinglePcHist.resize(0);
         int numObjs = this->filteredBBoxes_.size();
 
         for (int i=0 ; i<numObjs ; i++){
@@ -1170,12 +1210,36 @@ namespace mapManager{
             }
 
             // push new data into history
+            cout << "history update after kalman filter: "<<newEstimatedBBox.x_width << newEstimatedBBox.y_width<<endl;
             boxHistTemp[i].push_front(newEstimatedBBox);  // TODO: should be tracked bboxes !!!!!!!!
             pcHistTemp[i].push_front(this->filteredPcClusters_[i]);
 
             // update new tracked bounding boxes
             trackedBBoxesTemp.push_back(newEstimatedBBox);
         }
+
+        if (boxHistTemp.size()){
+            for (size_t i=0; i<trackedBBoxesTemp.size(); ++i){ 
+                cout <<" index "<<i<<endl;
+                cout <<"history box size "<<boxHistTemp[i].size()<<endl;
+                if (boxHistTemp[i].size() >= this->fixSizeHistThresh_){
+                    cout <<"x for BBOX "<<trackedBBoxesTemp[i].x_width<<" x for history bbox "<<boxHistTemp[i][0].x_width <<endl;
+                    cout <<"y for BBOX "<<trackedBBoxesTemp[i].y_width<<" y for history bbox "<<boxHistTemp[i][0].y_width <<endl;
+                    if ((abs(trackedBBoxesTemp[i].x_width-boxHistTemp[i][1].x_width)/boxHistTemp[i][1].x_width) <= this->fixSizeDimThresh_ &&
+                        (abs(trackedBBoxesTemp[i].y_width-boxHistTemp[i][1].y_width)/boxHistTemp[i][1].y_width) <= this->fixSizeDimThresh_&&
+                        (abs(trackedBBoxesTemp[i].z_width-boxHistTemp[i][1].z_width)/boxHistTemp[i][1].z_width) <= this->fixSizeDimThresh_){
+                        trackedBBoxesTemp[i].x_width = boxHistTemp[i][1].x_width;
+                        trackedBBoxesTemp[i].y_width = boxHistTemp[i][1].y_width;
+                        trackedBBoxesTemp[i].z_width = boxHistTemp[i][1].z_width;
+                        boxHistTemp[i][0].x_width = trackedBBoxesTemp[i].x_width;
+                        boxHistTemp[i][0].y_width = trackedBBoxesTemp[i].y_width;
+                        boxHistTemp[i][0].z_width = trackedBBoxesTemp[i].z_width;
+                    }
+
+                }
+            }
+        }
+        
 
         // update history member variable
         this->boxHist_ = boxHistTemp;

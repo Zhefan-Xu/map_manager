@@ -101,6 +101,8 @@ namespace mapManager{
         double dynaVoteThresh_;
         double maxSkipRatio_;
         double voxelOccThresh_;
+        int fixSizeHistThresh_;
+        double fixSizeDimThresh_;
         double eP_; // kalman filter initial uncertainty matrix
         double eQ_; // motion model uncertainty matrix
         double eR_; // observation uncertainty matrix
