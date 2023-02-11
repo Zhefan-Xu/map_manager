@@ -334,7 +334,7 @@ namespace mapManager{
         }  
 
         // noise for prediction in Kalman Filter
-        if (not this->nh_.getParam(this->ns_ + "/e_q", this->eP_)){
+        if (not this->nh_.getParam(this->ns_ + "/e_q", this->eQ_)){
             this->eQ_ = 0.5;
             std::cout << this->hint_ << ": No noise for prediction in Kalman Filter parameter found. Use default: 0.5." << std::endl;
         }
@@ -500,16 +500,16 @@ namespace mapManager{
     }
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
-        cout << "detector CB" << endl;
+        // cout << "detector CB" << endl;
         ros::Time dbStartTime = ros::Time::now();
         this->dbscanDetect();
         ros::Time dbEndTime = ros::Time::now();
-        cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
+        // cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
 
         ros::Time uvStartTime = ros::Time::now();
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
-        cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+        // cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
 
 
         this->yoloDetectionTo3D();
@@ -520,7 +520,7 @@ namespace mapManager{
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
-        cout << "tracking CB" << endl;
+        // cout << "tracking CB" << endl;
         ros::Time trackingStartTime = ros::Time::now();
         // data association
         std::vector<int> bestMatch; // for each current detection, which index of previous obstacle match
@@ -529,7 +529,7 @@ namespace mapManager{
         // kalman filter tracking (TODO: the new bounding boxes should be added when the tracking process is done)
         this->kalmanFilterAndUpdateHist(bestMatch);
         ros::Time trackingEndTime = ros::Time::now();
-        cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
+        // cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
@@ -1077,17 +1077,17 @@ namespace mapManager{
                 Eigen::MatrixXd Z;
                 this->getKalmanObservationVel(currDetectedBBox, bestMatch[i], Z);
                 filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
-                newEstimatedBBox.x = this->filters_[bestMatch[i]].output(0);
-                newEstimatedBBox.y = this->filters_[bestMatch[i]].output(1);
+                newEstimatedBBox.x = filtersTemp.back().output(0);
+                newEstimatedBBox.y = filtersTemp.back().output(1);
                 newEstimatedBBox.z = currDetectedBBox.z;
-                newEstimatedBBox.Vx = this->filters_[bestMatch[i]].output(2);
-                newEstimatedBBox.Vy = this->filters_[bestMatch[i]].output(3);
+                newEstimatedBBox.Vx = filtersTemp.back().output(2);
+                newEstimatedBBox.Vy = filtersTemp.back().output(3);
 
                 newEstimatedBBox.x_width = currDetectedBBox.x_width;
                 newEstimatedBBox.y_width = currDetectedBBox.y_width;
                 newEstimatedBBox.z_width = currDetectedBBox.z_width;
                 newEstimatedBBox.is_dynamic = currDetectedBBox.is_dynamic;
-                cout <<"obj "<<i<< " vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
+                // cout <<"obj "<<i<< " x "<<newEstimatedBBox.x << " y "<<newEstimatedBBox.y<<" vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
             }
             else{
                 boxHistTemp.push_back(newSingleBoxHist);
@@ -1191,9 +1191,16 @@ namespace mapManager{
         }
         mapManager::box3D prevMatchBBox = this->boxHist_[bestMatchIdx][k-1];
 
+        // for (size_t i=0 ; i<; ++i){
+        //     cout << this->boxHist_[bestMatchIdx]
+        // }
+        // cout << "prevMatchBBox "<< prevMatchBBox.x << " " << prevMatchBBox.y << " " << endl;
+        // cout << "currDetectedBBox "<< currDetectedBBox.x << " " << currDetectedBBox.y << " " << endl;
+
         Z(2) = (currDetectedBBox.x-prevMatchBBox.x)/(this->dt_*k);
         Z(3) = (currDetectedBBox.y-prevMatchBBox.y)/(this->dt_*k);
-        cout << "obsevation Z: " << Z << endl;
+        // cout << "obsevation Z: " << endl;
+        cout << Z << endl;
     }
 
     void dynamicDetector::getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z){

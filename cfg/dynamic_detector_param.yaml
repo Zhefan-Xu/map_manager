@@ -54,7 +54,7 @@ yolo_overwrite_distance: 3.0
 history_size: 300 # size of tracking history. history[0] is current detection
 similarity_threshold: 0.1 # similiary threshold for data association matching comparison
 e_p: 0.25
-e_q: 10
+e_q: 0.05
 e_r: 0.05
 
 # classification
