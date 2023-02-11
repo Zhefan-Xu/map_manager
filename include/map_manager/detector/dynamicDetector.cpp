@@ -350,6 +350,27 @@ namespace mapManager{
         else{
             std::cout << this->hint_ << ": The noise for measurement in Kalman Filter is set to: " << this->eR_ << std::endl;
         }  
+
+        // frames to froce dynamic
+        if (not this->nh_.getParam(this->ns_ + "/frames_force_dynamic", this->forceDynaFrames_)){
+            this->forceDynaFrames_ = 20;
+            std::cout << this->hint_ << ": Range of searching dynamic obstacles in box history found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": Range of searching dynamic obstacles in box history is set to: " << this->forceDynaFrames_ << std::endl;
+        }  
+
+        if (not this->nh_.getParam(this->ns_ + "/frames_force_dynamic_check_range", this->forceDynaCheckRange_)){
+            this->forceDynaCheckRange_ = 30;
+            std::cout << this->hint_ << ": Threshold for forcing dynamic obstacles found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": Threshold for forcing dynamic obstacles is set to: " << this->forceDynaCheckRange_ << std::endl;
+        }  
+
+        if ( this->histSize_ < this->forceDynaCheckRange_+1){
+            ROS_ERROR("history length is too short to perform force-dynamic");
+        }
     }
 
     void dynamicDetector::registerPub(){
@@ -520,7 +541,7 @@ namespace mapManager{
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
-        // cout << "tracking CB" << endl;
+        cout << "tracking CB" << endl;
         ros::Time trackingStartTime = ros::Time::now();
         // data association
         std::vector<int> bestMatch; // for each current detection, which index of previous obstacle match
@@ -529,11 +550,11 @@ namespace mapManager{
         // kalman filter tracking (TODO: the new bounding boxes should be added when the tracking process is done)
         this->kalmanFilterAndUpdateHist(bestMatch);
         ros::Time trackingEndTime = ros::Time::now();
-        // cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
+        cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
-        // cout << "classification CB " << endl;
+        cout << "classification CB " << endl;
         ros::Time clStartTime = ros::Time::now();
         
         // for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
@@ -543,15 +564,41 @@ namespace mapManager{
         std::vector<Eigen::Vector3d> currPc;
         std::vector<Eigen::Vector3d> prevPc;
         std::vector<mapManager::box3D> dynamicBBoxesTemp;
-        
+        // cout << "pc history size: " << pcHist_.size() << endl;
+
         for (size_t i=0; i<this->pcHist_.size() ; i++){
-            if (this->boxHist_[i][0].is_dynamic){
+
+            // yolo recognized as dynamic
+            if (this->boxHist_[i][0].is_human){
+                if (!this->boxHist_[i][0].is_dynamic){
+                    ROS_ERROR("yolo found but not labeld as dynamic !!");
+                }
                 dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
                 continue;
             }
 
             // history length is not enough to run classification
             if (this->pcHist_[i].size()<this->skipFrame_+1){
+                continue;
+            }
+
+            // force dynamic
+            // cout<<"box history size"<<this->boxHist_[i].size();
+            int dynaFrames = 0;
+            if ( this->boxHist_[i].size() > this->forceDynaCheckRange_){
+                // cout<<"inside "
+                for (int j=1 ; j<this->forceDynaCheckRange_+1 ; ++j){
+                    if (this->boxHist_[i][j].is_dynamic){
+                        ++dynaFrames;
+                        // cout<<"inside ++dynaFrame "<<endl;
+                    }
+                }
+            }
+            // cout << "dynamic frames: " << dynaFrames << endl;
+            // if (dynaFrames==this->forceDynaFrames_){
+            if (dynaFrames >= this->forceDynaFrames_){
+                this->boxHist_[i][0].is_dynamic = true;
+                dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
                 continue;
             }
 
@@ -599,7 +646,7 @@ namespace mapManager{
                 Vcur = nearestVect/(this->dt_*this->skipFrame_);
                 Vcur(2) = 0;
                 double velSim = Vcur.dot(Vbox)/(Vcur.norm()*Vbox.norm());
-
+                // cout<<"velocity similarity "<< velSim<<endl;
                 Vavg += Vcur;
 
                 // remove this ??
@@ -633,15 +680,27 @@ namespace mapManager{
             // cout << "skip " << numSkip << " points, rest: "<< numPoints<< "votes: " <<votes<<endl;
             // if (disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_ >= 1){
             if (disturbance>=this->dynaVoteThresh_ && displacement>=this->dynaVelThresh_ && double(numSkip)/double(numPoints)<this->maxSkipRatio_){
-                // ROS_INFO(
-                //     "============================DYNAMIC OBJ %i DETECTED!==========================",i
-                // );
+                
+                this->boxHist_[i][0].is_dynamic = true;
                 dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
             }
+            
 
         }
 
         this->dynamicBBoxes_ = dynamicBBoxesTemp;
+        for (size_t i=0 ; i<this->dynamicBBoxes_.size() ; ++i){
+            if (this->dynamicBBoxes_[i].is_dynamic){
+                ROS_INFO(
+                    "============================DYNAMIC OBJ %i DETECTED!==========================",i
+                );
+            }
+            else{
+                ROS_INFO(
+                    "++++++++++++++++++++++++++++STATIC OBJ %i DETECTED!++++++++++++++++++++++++++",i
+                );
+            }
+        }
 
         ros::Time clEndTime = ros::Time::now();
         // cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
@@ -805,7 +864,7 @@ namespace mapManager{
             std::vector<Eigen::Vector3d> emptyPoints {};
             Eigen::Vector3d emptyPcFeat {0,0,0};
             for (size_t i=0; i<this->yoloBBoxes_.size(); ++i){
-                mapManager::box3D yoloBBox = this->yoloBBoxes_[i]; yoloBBox.is_dynamic = true; // dynamic obstacle detected by yolo
+                mapManager::box3D yoloBBox = this->yoloBBoxes_[i]; yoloBBox.is_dynamic = true; yoloBBox.is_human = true; // dynamic obstacle detected by yolo
                 Eigen::Vector3d bboxPos (this->yoloBBoxes_[i].x, this->yoloBBoxes_[i].y, this->yoloBBoxes_[i].z);
                 double distanceToCamera = (bboxPos - this->position_).norm();
                 float bestIOUForYoloBBox, bestIOUForFilteredBBox;
@@ -826,7 +885,7 @@ namespace mapManager{
                     int bestMatchForFilteredBBox = this->getBestOverlapBBox(matchedFilteredBBox, this->yoloBBoxes_, bestIOUForFilteredBBox);
                     // if best match is each other and both the IOU is greater than the threshold
                     if (bestMatchForFilteredBBox == int(i) and bestIOUForYoloBBox > this->boxIOUThresh_ and bestIOUForFilteredBBox > this->boxIOUThresh_){
-                        mapManager::box3D bbox; bbox.is_dynamic = true;
+                        mapManager::box3D bbox; bbox.is_dynamic = true; bbox.is_human = true;
                         
                         // take concervative strategy
                         float xmax = std::max(yoloBBox.x+yoloBBox.x_width/2, matchedFilteredBBox.x+matchedFilteredBBox.x_width/2);
@@ -1087,6 +1146,7 @@ namespace mapManager{
                 newEstimatedBBox.y_width = currDetectedBBox.y_width;
                 newEstimatedBBox.z_width = currDetectedBBox.z_width;
                 newEstimatedBBox.is_dynamic = currDetectedBBox.is_dynamic;
+                newEstimatedBBox.is_human = currDetectedBBox.is_human;
                 // cout <<"obj "<<i<< " x "<<newEstimatedBBox.x << " y "<<newEstimatedBBox.y<<" vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
             }
             else{
@@ -1200,7 +1260,7 @@ namespace mapManager{
         Z(2) = (currDetectedBBox.x-prevMatchBBox.x)/(this->dt_*k);
         Z(3) = (currDetectedBBox.y-prevMatchBBox.y)/(this->dt_*k);
         // cout << "obsevation Z: " << endl;
-        cout << Z << endl;
+        // cout << Z << endl;
     }
 
     void dynamicDetector::getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z){
@@ -1804,19 +1864,24 @@ namespace mapManager{
         Eigen::Vector3d camUnitZ(0,0,1);
         Eigen::Vector3d camRay;
         Eigen::Vector3d displacement; 
+        
 
+        // // print worldRay
+        // cout << worldRay
         // z is in depth direction in camera coord
         camRay = orientation.inverse()*worldRay;
+        // cout <<"orientation Inverse matrix " << orientation.inverse()<<endl;
+        // cout <<"camera ray before dot " <<camRay <<endl;
 
         double camRayX = abs(camRay.dot(camUnitX));
         double camRayY = abs(camRay.dot(camUnitY));
         double camRayZ = abs(camRay.dot(camUnitZ));
 
-        // cout << camRayX << " " << camRayY << " " << camRayX << endl;
+        // cout << camRayX << " " << camRayY << " " << camRayZ << endl;
 
         double htan = camRayX/camRayZ;
         double vtan = camRayY/camRayZ;
-
+        
         double pi = 3.1415926;
         // cout <<" htan: " << htan << " vtan: " << vtan <<endl;
         return htan<tan(31*pi/180) && vtan<tan(21.8*pi/180) && camRayZ<this->depthMaxValue_;

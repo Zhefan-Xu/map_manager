@@ -104,6 +104,8 @@ namespace mapManager{
         double eP_; // kalman filter initial uncertainty matrix
         double eQ_; // motion model uncertainty matrix
         double eR_; // observation uncertainty matrix
+        int forceDynaFrames_;
+        int forceDynaCheckRange_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -130,7 +132,7 @@ namespace mapManager{
         std::vector<Eigen::Vector3d> filteredPcClusterStds_; // filtered pointcloud cluster standard deviation in each axis
         std::vector<mapManager::box3D> trackedBBoxes_; // bboxes tracked from kalman filtering
         std::vector<mapManager::box3D> dynamicBBoxes_; // boxes classified as dynamic
-
+        // std::vector<int> recentDynaFrames_; // recent number of frames being detected as dynamic for each obstacle
 
         // TRACKING AND ASSOCIATION DATA
         bool newDetectFlag_;
