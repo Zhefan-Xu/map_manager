@@ -707,7 +707,7 @@ namespace mapManager{
         // cout << "size: " << this->filteredPoints_.size() << endl;
 
         // 4. cluster points and get bounding boxes
-        this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_);
+        this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_, this->pcClusterCenters_, this->pcClusterStds_);
     }
 
     void dynamicDetector::yoloDetectionTo3D(){
@@ -754,6 +754,8 @@ namespace mapManager{
     void dynamicDetector::filterBBoxes(){
         std::vector<mapManager::box3D> filteredBBoxesTemp;
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClustersTemp;
+        std::vector<Eigen::Vector3d> filteredPcClusterCentersTemp;
+        std::vector<Eigen::Vector3d> filteredPcClusterStdsTemp; 
         // find best IOU match for both uv and dbscan. If they are best for each other, then add to filtered bbox and fuse.
         for (size_t i=0 ; i<this->uvBBoxes_.size(); ++i){
             mapManager::box3D uvBBox = this->uvBBoxes_[i];
@@ -762,6 +764,8 @@ namespace mapManager{
             if (bestMatchForUVBBox == -1) continue; // no match at all
             mapManager::box3D matchedDBBBox = this->dbBBoxes_[bestMatchForUVBBox]; 
             std::vector<Eigen::Vector3d> matchedPcCluster = this->pcClusters_[bestMatchForUVBBox];
+            Eigen::Vector3d matchedPcClusterCenter = this->pcClusterCenters_[bestMatchForUVBBox];
+            Eigen::Vector3d matchedPcClusterStd = this->pcClusterStds_[bestMatchForUVBBox];
             int bestMatchForDBBBox = this->getBestOverlapBBox(matchedDBBBox, this->uvBBoxes_, bestIOUForDBBBox);
 
             // if best match is each other and both the IOU is greater than the threshold
@@ -785,7 +789,10 @@ namespace mapManager{
                 bbox.Vy = 0;
                 
                 filteredBBoxesTemp.push_back(bbox);
-                filteredPcClustersTemp.push_back(matchedPcCluster);                  
+                filteredPcClustersTemp.push_back(matchedPcCluster);      
+                filteredPcClusterCentersTemp.push_back(matchedPcClusterCenter);
+                filteredPcClusterStdsTemp.push_back(matchedPcClusterStd);
+
             }
         }
 
@@ -793,7 +800,10 @@ namespace mapManager{
         if (this->yoloBBoxes_.size() != 0){ // if no detected or not using yolo, this will not triggered
             std::vector<mapManager::box3D> filteredBBoxesTempCopy = filteredBBoxesTemp;
             std::vector<std::vector<Eigen::Vector3d>> filteredPcClustersTempCopy = filteredPcClustersTemp;
-            std::vector<Eigen::Vector3d> emptyPoints {Eigen::Vector3d {0, 0, 0}};
+            std::vector<Eigen::Vector3d> filteredPcClusterCentersTempCopy = filteredPcClusterCentersTemp;
+            std::vector<Eigen::Vector3d> filteredPcClusterStdsTempCopy = filteredPcClusterStdsTemp;
+            std::vector<Eigen::Vector3d> emptyPoints {};
+            Eigen::Vector3d emptyPcFeat {0,0,0};
             for (size_t i=0; i<this->yoloBBoxes_.size(); ++i){
                 mapManager::box3D yoloBBox = this->yoloBBoxes_[i]; yoloBBox.is_dynamic = true; // dynamic obstacle detected by yolo
                 Eigen::Vector3d bboxPos (this->yoloBBoxes_[i].x, this->yoloBBoxes_[i].y, this->yoloBBoxes_[i].z);
@@ -804,6 +814,8 @@ namespace mapManager{
                     if (distanceToCamera >= this->yoloOverwriteDistance_){ // a) distance too far, filtered boxes no detection. directly add results
                         filteredBBoxesTempCopy.push_back(yoloBBox); // add yolo bbox because filtered bbox is not able to get detection results at far distance
                         filteredPcClustersTempCopy.push_back(emptyPoints); // no pc need for yolo 
+                        filteredPcClusterCentersTempCopy.push_back(emptyPcFeat);
+                        filteredPcClusterStdsTempCopy.push_back(emptyPcFeat);
                     }
                     else{ // b) distance not far but cannot match. Probably Yolo error, ignore results
                         continue;
@@ -835,15 +847,21 @@ namespace mapManager{
         
                         filteredBBoxesTempCopy[bestMatchForYoloBBox] = bbox; // replace the filtered bbox with the new fused bounding box
                         filteredPcClustersTempCopy[bestMatchForYoloBBox] = emptyPoints;      // since it is yolo based, we dont need pointcloud for classification                     
+                        filteredPcClusterCentersTempCopy[bestMatchForYoloBBox] = emptyPcFeat;
+                        filteredPcClusterStdsTempCopy[bestMatchForYoloBBox] = emptyPcFeat;
                     }
                 }
             }
             filteredBBoxesTemp = filteredBBoxesTempCopy;
             filteredPcClustersTemp = filteredPcClustersTempCopy;
+            filteredPcClusterCentersTemp = filteredPcClusterCentersTempCopy;
+            filteredPcClusterStdsTemp = filteredPcClusterStdsTempCopy;
         }
 
         this->filteredBBoxes_ = filteredBBoxesTemp;
         this->filteredPcClusters_ = filteredPcClustersTemp;
+        this->filteredPcClusterCenters_ = filteredPcClusterCentersTemp;
+        this->filteredPcClusterStds_ = filteredPcClusterStdsTemp;
     }
 
     void dynamicDetector::updatePoseHist(){
@@ -859,6 +877,29 @@ namespace mapManager{
         else{
             this->orientationHist_.push_front(this->orientation_);
         }
+    }
+
+    void dynamicDetector::calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd){
+        int numPoints = pcCluster.size();
+        
+        // center
+        for (int i=0 ; i<numPoints ; i++){
+            pcClusterCenter(0) += pcCluster[i](0)/numPoints;
+            pcClusterCenter(1) += pcCluster[i](1)/numPoints;
+            pcClusterCenter(2) += pcCluster[i](2)/numPoints;
+        }
+
+        // std
+        for (int i=0 ; i<numPoints ; i++){
+            pcClusterStd(0) += std::pow(pcCluster[i](0) - pcClusterCenter(0),2);
+            pcClusterStd(1) += std::pow(pcCluster[i](1) - pcClusterCenter(1),2);
+            pcClusterStd(2) += std::pow(pcCluster[i](2) - pcClusterCenter(2),2);
+        }        
+
+        // take square root
+        pcClusterStd(0) = std::sqrt(pcClusterStd(0)/numPoints);
+        pcClusterStd(1) = std::sqrt(pcClusterStd(1)/numPoints);
+        pcClusterStd(2) = std::sqrt(pcClusterStd(2)/numPoints);
     }
 
    void dynamicDetector::boxAssociation(std::vector<int>& bestMatch){
@@ -940,15 +981,22 @@ namespace mapManager{
     }
 
     void dynamicDetector::genFeatHelper(std::vector<Eigen::VectorXd>& features, const std::vector<mapManager::box3D>& boxes){ 
+        Eigen::VectorXd featureWeights(10); // 3pos + 3size + 1 pc length + 3 pc std
+        featureWeights << 2, 2, 2, 1, 1, 1, 0.5, 0.5, 0.5, 0.5;
         for (size_t i=0 ; i<boxes.size() ; i++){
-            Eigen::VectorXd feature(6);
+            Eigen::VectorXd feature(10);
             features[i] = feature;
-            features[i](0) = boxes[i].x - this->position_(0);
-            features[i](1) = boxes[i].y - this->position_(1);
-            features[i](2) = boxes[i].z - this->position_(2);
-            features[i](3) = boxes[i].x_width;
-            features[i](4) = boxes[i].y_width;
-            features[i](5) = boxes[i].z_width;
+            features[i](0) = (boxes[i].x - this->position_(0)) * featureWeights(0) ;
+            features[i](1) = (boxes[i].y - this->position_(1)) * featureWeights(1);
+            features[i](2) = (boxes[i].z - this->position_(2)) * featureWeights(2);
+            features[i](3) = boxes[i].x_width * featureWeights(3);
+            features[i](4) = boxes[i].y_width * featureWeights(4);
+            features[i](5) = boxes[i].z_width * featureWeights(5);
+            features[i](6) = this->filteredPcClusters_[i].size() * featureWeights(6);
+            features[i](7) = this->filteredPcClusterStds_[i](0) * featureWeights(7);
+            features[i](8) = this->filteredPcClusterStds_[i](1) * featureWeights(8);
+            features[i](9) = this->filteredPcClusterStds_[i](2) * featureWeights(9);
+            cout << features[i](6) << " " << features[i](7) << " " << features[i](8) <<" " << features[i](9) << endl;
         }
     }
 
@@ -974,7 +1022,9 @@ namespace mapManager{
             int bestMatchInd = -1;
             for (size_t j=0 ; j<propedBoxes.size() ; j++){
                 double sim = propedBoxesFeat[j].dot(currBoxesFeat[i])/(propedBoxesFeat[j].norm()*currBoxesFeat[i].norm());
-                // cout << "i " << i << "j  " << j << " sim: " << sim << " bestSIm " <<bestSim <<endl;
+                cout << propedBoxesFeat[j] << endl;
+                cout << currBoxesFeat[i] << endl;
+                cout << "i " << i << "j  " << j << " sim: " << sim << " bestSIm " <<bestSim <<endl;
                 if (sim >= bestSim){
                     bestSim = sim;
                     bestSims[i] = sim;
@@ -983,8 +1033,8 @@ namespace mapManager{
             }
 
             double iou = this->calBoxIOU(this->filteredBBoxes_[i], propedBoxes[bestMatchInd]);
-            // cout <<" bestsim " << bestSims[i] << endl;
-            // cout<<"iou "<<iou<<endl;
+            cout <<" bestsim " << bestSims[i] << endl;
+            cout<<"iou "<<iou<<endl;
             if(!(bestSims[i]>this->simThresh_ && iou)){
                 bestSims[i] = 0;
                 bestMatch[i] = -1;
@@ -1032,9 +1082,11 @@ namespace mapManager{
                 newEstimatedBBox.z = currDetectedBBox.z;
                 newEstimatedBBox.Vx = this->filters_[bestMatch[i]].output(2);
                 newEstimatedBBox.Vy = this->filters_[bestMatch[i]].output(3);
+
                 newEstimatedBBox.x_width = currDetectedBBox.x_width;
                 newEstimatedBBox.y_width = currDetectedBBox.y_width;
                 newEstimatedBBox.z_width = currDetectedBBox.z_width;
+                newEstimatedBBox.is_dynamic = currDetectedBBox.is_dynamic;
                 cout <<"obj "<<i<< " vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
             }
             else{
@@ -1132,6 +1184,7 @@ namespace mapManager{
         Z(1) = currDetectedBBox.y;
         Z(2) = (currDetectedBBox.x-prevMatchBBox.x)/this->dt_;
         Z(3) = (currDetectedBBox.y-prevMatchBBox.y)/this->dt_;
+        cout << "obsevation Z: " << Z << endl;
     }
 
     void dynamicDetector::getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z){
@@ -1200,7 +1253,7 @@ namespace mapManager{
     }
 
 
-    void dynamicDetector::clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters){
+    void dynamicDetector::clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds){
         std::vector<mapManager::Point> pointsDB;
         this->eigenToDBPointVec(points, pointsDB, points.size());
 
@@ -1227,6 +1280,14 @@ namespace mapManager{
                 Eigen::Vector3d p = this->dbPointToEigen(pDB);
                 pcClusters[pDB.clusterID-1].push_back(p);
             }            
+        }
+
+        for (size_t i=0 ; i<pcClusters.size() ; ++i){
+            Eigen::Vector3d pcClusterCenter(0.,0.,0.);
+            Eigen::Vector3d pcClusterStd(0.,0.,0.);
+            this->calcPcFeat(pcClusters[i], pcClusterCenter, pcClusterStd);
+            pcClusterCenters.push_back(pcClusterCenter);
+            pcClusterStds.push_back(pcClusterStd);
         }
 
         // calculate the bounding boxes based on the clusters

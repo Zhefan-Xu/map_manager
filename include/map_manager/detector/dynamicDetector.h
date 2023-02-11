@@ -122,8 +122,12 @@ namespace mapManager{
         std::vector<Eigen::Vector3d> filteredPoints_; // filtered point cloud data
         std::vector<mapManager::box3D> dbBBoxes_; // DBSCAN bounding boxes        
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
+        std::vector<Eigen::Vector3d> pcClusterCenters_; // pointcloud cluster centers
+        std::vector<Eigen::Vector3d> pcClusterStds_; // pointcloud cluster standard deviation in each axis
         std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClusters_; // pointcloud clusters after filtering by UV and DBSCAN fusion
+        std::vector<Eigen::Vector3d> filteredPcClusterCenters_; // filtered pointcloud cluster centers
+        std::vector<Eigen::Vector3d> filteredPcClusterStds_; // filtered pointcloud cluster standard deviation in each axis
         std::vector<mapManager::box3D> trackedBBoxes_; // bboxes tracked from kalman filtering
         std::vector<mapManager::box3D> dynamicBBoxes_; // boxes classified as dynamic
 
@@ -187,9 +191,10 @@ namespace mapManager{
         // DBSCAN Detector Functions
         void projectDepthImage();
         void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
-        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
+        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
         void updatePoseHist();
+        void calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd);
 
         // detection helper functions
         float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
@@ -215,6 +220,7 @@ namespace mapManager{
                                   Eigen::Vector3d& newCenter, Eigen::Vector3d& newSize);
         bool isInFov(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation, Eigen::Vector3d& point);
         int getBestOverlapBBox(const mapManager::box3D& currBBox, const std::vector<mapManager::box3D>& targetBBoxes, float& bestIOU);
+
 
         // inline helper functions
         bool isInFilterRange(const Eigen::Vector3d& pos);
