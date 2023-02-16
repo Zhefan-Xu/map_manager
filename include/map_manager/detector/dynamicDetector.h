@@ -54,6 +54,7 @@ namespace mapManager{
         image_transport::Publisher uvBirdViewPub_;
         image_transport::Publisher detectedAlignedDepthImgPub_;
         ros::Publisher uvBBoxesPub_;
+        ros::Publisher dynamicPointsPub_;
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
         ros::Publisher yoloBBoxesPub_;
@@ -104,10 +105,16 @@ namespace mapManager{
         int fixSizeHistThresh_;
         double fixSizeDimThresh_;
         double eP_; // kalman filter initial uncertainty matrix
-        double eQ_; // motion model uncertainty matrix
-        double eR_; // observation uncertainty matrix
+        double eQPos_; // motion model uncertainty matrix for position
+        double eQVel_; // motion model uncertainty matrix for velocity
+        double eQAcc_; // motion model uncertainty matrix for acceleration
+        double eRPos_; // observation uncertainty matrix for position
+        double eRVel_; // observation uncertainty matrix for velocity
+        double eRAcc_; // observation uncertainty matrix for acceleration
         int forceDynaFrames_;
         int forceDynaCheckRange_;
+        int dynamicConsistThresh_;
+        int kfAvgFrames_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -186,7 +193,7 @@ namespace mapManager{
         void kalmanFilterMatrixVel(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R);
         void kalmanFilterMatrixAcc(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R);
         void getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
-        void getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z);
+        void getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
 
         
         // uv Detector Functions
@@ -212,6 +219,7 @@ namespace mapManager{
 
 
         // visualization
+        void getDynamicPc(std::vector<Eigen::Vector3d>& dynamicPc);
         void publishUVImages(); 
         void publishYoloImages();
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
@@ -237,6 +245,9 @@ namespace mapManager{
         mapManager::Point eigenToDBPoint(const Eigen::Vector3d& p);
         Eigen::Vector3d dbPointToEigen(const mapManager::Point& pDB);
         void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size);
+
+        // user functions
+        void getDynamicObstacles(std::vector<mapManager::box3D>& incomeDynamicBBoxes);
     };
 
 

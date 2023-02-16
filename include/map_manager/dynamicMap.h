@@ -18,11 +18,14 @@ namespace mapManager{
 
 	protected:
 		std::shared_ptr<mapManager::dynamicDetector> detector_;
+		ros::Timer freeMapTimer_;
 
 
 	public:
-		dynamicMap();
 		dynamicMap(const ros::NodeHandle& nh);
+
+		// dynamic clean 
+		void freeMapCB(const ros::TimerEvent&);
 
 		// user function
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclePos, 

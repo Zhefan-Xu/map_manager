@@ -19,6 +19,7 @@ namespace mapManager{
         bool is_human=false; // false: not detected by yolo as dynamic, true: detected by yolo
         bool is_dynamic=false; // false: not detected as dynamic(either yolo or classificationCB), true: detected as dynamic
         bool fix_size=false; // flag to force future boxes to fix size
+        bool is_dynamic_candidate=false;
     };
 }
 

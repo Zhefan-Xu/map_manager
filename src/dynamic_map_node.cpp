@@ -5,8 +5,7 @@ int main(int argc, char** argv){
 	ros::init(argc, argv, "dyanmic_map_node");
 	ros::NodeHandle nh;
 
-	mapManager::dynamicMap m;
-	m.initMap(nh);
+	mapManager::dynamicMap m(nh);
 
 	ros::spin();
 

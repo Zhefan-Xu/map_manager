@@ -18,7 +18,7 @@ odom_topic: /vins_estimator/imu_propagate
 # odom_topic: /CERLAB/quadcopter/odom
 
 # robot size
-robot_size: [0.5, 0.5, 0.3]
+robot_size: [0.2, 0.2, 0.1]
 
 # Camera Parameters
 depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
@@ -55,7 +55,7 @@ clean_local_map: false
 
 # visualziation
 local_map_size: [20, 20, 6] # meter. in x y z direction (only for visualization)
-max_height_visualization: 8 # m
+max_height_visualization: 2 # m
 visualize_global_map: true
 verbose: false
 
