@@ -31,9 +31,9 @@ depth_filter_margin: 2 # filter
 depth_skip_pixel: 2 # filter
 image_cols: 640
 image_rows: 480
-body_to_camera: [0.0,  0.0,  1.0,  0.09,
-                -1.0,  0.0,  0.0,  0.0 ,   
-                 0.0, -1.0,  0.0,  0.095,
+body_to_camera: [0.0,  0.0,  1.0,  0.065,
+                -1.0,  0.0,  0.0,  0.01,   
+                 0.0, -1.0,  0.0,  0.11,
                  0.0,  0.0,  0.0,  1.0]
 
 # Raycasting

@@ -596,6 +596,7 @@ namespace mapManager{
     }
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
+	ros::Time totalStartTime = ros::Time::now();
         // cout << "detector CB" << endl;
         ros::Time dbStartTime = ros::Time::now();
         this->dbscanDetect();
@@ -609,14 +610,16 @@ namespace mapManager{
 
 
         this->yoloDetectionTo3D();
-
+	
         this->filterBBoxes();
 
         this->newDetectFlag_ = true; // get a new detection
+	ros::Time totalEndTime = ros::Time::now();
+	cout << "detect time: " << (totalEndTime - totalStartTime).toSec() << endl;
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
-        cout << "tracking CB" << endl;
+        // cout << "tracking CB" << endl;
         ros::Time trackingStartTime = ros::Time::now();
         // data association
         std::vector<int> bestMatch; // for each current detection, which index of previous obstacle match
@@ -632,11 +635,11 @@ namespace mapManager{
         }
         
         ros::Time trackingEndTime = ros::Time::now();
-        cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
+       // cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
-        cout << "classification CB " << endl;
+        // cout << "classification CB " << endl;
         ros::Time clStartTime = ros::Time::now();
         
         // for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
@@ -760,11 +763,11 @@ namespace mapManager{
             double disturbance = (numPoints>0)?double(votes)/double(numPoints):0;
             // double displacement = Vavg.norm();
             double displacement = Vkf.norm();
-            cout << "votes percentage(disturbance) "<<i << " is "<<disturbance << endl;
-            cout << "V_AVG for obj(displacement) "<<i << " is "<<Vkf.norm() << endl;
-            cout << "Hist length(check track): " << i << " is "<< this->boxHist_[i].size() << endl;
+            // cout << "votes percentage(disturbance) "<<i << " is "<<disturbance << endl;
+            // cout << "V_AVG for obj(displacement) "<<i << " is "<<Vkf.norm() << endl;
+            // cout << "Hist length(check track): " << i << " is "<< this->boxHist_[i].size() << endl;
             // cout << "score: " << disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_  <<endl;
-            cout << "skip " << numSkip << " points, rest: "<< numPoints<< "votes: " <<votes<<endl;
+            // cout << "skip " << numSkip << " points, rest: "<< numPoints<< "votes: " <<votes<<endl;
             // if (disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_ >= 1){
 
             // voting and velocity threshold
@@ -781,7 +784,7 @@ namespace mapManager{
                     }
                 }            
                 if (dynaConsistCount == this->dynamicConsistThresh_){
-                    cout << "dynamic count: " << dynaConsistCount << endl;
+                    //cout << "dynamic count: " << dynaConsistCount << endl;
                     // set as dynamic and push into history
                     this->boxHist_[i][0].is_dynamic = true;
                     dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);    
@@ -793,18 +796,20 @@ namespace mapManager{
         }
 
         this->dynamicBBoxes_ = dynamicBBoxesTemp;
-        for (size_t i=0 ; i<this->dynamicBBoxes_.size() ; ++i){
-            if (this->dynamicBBoxes_[i].is_dynamic){
-                ROS_INFO(
-                    "============================DYNAMIC OBJ %i DETECTED!==========================",i
-                );
-            }
-            else{
-                ROS_INFO(
-                    "++++++++++++++++++++++++++++STATIC OBJ %i DETECTED!++++++++++++++++++++++++++",i
-                );
-            }
-        }
+
+	// print dynamic identification info
+        // for (size_t i=0 ; i<this->dynamicBBoxes_.size() ; ++i){
+        //     if (this->dynamicBBoxes_[i].is_dynamic){
+        //         ROS_INFO(
+        //             "============================DYNAMIC OBJ %i DETECTED!==========================",i
+        //         );
+        //     }
+        //     else{
+        //         ROS_INFO(
+        //             "++++++++++++++++++++++++++++STATIC OBJ %i DETECTED!++++++++++++++++++++++++++",i
+        //         );
+        //     }
+        // }
 
         ros::Time clEndTime = ros::Time::now();
         // cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
@@ -1122,7 +1127,7 @@ namespace mapManager{
             }
             
 
-            ROS_WARN(" box first frame, association not started yet. filtered boxes size: %lu", this->filteredBBoxes_.size());
+            // ROS_WARN(" box first frame, association not started yet. filtered boxes size: %lu", this->filteredBBoxes_.size());
         }
         else{
             // start association only if a new detection is available
@@ -1145,7 +1150,7 @@ namespace mapManager{
     }
 
     void dynamicDetector::boxAssociationHelper(std::vector<int>& bestMatch){
-        cout <<"in boxassociationhelper"<<endl;
+        // cout <<"in boxassociationhelper"<<endl;
 
         int numObjs = this->filteredBBoxes_.size();
         std::vector<mapManager::box3D> propedBoxes;
