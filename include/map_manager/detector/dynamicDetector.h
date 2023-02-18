@@ -227,6 +227,9 @@ namespace mapManager{
         mapManager::Point eigenToDBPoint(const Eigen::Vector3d& p);
         Eigen::Vector3d dbPointToEigen(const mapManager::Point& pDB);
         void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size);
+
+        // user function
+        
     };
 
 
