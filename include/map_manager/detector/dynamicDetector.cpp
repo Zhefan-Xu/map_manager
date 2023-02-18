@@ -324,6 +324,24 @@ namespace mapManager{
             std::cout << this->hint_ << ": The the upper limit of points skipping in classification is set to: " << this->maxSkipRatio_ << std::endl;
         }  
 
+        // History threshold for fixing box size
+        if (not this->nh_.getParam(this->ns_ + "/fix_size_history_threshold", this->fixSizeHistThresh_)){
+            this->fixSizeHistThresh_ = 10;
+            std::cout << this->hint_ << ": History threshold for fixing size parameter found. Use default: 10." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": History threshold for fixing size parameter is set to: " << this->fixSizeHistThresh_ << std::endl;
+        }  
+
+        // Dimension threshold for fixing box size
+        if (not this->nh_.getParam(this->ns_ + "/fix_size_dimension_threshold", this->fixSizeDimThresh_)){
+            this->fixSizeDimThresh_ = 0.4;
+            std::cout << this->hint_ << ": Dimension threshold for fixing size parameter found. Use default: 0.4." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": Dimension threshold for fixing size parameter is set to: " << this->fixSizeDimThresh_ << std::endl;
+        } 
+
         // covariance for Kalman Filter
         if (not this->nh_.getParam(this->ns_ + "/e_p", this->eP_)){
             this->eP_ = 0.5;
@@ -333,23 +351,98 @@ namespace mapManager{
             std::cout << this->hint_ << ": The covariance for kalman filter is set to: " << this->eP_ << std::endl;
         }  
 
-        // noise for prediction in Kalman Filter
-        if (not this->nh_.getParam(this->ns_ + "/e_q", this->eP_)){
-            this->eQ_ = 0.5;
-            std::cout << this->hint_ << ": No noise for prediction in Kalman Filter parameter found. Use default: 0.5." << std::endl;
+        // noise for prediction for position in Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_q_pos", this->eQPos_)){
+            this->eQPos_ = 0.5;
+            std::cout << this->hint_ << ": No motion model uncertainty matrix for position parameter found. Use default: 0.5." << std::endl;
         }
         else{
-            std::cout << this->hint_ << ": The noise for prediction in Kalman Filter is set to: " << this->eQ_ << std::endl;
+            std::cout << this->hint_ << ": The noise for prediction for position in Kalman Filter is set to: " << this->eQPos_ << std::endl;
         }  
 
-        // noise for measurement in Kalman Filter
-        if (not this->nh_.getParam(this->ns_ + "/e_r", this->eR_)){
-            this->eR_ = 0.5;
-            std::cout << this->hint_ << ": No noise for measurement in Kalman Filter parameter found. Use default: 0.5." << std::endl;
+        // noise for prediction for velocity in Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_q_vel", this->eQVel_)){
+            this->eQVel_ = 0.5;
+            std::cout << this->hint_ << ": No motion model uncertainty matrix for velocity parameter found. Use default: 0.5." << std::endl;
         }
         else{
-            std::cout << this->hint_ << ": The noise for measurement in Kalman Filter is set to: " << this->eR_ << std::endl;
+            std::cout << this->hint_ << ": The noise for prediction for velocity in Kalman Filter is set to: " << this->eQVel_ << std::endl;
+        } 
+
+        // noise for prediction in Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_q_acc", this->eQAcc_)){
+            this->eQAcc_ = 0.5;
+            std::cout << this->hint_ << ": No motion model uncertainty matrix for acceleration parameter found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The noise for prediction for acceleration in Kalman Filter is set to: " << this->eQAcc_ << std::endl;
+        } 
+
+        // noise for measurement for position in Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_r_pos", this->eRPos_)){
+            this->eRPos_ = 0.5;
+            std::cout << this->hint_ << ": No measuremnt uncertainty matrix for position parameter found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The noise for measurement for position in Kalman Filter is set to: " << this->eRPos_ << std::endl;
         }  
+
+        // noise for prediction for velocity in Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_r_vel", this->eRVel_)){
+            this->eRVel_ = 0.5;
+            std::cout << this->hint_ << ": No measuremnt uncertainty matrix for velocity parameter found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The noise for measurement for velocity in Kalman Filter is set to: " << this->eRVel_ << std::endl;
+        } 
+
+        // noise for prediction in Kalman Filter
+        if (not this->nh_.getParam(this->ns_ + "/e_r_acc", this->eRAcc_)){
+            this->eRAcc_ = 0.5;
+            std::cout << this->hint_ << ": No measurement uncertainty matrix for acceleration parameter found. Use default: 0.5." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": The noise for measuremnt for acceleration in Kalman Filter is set to: " << this->eRAcc_ << std::endl;
+        } 
+
+        // num of frames used in KF for observation
+        if (not this->nh_.getParam(this->ns_ + "/kalman_filter_averaging_frames", this->kfAvgFrames_)){
+            this->kfAvgFrames_ = 10;
+            std::cout << this->hint_ << ": num of frames used in KF for observation parameter found. Use default: 10." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": num of frames used in KF for observation is set to: " << this->kfAvgFrames_ << std::endl;
+        } 
+
+        // frames to froce dynamic
+        if (not this->nh_.getParam(this->ns_ + "/frames_force_dynamic", this->forceDynaFrames_)){
+            this->forceDynaFrames_ = 20;
+            std::cout << this->hint_ << ": Range of searching dynamic obstacles in box history found. Use default: 20." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": Range of searching dynamic obstacles in box history is set to: " << this->forceDynaFrames_ << std::endl;
+        }  
+
+        if (not this->nh_.getParam(this->ns_ + "/frames_force_dynamic_check_range", this->forceDynaCheckRange_)){
+            this->forceDynaCheckRange_ = 30;
+            std::cout << this->hint_ << ": Threshold for forcing dynamic obstacles found. Use default: 30." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": Threshold for forcing dynamic obstacles is set to: " << this->forceDynaCheckRange_ << std::endl;
+        }  
+
+        // dynamic consistency check
+        if (not this->nh_.getParam(this->ns_ + "/dynamic_consistency_threshold", this->dynamicConsistThresh_)){
+            this->dynamicConsistThresh_ = 3;
+            std::cout << this->hint_ << ": Threshold for dynamic-consistency check found. Use default: 3." << std::endl;
+        }
+        else{
+            std::cout << this->hint_ << ": Threshold for dynamic consistency check is set to: " << this->dynamicConsistThresh_ << std::endl;
+        }  
+
+        if ( this->histSize_ < this->forceDynaCheckRange_+1){
+            ROS_ERROR("history length is too short to perform force-dynamic");
+        }
     }
 
     void dynamicDetector::registerPub(){
@@ -368,6 +461,9 @@ namespace mapManager{
 
         // uv detector bounding box pub
         this->uvBBoxesPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/uv_bboxes", 10);
+
+        // dynamic pointcloud pub
+        this->dynamicPointsPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/dynamic_point_cloud", 10);
 
         // filtered pointcloud pub
         this->filteredPointsPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/filtered_depth_cloud", 10);
@@ -500,16 +596,16 @@ namespace mapManager{
     }
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
-        cout << "detector CB" << endl;
+        // cout << "detector CB" << endl;
         ros::Time dbStartTime = ros::Time::now();
         this->dbscanDetect();
         ros::Time dbEndTime = ros::Time::now();
-        cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
+        // cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
 
         ros::Time uvStartTime = ros::Time::now();
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
-        cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+        // cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
 
 
         this->yoloDetectionTo3D();
@@ -527,7 +623,14 @@ namespace mapManager{
         this->boxAssociation(bestMatch);
 
         // kalman filter tracking (TODO: the new bounding boxes should be added when the tracking process is done)
-        this->kalmanFilterAndUpdateHist(bestMatch);
+        if (bestMatch.size()){
+            this->kalmanFilterAndUpdateHist(bestMatch);
+        }
+        else {
+            this->boxHist_.clear();
+            this->pcHist_.clear();
+        }
+        
         ros::Time trackingEndTime = ros::Time::now();
         cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
     }
@@ -536,27 +639,57 @@ namespace mapManager{
         cout << "classification CB " << endl;
         ros::Time clStartTime = ros::Time::now();
         
-        for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
-            cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
-        }
+        // for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
+        //     cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
+        // }
 
         std::vector<Eigen::Vector3d> currPc;
         std::vector<Eigen::Vector3d> prevPc;
         std::vector<mapManager::box3D> dynamicBBoxesTemp;
-        
+        int curFrameGap;
+        // cout << "pc history size: " << pcHist_.size() << endl;
+
         for (size_t i=0; i<this->pcHist_.size() ; i++){
-            if (this->boxHist_[i][0].is_dynamic){
+
+            // yolo recognized as dynamic
+            if (this->boxHist_[i][0].is_human){
+                if (!this->boxHist_[i][0].is_dynamic){
+                    ROS_ERROR("yolo found but not labeld as dynamic !!");
+                }
                 dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
                 continue;
             }
 
             // history length is not enough to run classification
             if (this->pcHist_[i].size()<this->skipFrame_+1){
+                curFrameGap = this->pcHist_[i].size() - 1;
+            }
+            else{
+                curFrameGap = this->skipFrame_;
+            }
+
+            // force dynamic
+            // cout<<"box history size"<<this->boxHist_[i].size();
+            int dynaFrames = 0;
+            if ( this->boxHist_[i].size() > this->forceDynaCheckRange_){
+                // cout<<"inside "
+                for (int j=1 ; j<this->forceDynaCheckRange_+1 ; ++j){
+                    if (this->boxHist_[i][j].is_dynamic){
+                        ++dynaFrames;
+                        // cout<<"inside ++dynaFrame "<<endl;
+                    }
+                }
+            }
+            // cout << "dynamic frames: " << dynaFrames << endl;
+            // if (dynaFrames==this->forceDynaFrames_){
+            if (dynaFrames >= this->forceDynaFrames_){
+                this->boxHist_[i][0].is_dynamic = true;
+                dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
                 continue;
             }
 
             currPc = this->pcHist_[i][0];
-            prevPc = this->pcHist_[i][this->skipFrame_];
+            prevPc = this->pcHist_[i][curFrameGap];
             Eigen::Vector3d Vavg(0.,0.,0.);
             Eigen::Vector3d Vcur(0.,0.,0.);
             Eigen::Vector3d Vbox(0.,0.,0.);
@@ -564,9 +697,9 @@ namespace mapManager{
             int numPoints = currPc.size(); // it changes within loop
             int votes = 0;
 
-            Vbox(0) = (this->boxHist_[i][0].x - this->boxHist_[i][this->skipFrame_].x)/(this->dt_*this->skipFrame_);
-            Vbox(1) = (this->boxHist_[i][0].y - this->boxHist_[i][this->skipFrame_].y)/(this->dt_*this->skipFrame_);
-            Vbox(2) = (this->boxHist_[i][0].z - this->boxHist_[i][this->skipFrame_].z)/(this->dt_*this->skipFrame_);
+            Vbox(0) = (this->boxHist_[i][0].x - this->boxHist_[i][curFrameGap].x)/(this->dt_*curFrameGap);
+            Vbox(1) = (this->boxHist_[i][0].y - this->boxHist_[i][curFrameGap].y)/(this->dt_*curFrameGap);
+            Vbox(2) = (this->boxHist_[i][0].z - this->boxHist_[i][curFrameGap].z)/(this->dt_*curFrameGap);
             Vkf(0) = this->boxHist_[i][0].Vx;
             Vkf(1) = this->boxHist_[i][0].Vy;
 
@@ -575,7 +708,7 @@ namespace mapManager{
             for (int j=0 ; j<currPc.size() ; j++){
 
                 // don't perform classification for points unseen in previous frame
-                if (!this->isInFov(this->positionHist_[this->skipFrame_], this->orientationHist_[this->skipFrame_], currPc[j])){
+                if (!this->isInFov(this->positionHist_[curFrameGap], this->orientationHist_[curFrameGap], currPc[j])){
                     // ROS_WARN("skiped one new point");
                     numSkip++;
                     numPoints--;
@@ -596,10 +729,10 @@ namespace mapManager{
                     }
                 }
                 // update Vavg
-                Vcur = nearestVect/(this->dt_*this->skipFrame_);
+                Vcur = nearestVect/(this->dt_*curFrameGap);
                 Vcur(2) = 0;
                 double velSim = Vcur.dot(Vbox)/(Vcur.norm()*Vbox.norm());
-
+                // cout<<"velocity similarity "<< velSim<<endl;
                 Vavg += Vcur;
 
                 // remove this ??
@@ -627,24 +760,54 @@ namespace mapManager{
             double disturbance = (numPoints>0)?double(votes)/double(numPoints):0;
             // double displacement = Vavg.norm();
             double displacement = Vkf.norm();
-            cout << "votes percentage(disturbance) "<<i << " is "<<double(votes)/double(numPoints) << endl;
+            cout << "votes percentage(disturbance) "<<i << " is "<<disturbance << endl;
             cout << "V_AVG for obj(displacement) "<<i << " is "<<Vkf.norm() << endl;
-            cout << "score: " << disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_  <<endl;
+            cout << "Hist length(check track): " << i << " is "<< this->boxHist_[i].size() << endl;
+            // cout << "score: " << disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_  <<endl;
             cout << "skip " << numSkip << " points, rest: "<< numPoints<< "votes: " <<votes<<endl;
             // if (disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_ >= 1){
+
+            // voting and velocity threshold
             if (disturbance>=this->dynaVoteThresh_ && displacement>=this->dynaVelThresh_ && double(numSkip)/double(numPoints)<this->maxSkipRatio_){
-                ROS_INFO(
-                    "============================DYNAMIC OBJ %i DETECTED!==========================",i
-                );
-                dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
+            // if (disturbance>=this->dynaVoteThresh_ && displacement>=this->dynaVelThresh_){
+                this->boxHist_[i][0].is_dynamic_candidate = true;
+                // dynamic-consistency check
+                int dynaConsistCount = 0;
+                if (this->boxHist_[i].size() >= this->dynamicConsistThresh_){
+                    for (size_t j=0 ; j<this->dynamicConsistThresh_ ; j++){
+                        if (this->boxHist_[i][j].is_dynamic_candidate){
+                            dynaConsistCount++;
+                        }
+                    }
+                }            
+                if (dynaConsistCount == this->dynamicConsistThresh_){
+                    cout << "dynamic count: " << dynaConsistCount << endl;
+                    // set as dynamic and push into history
+                    this->boxHist_[i][0].is_dynamic = true;
+                    dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);    
+                }
+                
             }
+            
 
         }
 
         this->dynamicBBoxes_ = dynamicBBoxesTemp;
+        for (size_t i=0 ; i<this->dynamicBBoxes_.size() ; ++i){
+            if (this->dynamicBBoxes_[i].is_dynamic){
+                ROS_INFO(
+                    "============================DYNAMIC OBJ %i DETECTED!==========================",i
+                );
+            }
+            else{
+                ROS_INFO(
+                    "++++++++++++++++++++++++++++STATIC OBJ %i DETECTED!++++++++++++++++++++++++++",i
+                );
+            }
+        }
 
         ros::Time clEndTime = ros::Time::now();
-        cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
+        // cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
 
 
 
@@ -653,6 +816,10 @@ namespace mapManager{
     void dynamicDetector::visCB(const ros::TimerEvent&){
         this->publishUVImages();
         this->publish3dBox(this->uvBBoxes_, this->uvBBoxesPub_, 0, 1, 0);
+        // publish points in dynamic boxes:
+        std::vector<Eigen::Vector3d> dynamicPoints;
+        this->getDynamicPc(dynamicPoints);
+        this->publishPoints(dynamicPoints, this->dynamicPointsPub_);
         this->publishPoints(this->filteredPoints_, this->filteredPointsPub_);
         this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 1, 0, 0);
         this->publishYoloImages();
@@ -707,7 +874,7 @@ namespace mapManager{
         // cout << "size: " << this->filteredPoints_.size() << endl;
 
         // 4. cluster points and get bounding boxes
-        this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_);
+        this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_, this->pcClusterCenters_, this->pcClusterStds_);
     }
 
     void dynamicDetector::yoloDetectionTo3D(){
@@ -754,6 +921,8 @@ namespace mapManager{
     void dynamicDetector::filterBBoxes(){
         std::vector<mapManager::box3D> filteredBBoxesTemp;
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClustersTemp;
+        std::vector<Eigen::Vector3d> filteredPcClusterCentersTemp;
+        std::vector<Eigen::Vector3d> filteredPcClusterStdsTemp; 
         // find best IOU match for both uv and dbscan. If they are best for each other, then add to filtered bbox and fuse.
         for (size_t i=0 ; i<this->uvBBoxes_.size(); ++i){
             mapManager::box3D uvBBox = this->uvBBoxes_[i];
@@ -762,6 +931,8 @@ namespace mapManager{
             if (bestMatchForUVBBox == -1) continue; // no match at all
             mapManager::box3D matchedDBBBox = this->dbBBoxes_[bestMatchForUVBBox]; 
             std::vector<Eigen::Vector3d> matchedPcCluster = this->pcClusters_[bestMatchForUVBBox];
+            Eigen::Vector3d matchedPcClusterCenter = this->pcClusterCenters_[bestMatchForUVBBox];
+            Eigen::Vector3d matchedPcClusterStd = this->pcClusterStds_[bestMatchForUVBBox];
             int bestMatchForDBBBox = this->getBestOverlapBBox(matchedDBBBox, this->uvBBoxes_, bestIOUForDBBBox);
 
             // if best match is each other and both the IOU is greater than the threshold
@@ -785,7 +956,10 @@ namespace mapManager{
                 bbox.Vy = 0;
                 
                 filteredBBoxesTemp.push_back(bbox);
-                filteredPcClustersTemp.push_back(matchedPcCluster);                  
+                filteredPcClustersTemp.push_back(matchedPcCluster);      
+                filteredPcClusterCentersTemp.push_back(matchedPcClusterCenter);
+                filteredPcClusterStdsTemp.push_back(matchedPcClusterStd);
+
             }
         }
 
@@ -793,17 +967,25 @@ namespace mapManager{
         if (this->yoloBBoxes_.size() != 0){ // if no detected or not using yolo, this will not triggered
             std::vector<mapManager::box3D> filteredBBoxesTempCopy = filteredBBoxesTemp;
             std::vector<std::vector<Eigen::Vector3d>> filteredPcClustersTempCopy = filteredPcClustersTemp;
-            std::vector<Eigen::Vector3d> emptyPoints {Eigen::Vector3d {0, 0, 0}};
+            std::vector<Eigen::Vector3d> filteredPcClusterCentersTempCopy = filteredPcClusterCentersTemp;
+            std::vector<Eigen::Vector3d> filteredPcClusterStdsTempCopy = filteredPcClusterStdsTemp;
+            std::vector<Eigen::Vector3d> emptyPoints {};
+            Eigen::Vector3d emptyPcFeat {0,0,0};
             for (size_t i=0; i<this->yoloBBoxes_.size(); ++i){
-                mapManager::box3D yoloBBox = this->yoloBBoxes_[i]; yoloBBox.is_dynamic = true; // dynamic obstacle detected by yolo
+                mapManager::box3D yoloBBox = this->yoloBBoxes_[i]; yoloBBox.is_dynamic = true; yoloBBox.is_human = true; // dynamic obstacle detected by yolo
                 Eigen::Vector3d bboxPos (this->yoloBBoxes_[i].x, this->yoloBBoxes_[i].y, this->yoloBBoxes_[i].z);
                 double distanceToCamera = (bboxPos - this->position_).norm();
+                if (distanceToCamera >= this->raycastMaxLength_){
+                    continue; // do not use unreliable YOLO resutls which are distance too far from camera
+                }
                 float bestIOUForYoloBBox, bestIOUForFilteredBBox;
                 int bestMatchForYoloBBox = this->getBestOverlapBBox(yoloBBox, filteredBBoxesTemp, bestIOUForYoloBBox);
                 if (bestMatchForYoloBBox == -1){ // no match for yolo bounding boxes with any filtered bbox. 2 reasons: a) distance too far, filtered boxes no detection, b) distance not far but cannot match. Probably Yolo error
                     if (distanceToCamera >= this->yoloOverwriteDistance_){ // a) distance too far, filtered boxes no detection. directly add results
                         filteredBBoxesTempCopy.push_back(yoloBBox); // add yolo bbox because filtered bbox is not able to get detection results at far distance
                         filteredPcClustersTempCopy.push_back(emptyPoints); // no pc need for yolo 
+                        filteredPcClusterCentersTempCopy.push_back(emptyPcFeat);
+                        filteredPcClusterStdsTempCopy.push_back(emptyPcFeat);
                     }
                     else{ // b) distance not far but cannot match. Probably Yolo error, ignore results
                         continue;
@@ -814,7 +996,7 @@ namespace mapManager{
                     int bestMatchForFilteredBBox = this->getBestOverlapBBox(matchedFilteredBBox, this->yoloBBoxes_, bestIOUForFilteredBBox);
                     // if best match is each other and both the IOU is greater than the threshold
                     if (bestMatchForFilteredBBox == int(i) and bestIOUForYoloBBox > this->boxIOUThresh_ and bestIOUForFilteredBBox > this->boxIOUThresh_){
-                        mapManager::box3D bbox; bbox.is_dynamic = true;
+                        mapManager::box3D bbox; bbox.is_dynamic = true; bbox.is_human = true;
                         
                         // take concervative strategy
                         float xmax = std::max(yoloBBox.x+yoloBBox.x_width/2, matchedFilteredBBox.x+matchedFilteredBBox.x_width/2);
@@ -835,15 +1017,41 @@ namespace mapManager{
         
                         filteredBBoxesTempCopy[bestMatchForYoloBBox] = bbox; // replace the filtered bbox with the new fused bounding box
                         filteredPcClustersTempCopy[bestMatchForYoloBBox] = emptyPoints;      // since it is yolo based, we dont need pointcloud for classification                     
+                        filteredPcClusterCentersTempCopy[bestMatchForYoloBBox] = emptyPcFeat;
+                        filteredPcClusterStdsTempCopy[bestMatchForYoloBBox] = emptyPcFeat;
                     }
                 }
             }
             filteredBBoxesTemp = filteredBBoxesTempCopy;
             filteredPcClustersTemp = filteredPcClustersTempCopy;
+            filteredPcClusterCentersTemp = filteredPcClusterCentersTempCopy;
+            filteredPcClusterStdsTemp = filteredPcClusterStdsTempCopy;
         }
+
+        // if (this->boxHist_.size()){
+        //     for (size_t i=0; i<filteredBBoxesTemp.size(); ++i){ 
+        //         cout <<" index "<<i<<endl;
+        //         cout <<"history box size "<<boxHist_[i].size()<<endl;
+        //         if (this->boxHist_[i].size() >= this->fixSizeHistThresh_){
+        //             cout <<"x for BBOX "<<filteredBBoxesTemp[i].x_width<<" x for history bbox "<<this->boxHist_[i][0].x_width <<endl;
+        //             cout <<"y for BBOX "<<filteredBBoxesTemp[i].y_width<<" y for history bbox "<<this->boxHist_[i][0].y_width <<endl;
+        //             if ((filteredBBoxesTemp[i].x_width-this->boxHist_[i][0].x_width)/this->boxHist_[i][0].x_width <= this->fixSizeDimThresh_ &&
+        //                 (filteredBBoxesTemp[i].y_width-this->boxHist_[i][0].y_width)/this->boxHist_[i][0].y_width <= this->fixSizeDimThresh_&&
+        //                 (filteredBBoxesTemp[i].z_width-this->boxHist_[i][0].z_width)/this->boxHist_[i][0].z_width <= this->fixSizeDimThresh_){
+        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].x_width;
+        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].y_width;
+        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].z_width;
+        //             }
+
+        //         }
+        //     }
+        // }
+        
 
         this->filteredBBoxes_ = filteredBBoxesTemp;
         this->filteredPcClusters_ = filteredPcClustersTemp;
+        this->filteredPcClusterCenters_ = filteredPcClusterCentersTemp;
+        this->filteredPcClusterStds_ = filteredPcClusterStdsTemp;
     }
 
     void dynamicDetector::updatePoseHist(){
@@ -861,7 +1069,31 @@ namespace mapManager{
         }
     }
 
+    void dynamicDetector::calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd){
+        int numPoints = pcCluster.size();
+        
+        // center
+        for (int i=0 ; i<numPoints ; i++){
+            pcClusterCenter(0) += pcCluster[i](0)/numPoints;
+            pcClusterCenter(1) += pcCluster[i](1)/numPoints;
+            pcClusterCenter(2) += pcCluster[i](2)/numPoints;
+        }
+
+        // std
+        for (int i=0 ; i<numPoints ; i++){
+            pcClusterStd(0) += std::pow(pcCluster[i](0) - pcClusterCenter(0),2);
+            pcClusterStd(1) += std::pow(pcCluster[i](1) - pcClusterCenter(1),2);
+            pcClusterStd(2) += std::pow(pcCluster[i](2) - pcClusterCenter(2),2);
+        }        
+
+        // take square root
+        pcClusterStd(0) = std::sqrt(pcClusterStd(0)/numPoints);
+        pcClusterStd(1) = std::sqrt(pcClusterStd(1)/numPoints);
+        pcClusterStd(2) = std::sqrt(pcClusterStd(2)/numPoints);
+    }
+
    void dynamicDetector::boxAssociation(std::vector<int>& bestMatch){
+    
         if (this->filteredBBoxes_.size() != this->filteredPcClusters_.size()){
             ROS_ERROR("box and pc size mismatch! box %lu, pc %lu", this->filteredBBoxes_.size(), this->filteredPcClusters_.size());
         }
@@ -869,21 +1101,21 @@ namespace mapManager{
         int numObjs = this->filteredBBoxes_.size();
         // init history for the first frame
         if (this->boxHist_.size() == 0){
-	    cout << "first frame" << endl;
+	    // cout << "first frame" << endl;
             
             this->boxHist_.resize(numObjs);
             this->pcHist_.resize(numObjs);
             bestMatch.resize(this->filteredBBoxes_.size(), -1); // first detection no match
-	    cout << "resize" << endl;
+	    // cout << "resize" << endl;
             for (int i=0 ; i<numObjs ; i++){
                 // initialize history for bbox, pc and KF
                 this->boxHist_[i].push_back(this->filteredBBoxes_[i]);
                 this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
-                cout << "init kalman" << endl;
+                // cout << "init kalman" << endl;
                 MatrixXd states, A, B, H, P, Q, R;                
-                this->kalmanFilterMatrixVel(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
-                // this->kalmanFilterMatrixAcc(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
-		cout << "after kf matrix formation" << endl;
+                // this->kalmanFilterMatrixVel(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
+                this->kalmanFilterMatrixAcc(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
+		// cout << "after kf matrix formation" << endl;
                 mapManager::kalman_filter newFilter;
                 newFilter.setup(states, A, B, H, P, Q, R);
                 this->filters_.push_back(newFilter);
@@ -895,7 +1127,7 @@ namespace mapManager{
         else{
             // start association only if a new detection is available
             if (this->newDetectFlag_){
-		cout << "helper" << endl;
+		// cout << "helper" << endl;
                 this->boxAssociationHelper(bestMatch);
             }
             else {
@@ -913,6 +1145,8 @@ namespace mapManager{
     }
 
     void dynamicDetector::boxAssociationHelper(std::vector<int>& bestMatch){
+        cout <<"in boxassociationhelper"<<endl;
+
         int numObjs = this->filteredBBoxes_.size();
         std::vector<mapManager::box3D> propedBoxes;
         std::vector<Eigen::VectorXd> propedBoxesFeat;
@@ -920,7 +1154,7 @@ namespace mapManager{
         bestMatch.resize(numObjs);
         std::deque<std::deque<mapManager::box3D>> boxHistTemp; 
 
-	cout << "in helper " << endl;
+	// cout << "in helper " << endl;
         // linear propagation: prediction of previous box in current frame
         this->linearProp(propedBoxes);
 
@@ -940,15 +1174,22 @@ namespace mapManager{
     }
 
     void dynamicDetector::genFeatHelper(std::vector<Eigen::VectorXd>& features, const std::vector<mapManager::box3D>& boxes){ 
+        Eigen::VectorXd featureWeights(10); // 3pos + 3size + 1 pc length + 3 pc std
+        featureWeights << 2, 2, 2, 1, 1, 1, 0.5, 0.5, 0.5, 0.5;
         for (size_t i=0 ; i<boxes.size() ; i++){
-            Eigen::VectorXd feature(6);
+            Eigen::VectorXd feature(10);
             features[i] = feature;
-            features[i](0) = boxes[i].x - this->position_(0);
-            features[i](1) = boxes[i].y - this->position_(1);
-            features[i](2) = boxes[i].z - this->position_(2);
-            features[i](3) = boxes[i].x_width;
-            features[i](4) = boxes[i].y_width;
-            features[i](5) = boxes[i].z_width;
+            features[i](0) = (boxes[i].x - this->position_(0)) * featureWeights(0) ;
+            features[i](1) = (boxes[i].y - this->position_(1)) * featureWeights(1);
+            features[i](2) = (boxes[i].z - this->position_(2)) * featureWeights(2);
+            features[i](3) = boxes[i].x_width * featureWeights(3);
+            features[i](4) = boxes[i].y_width * featureWeights(4);
+            features[i](5) = boxes[i].z_width * featureWeights(5);
+            features[i](6) = this->filteredPcClusters_[i].size() * featureWeights(6);
+            features[i](7) = this->filteredPcClusterStds_[i](0) * featureWeights(7);
+            features[i](8) = this->filteredPcClusterStds_[i](1) * featureWeights(8);
+            features[i](9) = this->filteredPcClusterStds_[i](2) * featureWeights(9);
+            // cout << features[i](6) << " " << features[i](7) << " " << features[i](8) <<" " << features[i](9) << endl;
         }
     }
 
@@ -974,6 +1215,8 @@ namespace mapManager{
             int bestMatchInd = -1;
             for (size_t j=0 ; j<propedBoxes.size() ; j++){
                 double sim = propedBoxesFeat[j].dot(currBoxesFeat[i])/(propedBoxesFeat[j].norm()*currBoxesFeat[i].norm());
+                // cout << propedBoxesFeat[j] << endl;
+                // cout << currBoxesFeat[i] << endl;
                 // cout << "i " << i << "j  " << j << " sim: " << sim << " bestSIm " <<bestSim <<endl;
                 if (sim >= bestSim){
                     bestSim = sim;
@@ -1001,6 +1244,7 @@ namespace mapManager{
 
 
     void dynamicDetector::kalmanFilterAndUpdateHist(const std::vector<int>& bestMatch){
+        // cout <<"in kalmanupdate"<<endl;
         std::vector<std::deque<mapManager::box3D>> boxHistTemp; 
         std::vector<std::deque<std::vector<Eigen::Vector3d>>> pcHistTemp;
         std::vector<mapManager::kalman_filter> filtersTemp;
@@ -1009,6 +1253,8 @@ namespace mapManager{
         mapManager::kalman_filter newFilter;
         std::vector<mapManager::box3D> trackedBBoxesTemp;
 
+        newSingleBoxHist.resize(0);
+        newSinglePcHist.resize(0);
         int numObjs = this->filteredBBoxes_.size();
 
         for (int i=0 ; i<numObjs ; i++){
@@ -1025,17 +1271,25 @@ namespace mapManager{
                 mapManager::box3D prevMatchBBox = this->boxHist_[bestMatch[i]][0];
 
                 Eigen::MatrixXd Z;
-                this->getKalmanObservationVel(currDetectedBBox, prevMatchBBox, Z);
-                filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
-                newEstimatedBBox.x = this->filters_[bestMatch[i]].output(0);
-                newEstimatedBBox.y = this->filters_[bestMatch[i]].output(1);
+                // this->getKalmanObservationVel(currDetectedBBox, bestMatch[i], Z);
+                this->getKalmanObservationAcc(currDetectedBBox, bestMatch[i], Z);
+
+                // filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
+                filtersTemp.back().estimate(Z, MatrixXd::Zero(6,1));
+                newEstimatedBBox.x = filtersTemp.back().output(0);
+                newEstimatedBBox.y = filtersTemp.back().output(1);
                 newEstimatedBBox.z = currDetectedBBox.z;
-                newEstimatedBBox.Vx = this->filters_[bestMatch[i]].output(2);
-                newEstimatedBBox.Vy = this->filters_[bestMatch[i]].output(3);
+                newEstimatedBBox.Vx = filtersTemp.back().output(2);
+                newEstimatedBBox.Vy = filtersTemp.back().output(3);
+                newEstimatedBBox.Ax = filtersTemp.back().output(4);
+                newEstimatedBBox.Ay = filtersTemp.back().output(5);                
+
                 newEstimatedBBox.x_width = currDetectedBBox.x_width;
                 newEstimatedBBox.y_width = currDetectedBBox.y_width;
                 newEstimatedBBox.z_width = currDetectedBBox.z_width;
-                cout <<"obj "<<i<< " vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
+                newEstimatedBBox.is_dynamic = currDetectedBBox.is_dynamic;
+                newEstimatedBBox.is_human = currDetectedBBox.is_human;
+                // cout <<"obj "<<i<< " x "<<newEstimatedBBox.x << " y "<<newEstimatedBBox.y<<" vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
             }
             else{
                 boxHistTemp.push_back(newSingleBoxHist);
@@ -1044,7 +1298,8 @@ namespace mapManager{
                 // create new kalman filter for this object
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
                 MatrixXd states, A, B, H, P, Q, R;                
-                this->kalmanFilterMatrixVel(currDetectedBBox, states, A, B, H, P, Q, R);
+                this->kalmanFilterMatrixAcc(currDetectedBBox, states, A, B, H, P, Q, R);
+                // this->kalmanFilterMatrixVel(currDetectedBBox, states, A, B, H, P, Q, R);
                 newFilter.setup(states, A, B, H, P, Q, R);
                 filtersTemp.push_back(newFilter);
                 newEstimatedBBox = currDetectedBBox;
@@ -1058,12 +1313,36 @@ namespace mapManager{
             }
 
             // push new data into history
+            // cout << "history update after kalman filter: "<<newEstimatedBBox.x_width << newEstimatedBBox.y_width<<endl;
             boxHistTemp[i].push_front(newEstimatedBBox);  // TODO: should be tracked bboxes !!!!!!!!
             pcHistTemp[i].push_front(this->filteredPcClusters_[i]);
 
             // update new tracked bounding boxes
             trackedBBoxesTemp.push_back(newEstimatedBBox);
         }
+
+        if (boxHistTemp.size()){
+            for (size_t i=0; i<trackedBBoxesTemp.size(); ++i){ 
+                // cout <<" index "<<i<<endl;
+                // cout <<"history box size "<<boxHistTemp[i].size()<<endl;
+                if (boxHistTemp[i].size() >= this->fixSizeHistThresh_){
+                    // cout <<"x for BBOX "<<trackedBBoxesTemp[i].x_width<<" x for history bbox "<<boxHistTemp[i][0].x_width <<endl;
+                    // cout <<"y for BBOX "<<trackedBBoxesTemp[i].y_width<<" y for history bbox "<<boxHistTemp[i][0].y_width <<endl;
+                    if ((abs(trackedBBoxesTemp[i].x_width-boxHistTemp[i][1].x_width)/boxHistTemp[i][1].x_width) <= this->fixSizeDimThresh_ &&
+                        (abs(trackedBBoxesTemp[i].y_width-boxHistTemp[i][1].y_width)/boxHistTemp[i][1].y_width) <= this->fixSizeDimThresh_&&
+                        (abs(trackedBBoxesTemp[i].z_width-boxHistTemp[i][1].z_width)/boxHistTemp[i][1].z_width) <= this->fixSizeDimThresh_){
+                        trackedBBoxesTemp[i].x_width = boxHistTemp[i][1].x_width;
+                        trackedBBoxesTemp[i].y_width = boxHistTemp[i][1].y_width;
+                        trackedBBoxesTemp[i].z_width = boxHistTemp[i][1].z_width;
+                        boxHistTemp[i][0].x_width = trackedBBoxesTemp[i].x_width;
+                        boxHistTemp[i][0].y_width = trackedBBoxesTemp[i].y_width;
+                        boxHistTemp[i][0].z_width = trackedBBoxesTemp[i].z_width;
+                    }
+
+                }
+            }
+        }
+        
 
         // update history member variable
         this->boxHist_ = boxHistTemp;
@@ -1076,7 +1355,7 @@ namespace mapManager{
     }
 
     void dynamicDetector::kalmanFilterMatrixVel(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R){
-	cout << "in matrix " << endl;
+	// cout << "in matrix " << endl;
         states.resize(4,1);
         states(0) = currDetectedBBox.x;
         states(1) = currDetectedBBox.y;
@@ -1094,8 +1373,10 @@ namespace mapManager{
         B = MatrixXd::Zero(4, 4);
         H = MatrixXd::Identity(4, 4);
         P = MatrixXd::Identity(4, 4) * this->eP_;
-        Q = MatrixXd::Identity(4, 4) * this->eQ_;
-        R = MatrixXd::Identity(4, 4) * this->eR_;
+        Q = MatrixXd::Identity(4, 4);
+        Q(0,0) *= this->eQPos_; Q(1,1) *= this->eQPos_; Q(2,2) *= this->eQVel_; Q(3,3) *= this->eQVel_; 
+        R = MatrixXd::Identity(4, 4);
+        R(0,0) *= this->eRPos_; R(1,1) *= this->eRPos_; R(2,2) *= this->eRVel_; R(3,3) *= this->eRVel_;
 
     }
 
@@ -1122,26 +1403,59 @@ namespace mapManager{
         B = MatrixXd::Zero(6, 6);
         H = MatrixXd::Identity(6, 6);
         P = MatrixXd::Identity(6, 6) * this->eP_;
-        Q = MatrixXd::Identity(6, 6) * this->eQ_;
-        R = MatrixXd::Identity(6, 6) * this->eR_;       
+        Q = MatrixXd::Identity(6, 6);
+        Q(0,0) *= this->eQPos_; Q(1,1) *= this->eQPos_; Q(2,2) *= this->eQVel_; Q(3,3) *= this->eQVel_; Q(4,4) *= this->eQAcc_; Q(5,5) *= this->eQAcc_;
+        R = MatrixXd::Identity(6, 6);
+        R(0,0) *= this->eRPos_; R(1,1) *= this->eRPos_; R(2,2) *= this->eRVel_; R(3,3) *= this->eRVel_; R(4,4) *= this->eRAcc_; R(5,5) *= this->eRAcc_;
     }
 
-    void dynamicDetector::getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z){
+    void dynamicDetector::getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z){
         Z.resize(4,1);
         Z(0) = currDetectedBBox.x; 
         Z(1) = currDetectedBBox.y;
-        Z(2) = (currDetectedBBox.x-prevMatchBBox.x)/this->dt_;
-        Z(3) = (currDetectedBBox.y-prevMatchBBox.y)/this->dt_;
+
+        // use previous k frame for velocity estimation
+        int k = this->kfAvgFrames_;
+        int historySize = this->boxHist_[bestMatchIdx].size();
+        if (historySize < k){
+            k = historySize;
+        }
+        mapManager::box3D prevMatchBBox = this->boxHist_[bestMatchIdx][k-1];
+
+        // for (size_t i=0 ; i<; ++i){
+        //     cout << this->boxHist_[bestMatchIdx]
+        // }
+        // cout << "prevMatchBBox "<< prevMatchBBox.x << " " << prevMatchBBox.y << " " << endl;
+        // cout << "currDetectedBBox "<< currDetectedBBox.x << " " << currDetectedBBox.y << " " << endl;
+
+        Z(2) = (currDetectedBBox.x-prevMatchBBox.x)/(this->dt_*k);
+        Z(3) = (currDetectedBBox.y-prevMatchBBox.y)/(this->dt_*k);
+        // cout << "obsevation Z: " << endl;
+        // cout << Z << endl;
     }
 
-    void dynamicDetector::getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z){
+    void dynamicDetector::getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z){
         Z.resize(6, 1);
         Z(0) = currDetectedBBox.x;
         Z(1) = currDetectedBBox.y;
-        Z(2) = (currDetectedBBox.x - prevMatchBBox.x)/this->dt_;
-        Z(3) = (currDetectedBBox.y - prevMatchBBox.y)/this->dt_;
-        Z(4) = (currDetectedBBox.Vx - prevMatchBBox.Vx)/this->dt_;
-        Z(5) = (currDetectedBBox.Vy - prevMatchBBox.Vy)/this->dt_;
+
+        // use previous k frame for velocity estimation
+        int k = this->kfAvgFrames_;
+        int historySize = this->boxHist_[bestMatchIdx].size();
+        if (historySize < k){
+            k = historySize;
+        }
+        mapManager::box3D prevMatchBBox = this->boxHist_[bestMatchIdx][k-1];
+
+        Z(2) = (currDetectedBBox.x - prevMatchBBox.x)/(this->dt_*k);
+        Z(3) = (currDetectedBBox.y - prevMatchBBox.y)/(this->dt_*k);
+        // Z(4) = (currDetectedBBox.Vx - prevMatchBBox.Vx)/this->dt_;
+        // Z(5) = (currDetectedBBox.Vy - prevMatchBBox.Vy)/this->dt_;
+        Z(4) = (Z(2) - prevMatchBBox.Vx)/(this->dt_*k);
+        Z(5) = (Z(3) - prevMatchBBox.Vy)/(this->dt_*k);
+        
+        // cout << "obsevation Z: " << endl;
+        // cout << Z << endl;
     }
  
     void dynamicDetector::projectDepthImage(){
@@ -1200,7 +1514,7 @@ namespace mapManager{
     }
 
 
-    void dynamicDetector::clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters){
+    void dynamicDetector::clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds){
         std::vector<mapManager::Point> pointsDB;
         this->eigenToDBPointVec(points, pointsDB, points.size());
 
@@ -1227,6 +1541,14 @@ namespace mapManager{
                 Eigen::Vector3d p = this->dbPointToEigen(pDB);
                 pcClusters[pDB.clusterID-1].push_back(p);
             }            
+        }
+
+        for (size_t i=0 ; i<pcClusters.size() ; ++i){
+            Eigen::Vector3d pcClusterCenter(0.,0.,0.);
+            Eigen::Vector3d pcClusterStd(0.,0.,0.);
+            this->calcPcFeat(pcClusters[i], pcClusterCenter, pcClusterStd);
+            pcClusterCenters.push_back(pcClusterCenter);
+            pcClusterStds.push_back(pcClusterStd);
         }
 
         // calculate the bounding boxes based on the clusters
@@ -1493,6 +1815,29 @@ namespace mapManager{
         this->detectedAlignedDepthImgPub_.publish(detectedAlignedImgMsg);
     }
 
+    void dynamicDetector::getDynamicPc(std::vector<Eigen::Vector3d>& dynamicPc){
+        Eigen::Vector3d curPoint;
+        for (size_t i=0 ; i<this->filteredPoints_.size() ; ++i){
+            curPoint = this->filteredPoints_[i];
+            for (size_t j=0; j<this->dynamicBBoxes_.size() ; ++j){
+                // cout << "dynamic point check:" << endl;
+                // cout <<abs(curPoint(0)-this->dynamicBBoxes_[i].x)<<endl;
+                // cout <<abs(curPoint(0)-this->dynamicBBoxes_[i].y)<<endl;
+                // cout <<abs(curPoint(0)-this->dynamicBBoxes_[i].z)<<endl;
+                // cout << "dynamic box width:" << endl;
+                // cout << this->dynamicBBoxes_[j].x_width/2 << endl;
+                // cout << this->dynamicBBoxes_[j].y_width/2 << endl;
+                // cout << this->dynamicBBoxes_[j].z_width/2 << endl;
+                if (abs(curPoint(0)-this->dynamicBBoxes_[j].x)<=this->dynamicBBoxes_[j].x_width/2 and 
+                    abs(curPoint(1)-this->dynamicBBoxes_[j].y)<=this->dynamicBBoxes_[j].y_width/2 and 
+                    abs(curPoint(2)-this->dynamicBBoxes_[j].z)<=this->dynamicBBoxes_[j].z_width/2) {
+                        dynamicPc.push_back(curPoint);
+                        break;
+                    }
+            }
+        }
+    }
+
     void dynamicDetector::publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher){
         pcl::PointXYZ pt;
         pcl::PointCloud<pcl::PointXYZ> cloud;        
@@ -1511,6 +1856,8 @@ namespace mapManager{
         pcl::toROSMsg(cloud, cloudMsg);
         publisher.publish(cloudMsg);
     }
+
+    // void dynamicDetector::
 
 
     void dynamicDetector::publish3dBox(const std::vector<box3D>& boxes, const ros::Publisher& publisher, double r, double g, double b) {
@@ -1534,13 +1881,15 @@ namespace mapManager{
             line.text = " Vx " + std::to_string(boxes[i].Vx) + " Vy " + std::to_string(boxes[i].Vy);
             double x = boxes[i].x; 
             double y = boxes[i].y; 
-            double z = boxes[i].z; 
+            double z = (boxes[i].z+boxes[i].z_width/2)/2; 
 
             // double x_width = std::max(boxes[i].x_width,boxes[i].y_width);
             // double y_width = std::max(boxes[i].x_width,boxes[i].y_width);
             double x_width = boxes[i].x_width;
             double y_width = boxes[i].y_width;
-            double z_width = boxes[i].z_width;
+            double z_width = 2*z;
+
+            // double z = 
             
             vector<geometry_msgs::Point> verts;
             geometry_msgs::Point p;
@@ -1727,22 +2076,27 @@ namespace mapManager{
         Eigen::Vector3d camUnitZ(0,0,1);
         Eigen::Vector3d camRay;
         Eigen::Vector3d displacement; 
+        
 
+        // // print worldRay
+        // cout << worldRay
         // z is in depth direction in camera coord
         camRay = orientation.inverse()*worldRay;
+        // cout <<"orientation Inverse matrix " << orientation.inverse()<<endl;
+        // cout <<"camera ray before dot " <<camRay <<endl;
 
         double camRayX = abs(camRay.dot(camUnitX));
         double camRayY = abs(camRay.dot(camUnitY));
         double camRayZ = abs(camRay.dot(camUnitZ));
 
-        // cout << camRayX << " " << camRayY << " " << camRayX << endl;
+        // cout << camRayX << " " << camRayY << " " << camRayZ << endl;
 
         double htan = camRayX/camRayZ;
         double vtan = camRayY/camRayZ;
-
+        
         double pi = 3.1415926;
         // cout <<" htan: " << htan << " vtan: " << vtan <<endl;
-        return htan<tan(31*pi/180) && vtan<tan(21.8*pi/180) && camRayZ<this->depthMaxValue_;
+        return htan<tan(42*pi/180) && vtan<tan(28*pi/180) && camRayZ<this->depthMaxValue_;
 
     }
     
@@ -1758,6 +2112,11 @@ namespace mapManager{
             }
         }
         return bestIOUIdx;
+    }
+
+    // user functions
+    void dynamicDetector::getDynamicObstacles(std::vector<mapManager::box3D>& incomeDynamicBBoxes){
+        incomeDynamicBBoxes = this->dynamicBBoxes_;
     }
 
 }

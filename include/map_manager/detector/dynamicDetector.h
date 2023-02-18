@@ -54,6 +54,7 @@ namespace mapManager{
         image_transport::Publisher uvBirdViewPub_;
         image_transport::Publisher detectedAlignedDepthImgPub_;
         ros::Publisher uvBBoxesPub_;
+        ros::Publisher dynamicPointsPub_;
         ros::Publisher filteredPointsPub_;
         ros::Publisher dbBBoxesPub_;
         ros::Publisher yoloBBoxesPub_;
@@ -101,9 +102,19 @@ namespace mapManager{
         double dynaVoteThresh_;
         double maxSkipRatio_;
         double voxelOccThresh_;
+        int fixSizeHistThresh_;
+        double fixSizeDimThresh_;
         double eP_; // kalman filter initial uncertainty matrix
-        double eQ_; // motion model uncertainty matrix
-        double eR_; // observation uncertainty matrix
+        double eQPos_; // motion model uncertainty matrix for position
+        double eQVel_; // motion model uncertainty matrix for velocity
+        double eQAcc_; // motion model uncertainty matrix for acceleration
+        double eRPos_; // observation uncertainty matrix for position
+        double eRVel_; // observation uncertainty matrix for velocity
+        double eRAcc_; // observation uncertainty matrix for acceleration
+        int forceDynaFrames_;
+        int forceDynaCheckRange_;
+        int dynamicConsistThresh_;
+        int kfAvgFrames_;
 
         // SENSOR DATA
         cv::Mat depthImage_;
@@ -122,11 +133,15 @@ namespace mapManager{
         std::vector<Eigen::Vector3d> filteredPoints_; // filtered point cloud data
         std::vector<mapManager::box3D> dbBBoxes_; // DBSCAN bounding boxes        
         std::vector<std::vector<Eigen::Vector3d>> pcClusters_; // pointcloud clusters
+        std::vector<Eigen::Vector3d> pcClusterCenters_; // pointcloud cluster centers
+        std::vector<Eigen::Vector3d> pcClusterStds_; // pointcloud cluster standard deviation in each axis
         std::vector<mapManager::box3D> filteredBBoxes_; // filtered bboxes
         std::vector<std::vector<Eigen::Vector3d>> filteredPcClusters_; // pointcloud clusters after filtering by UV and DBSCAN fusion
+        std::vector<Eigen::Vector3d> filteredPcClusterCenters_; // filtered pointcloud cluster centers
+        std::vector<Eigen::Vector3d> filteredPcClusterStds_; // filtered pointcloud cluster standard deviation in each axis
         std::vector<mapManager::box3D> trackedBBoxes_; // bboxes tracked from kalman filtering
         std::vector<mapManager::box3D> dynamicBBoxes_; // boxes classified as dynamic
-
+        // std::vector<int> recentDynaFrames_; // recent number of frames being detected as dynamic for each obstacle
 
         // TRACKING AND ASSOCIATION DATA
         bool newDetectFlag_;
@@ -177,8 +192,8 @@ namespace mapManager{
         void kalmanFilterAndUpdateHist(const std::vector<int>& bestMatch);
         void kalmanFilterMatrixVel(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R);
         void kalmanFilterMatrixAcc(const mapManager::box3D& currDetectedBBox, MatrixXd& states, MatrixXd& A, MatrixXd& B, MatrixXd& H, MatrixXd& P, MatrixXd& Q, MatrixXd& R);
-        void getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z);
-        void getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, const mapManager::box3D& prevMatchBBox, MatrixXd& Z);
+        void getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
+        void getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
 
         
         // uv Detector Functions
@@ -187,9 +202,10 @@ namespace mapManager{
         // DBSCAN Detector Functions
         void projectDepthImage();
         void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
-        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters);
+        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
         void updatePoseHist();
+        void calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd);
 
         // detection helper functions
         float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
@@ -203,6 +219,7 @@ namespace mapManager{
 
 
         // visualization
+        void getDynamicPc(std::vector<Eigen::Vector3d>& dynamicPc);
         void publishUVImages(); 
         void publishYoloImages();
         void publishPoints(const std::vector<Eigen::Vector3d>& points, const ros::Publisher& publisher);
@@ -216,6 +233,7 @@ namespace mapManager{
         bool isInFov(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation, Eigen::Vector3d& point);
         int getBestOverlapBBox(const mapManager::box3D& currBBox, const std::vector<mapManager::box3D>& targetBBoxes, float& bestIOU);
 
+
         // inline helper functions
         bool isInFilterRange(const Eigen::Vector3d& pos);
         void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& idx, double res);
@@ -228,8 +246,8 @@ namespace mapManager{
         Eigen::Vector3d dbPointToEigen(const mapManager::Point& pDB);
         void eigenToDBPointVec(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::Point>& pointsDB, int size);
 
-        // user function
-        
+        // user functions
+        void getDynamicObstacles(std::vector<mapManager::box3D>& incomeDynamicBBoxes);
     };
 
 

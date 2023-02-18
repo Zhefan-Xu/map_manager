@@ -33,15 +33,22 @@ namespace mapManager{
 
     void kalman_filter::estimate(const MatrixXd& z, const MatrixXd& u)
     {
+        
         // predict
         this->states = this->A * this->states + this->B * u;
         this->P = this->A * this->P * this->A.transpose() + this->Q;
 
+        // cout << "prediction: " << endl;
+        // cout << this->states << endl;
+        
+
         // update
         MatrixXd S = this->R + this->H * this->P * this->H.transpose(); // innovation matrix
         MatrixXd K = this->P * this->H.transpose() * S.inverse(); // kalman gain
+ 
         this->states = this->states + K * (z - this->H * this->states);
         this->P = (MatrixXd::Identity(this->P.rows(),this->P.cols()) - K * this->H) * this->P;
+
     }
 
     double kalman_filter::output(int state_index)
