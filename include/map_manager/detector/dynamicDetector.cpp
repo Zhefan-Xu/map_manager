@@ -503,6 +503,14 @@ namespace mapManager{
         // test state estimation
         this->dynamicVelPub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/dynamic_vel", 1);     
 		this->dynamicPosPub_ = this->nh_.advertise<geometry_msgs::PointStamped>(this->ns_+"/dynamic_pos", 1);
+
+        // test running time
+        this->detectingTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/detecting_time", 1);  
+        this->trackingTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/tracking_time", 1);  
+        this->classificationTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/classification_time", 1);  
+        this->UVTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/uv_time", 1);  
+        this->DBSCANTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/dbscan_time", 1);  
+
     }   
 
     void dynamicDetector::registerCallback(){
@@ -617,11 +625,17 @@ namespace mapManager{
         this->dbscanDetect();
         ros::Time dbEndTime = ros::Time::now();
         // cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
+        std_msgs::Float64 dbscanTime;
+        dbscanTime.data = (dbEndTime - dbStartTime).toSec();
+        this->DBSCANTimePub_.publish(dbscanTime);
 
         ros::Time uvStartTime = ros::Time::now();
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
         // cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+        std_msgs::Float64 uvTime;
+        uvTime.data = (uvEndTime - uvStartTime).toSec();
+        this->UVTimePub_.publish(uvTime);
 
 
         this->yoloDetectionTo3D();
@@ -629,8 +643,11 @@ namespace mapManager{
         this->filterBBoxes();
 
         this->newDetectFlag_ = true; // get a new detection
-	ros::Time totalEndTime = ros::Time::now();
-	cout << "detect time: " << (totalEndTime - totalStartTime).toSec() << endl;
+	    ros::Time totalEndTime = ros::Time::now();
+	    cout << "detect time: " << (totalEndTime - totalStartTime).toSec() << endl;
+        std_msgs::Float64 detectingTime;
+        detectingTime.data = (totalEndTime - totalStartTime).toSec();
+        this->detectingTimePub_.publish(detectingTime);
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
@@ -650,7 +667,10 @@ namespace mapManager{
         }
         
         ros::Time trackingEndTime = ros::Time::now();
-       // cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
+        cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
+        std_msgs::Float64 trackingTime;
+        trackingTime.data = (trackingEndTime - trackingStartTime).toSec();
+        this->trackingTimePub_.publish(trackingTime);
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
@@ -827,8 +847,10 @@ namespace mapManager{
         // }
 
         ros::Time clEndTime = ros::Time::now();
-        // cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
-
+        cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
+        std_msgs::Float64 classificationTime;
+        classificationTime.data = (clEndTime - clStartTime).toSec();
+        this->classificationTimePub_.publish(classificationTime);
 
 
     }

@@ -65,6 +65,12 @@ namespace mapManager{
         ros::Publisher velVisPub_;
         ros::Publisher dynamicVelPub_;
         ros::Publisher dynamicPosPub_;
+        ros::Publisher detectingTimePub_;
+        ros::Publisher trackingTimePub_;
+        ros::Publisher classificationTimePub_;
+        ros::Publisher UVTimePub_;
+        ros::Publisher DBSCANTimePub_;
+
 
 
         // DETECTOR

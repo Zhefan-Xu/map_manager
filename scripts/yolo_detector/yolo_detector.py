@@ -4,7 +4,9 @@ import cv2
 import numpy as np
 import torch
 import os
+import std_msgs
 from sensor_msgs.msg import Image
+# from sensor_msgs.msg import poin
 from vision_msgs.msg import Detection2DArray
 from vision_msgs.msg import Detection2D
 from cv_bridge import CvBridge
@@ -41,6 +43,7 @@ class yolo_detector:
         # publisher
         self.img_pub = rospy.Publisher("yolo_detector/detected_image", Image, queue_size=10)
         self.bbox_pub = rospy.Publisher("yolo_detector/detected_bounding_boxes", Detection2DArray, queue_size=10)
+        self.time_pub = rospy.Publisher("yolo_detector/yolo_time", std_msgs.msg.Float64, queue_size=1)
 
         # timer
         rospy.Timer(rospy.Duration(0.033), self.detect_callback)
@@ -52,10 +55,14 @@ class yolo_detector:
         self.img_received = True
 
     def detect_callback(self, event):
+        startTime = rospy.Time.now()
         if (self.img_received == True):
             output = self.inference(self.img)
             self.detected_img, self.detected_bboxes = self.postprocess(self.img, output)
             self.img_detected = True
+        endTime = rospy.Time.now()
+        self.time_pub.publish((endTime-startTime).to_sec())
+        
 
     def vis_callback(self, event):
         if (self.img_detected == True):
