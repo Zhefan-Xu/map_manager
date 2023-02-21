@@ -5,6 +5,8 @@
 */
 #include <map_manager/detector/dynamicDetector.h>
 #include <math.h>
+#include "std_msgs/Float64.h"
+#include <geometry_msgs/PointStamped.h>
 
 namespace mapManager{
     dynamicDetector::dynamicDetector(){
@@ -205,6 +207,15 @@ namespace mapManager{
         }
         else{
             cout << this->hint_ << ": Raycast max length: " << this->raycastMaxLength_ << endl;
+        }
+
+        // turn on benchmark copmarison with ETH-ZJU method
+        if (not this->nh_.getParam(this->ns_ + "/benchmark", this->benchMark_)){
+            this->benchMark_ = 0;
+            cout << this->hint_ << ": No benchmark flag. Use default: 0." << endl;
+        }
+        else{
+            cout << this->hint_ << ": benchmark flag: " << this->benchMark_ << endl;
         }
 
         // min num of points for a voxel to be occupied in voxel filter
@@ -488,6 +499,10 @@ namespace mapManager{
 
         // velocity visualization pub
         this->velVisPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/velocity_visualizaton", 10);
+
+        // test state estimation
+        this->dynamicVelPub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/dynamic_vel", 1);     
+		this->dynamicPosPub_ = this->nh_.advertise<geometry_msgs::PointStamped>(this->ns_+"/dynamic_pos", 1);
     }   
 
     void dynamicDetector::registerCallback(){
@@ -834,6 +849,7 @@ namespace mapManager{
         this->publish3dBox(this->dynamicBBoxes_, this->dynamicBBoxesPub_, 0, 1, 1);
         this->publishHistoryTraj();
         this->publishVelVis();
+        this->publishVelAndPos(this->dynamicBBoxes_);
     }
 
     void dynamicDetector::uvDetect(){
@@ -959,6 +975,19 @@ namespace mapManager{
                 bbox.z_width = zmax-zmin;
                 bbox.Vx = 0;
                 bbox.Vy = 0;
+
+
+                // benchmark methods uses point cloud center for further state estimation
+                if (this->benchMark_){
+                    Eigen::Vector3d matchedPcClusterCenter(0.,0.,0.);
+                    Eigen::Vector3d matchedPcClusterStd(0.,0.,0.);
+                    this->calcPcFeat(matchedPcCluster, matchedPcClusterCenter, matchedPcClusterStd);
+                    bbox.x = matchedPcClusterCenter(0);
+                    bbox.y = matchedPcClusterCenter(1);
+                    bbox.z = matchedPcClusterCenter(2);
+
+                    cout << " center differecne: " << matchedPcClusterCenter(0) - (xmin+xmax)/2 << " " <<matchedPcClusterCenter(1) - (ymin+ymax)/2 << " " << matchedPcClusterCenter(2) - (zmin+zmax)/2 << endl;
+                }
                 
                 filteredBBoxesTemp.push_back(bbox);
                 filteredPcClustersTemp.push_back(matchedPcCluster);      
@@ -1117,9 +1146,13 @@ namespace mapManager{
                 this->boxHist_[i].push_back(this->filteredBBoxes_[i]);
                 this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
                 // cout << "init kalman" << endl;
-                MatrixXd states, A, B, H, P, Q, R;                
-                // this->kalmanFilterMatrixVel(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
-                this->kalmanFilterMatrixAcc(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
+                MatrixXd states, A, B, H, P, Q, R;       
+                if (this->benchMark_) {
+                    this->kalmanFilterMatrixVel(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
+                }
+                else {
+                    this->kalmanFilterMatrixAcc(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
+                }
 		// cout << "after kf matrix formation" << endl;
                 mapManager::kalman_filter newFilter;
                 newFilter.setup(states, A, B, H, P, Q, R);
@@ -1276,18 +1309,25 @@ namespace mapManager{
                 mapManager::box3D prevMatchBBox = this->boxHist_[bestMatch[i]][0];
 
                 Eigen::MatrixXd Z;
-                // this->getKalmanObservationVel(currDetectedBBox, bestMatch[i], Z);
-                this->getKalmanObservationAcc(currDetectedBBox, bestMatch[i], Z);
-
-                // filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
-                filtersTemp.back().estimate(Z, MatrixXd::Zero(6,1));
+                if (this->benchMark_){
+                    this->getKalmanObservationVel(currDetectedBBox, bestMatch[i], Z);
+                    filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
+                }
+                else {
+                    this->getKalmanObservationAcc(currDetectedBBox, bestMatch[i], Z);
+                    filtersTemp.back().estimate(Z, MatrixXd::Zero(6,1));
+                }
+                
                 newEstimatedBBox.x = filtersTemp.back().output(0);
                 newEstimatedBBox.y = filtersTemp.back().output(1);
                 newEstimatedBBox.z = currDetectedBBox.z;
                 newEstimatedBBox.Vx = filtersTemp.back().output(2);
                 newEstimatedBBox.Vy = filtersTemp.back().output(3);
-                newEstimatedBBox.Ax = filtersTemp.back().output(4);
-                newEstimatedBBox.Ay = filtersTemp.back().output(5);                
+
+                if (!this->benchMark_){
+                    newEstimatedBBox.Ax = filtersTemp.back().output(4);
+                    newEstimatedBBox.Ay = filtersTemp.back().output(5);   
+                }             
 
                 newEstimatedBBox.x_width = currDetectedBBox.x_width;
                 newEstimatedBBox.y_width = currDetectedBBox.y_width;
@@ -1302,9 +1342,13 @@ namespace mapManager{
 
                 // create new kalman filter for this object
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
-                MatrixXd states, A, B, H, P, Q, R;                
-                this->kalmanFilterMatrixAcc(currDetectedBBox, states, A, B, H, P, Q, R);
-                // this->kalmanFilterMatrixVel(currDetectedBBox, states, A, B, H, P, Q, R);
+                MatrixXd states, A, B, H, P, Q, R;    
+                if (this->benchMark_) {
+                    this->kalmanFilterMatrixVel(currDetectedBBox, states, A, B, H, P, Q, R);
+                }
+                else {
+                    this->kalmanFilterMatrixAcc(currDetectedBBox, states, A, B, H, P, Q, R);
+                }
                 newFilter.setup(states, A, B, H, P, Q, R);
                 filtersTemp.push_back(newFilter);
                 newEstimatedBBox = currDetectedBBox;
@@ -2022,6 +2066,22 @@ namespace mapManager{
         }
         this->velVisPub_.publish(velVisMsg);
     }
+
+    void dynamicDetector::publishVelAndPos(const std::vector<box3D> &dynamicBBoxes){
+		std_msgs::Float64 velocity;
+		geometry_msgs::PointStamped p;
+		for (size_t i=0 ; i<dynamicBBoxes.size() ; i++){
+            double v = std::sqrt(std::pow(dynamicBBoxes[i].Vx,2) + std::pow(dynamicBBoxes[i].Vy,2));
+			velocity.data = v;
+			p.header.frame_id = "map";
+			p.header.stamp = ros::Time::now();
+			p.point.x = dynamicBBoxes[i].x;
+			p.point.y = dynamicBBoxes[i].y;
+			p.point.z = dynamicBBoxes[i].z;
+			this->dynamicVelPub_.publish(velocity);
+			this->dynamicPosPub_.publish(p);
+		}
+	}
 
     void dynamicDetector::transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
                                                Eigen::Vector3d& newCenter, Eigen::Vector3d& newSize){
