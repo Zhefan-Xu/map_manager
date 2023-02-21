@@ -1010,6 +1010,12 @@ namespace mapManager{
 
                     cout << " center differecne: " << matchedPcClusterCenter(0) - (xmin+xmax)/2 << " " <<matchedPcClusterCenter(1) - (ymin+ymax)/2 << " " << matchedPcClusterCenter(2) - (zmin+zmax)/2 << endl;
                 }
+
+                if (this->benchMark_ == 2){
+                    bbox.x = this->uvBBoxes_[bestMatchForUVBBox].x;
+                    bbox.y = this->uvBBoxes_[bestMatchForUVBBox].y;
+                    bbox.z = this->uvBBoxes_[bestMatchForUVBBox].z;
+                }
                 
                 filteredBBoxesTemp.push_back(bbox);
                 filteredPcClustersTemp.push_back(matchedPcCluster);      

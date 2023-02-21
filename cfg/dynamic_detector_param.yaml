@@ -37,7 +37,7 @@ body_to_camera_color: [0.0,  0.0,  1.0,  0.065,
 raycast_max_length: 5.0
 
 # benchmark comparison
-benchmark: 0 # 1 for turn on bench mark, 0 for not
+benchmark: 2 # 1 for turn on bench mark, 0 for not
 
 # time difference
 time_difference: 0.033
