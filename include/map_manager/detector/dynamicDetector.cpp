@@ -624,7 +624,7 @@ namespace mapManager{
         ros::Time dbStartTime = ros::Time::now();
         this->dbscanDetect();
         ros::Time dbEndTime = ros::Time::now();
-        // cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
+        cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
         std_msgs::Float64 dbscanTime;
         dbscanTime.data = (dbEndTime - dbStartTime).toSec();
         this->DBSCANTimePub_.publish(dbscanTime);
@@ -632,7 +632,7 @@ namespace mapManager{
         ros::Time uvStartTime = ros::Time::now();
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
-        // cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+        cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
         std_msgs::Float64 uvTime;
         uvTime.data = (uvEndTime - uvStartTime).toSec();
         this->UVTimePub_.publish(uvTime);
