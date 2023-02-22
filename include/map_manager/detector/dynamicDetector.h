@@ -63,6 +63,14 @@ namespace mapManager{
         ros::Publisher dynamicBBoxesPub_;
         ros::Publisher historyTrajPub_;
         ros::Publisher velVisPub_;
+        ros::Publisher dynamicVelPub_;
+        ros::Publisher dynamicPosPub_;
+        ros::Publisher detectingTimePub_;
+        ros::Publisher trackingTimePub_;
+        ros::Publisher classificationTimePub_;
+        ros::Publisher UVTimePub_;
+        ros::Publisher DBSCANTimePub_;
+
 
 
         // DETECTOR
@@ -89,6 +97,7 @@ namespace mapManager{
         std::string poseTopicName_;
         std::string odomTopicName_;
         double raycastMaxLength_;
+        int benchMark_;
         double groundHeight_;
         int dbMinPointsCluster_;
         double dbEpsilon_;
@@ -226,6 +235,7 @@ namespace mapManager{
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, double r, double g, double b);
         void publishHistoryTraj();
         void publishVelVis();
+        void publishVelAndPos(const std::vector<box3D> &dynamicBBoxes);
 
         // helper function
         void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
