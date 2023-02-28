@@ -1,5 +1,7 @@
+sensor_input_mode: 0 # 0: depth image (default) 1: pointcloud 
 localization_mode: 0 # 0: pose (default) 1: odom
 depth_image_topic: /camera/depth/image_raw
+point_cloud_topic: /camera/depth/points
 pose_topic: /CERLAB/quadcopter/pose
 odom_topic: /CERLAB/quadcopter/odom
 
@@ -18,7 +20,7 @@ image_rows: 480
 body_to_camera: [0.0,  0.0,  1.0,  0.09,
                 -1.0,  0.0,  0.0,  0.0 ,   
                  0.0, -1.0,  0.0,  0.095,
-                 0.0,  0.0,  0.0,  1.0]
+                 0.0,  0.0,  0.0,  1.0] # or body to lidar
 
 # Raycasting
 raycast_max_length: 5.0

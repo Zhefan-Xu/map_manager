@@ -27,6 +27,16 @@ namespace mapManager{
 	}
 
 	void occMap::initParam(){
+		// sensor input mode
+		if (not this->nh_.getParam(this->ns_ + "/sensor_input_mode", this->sensorInputMode_)){
+			this->sensorInputMode_ = 0;
+			cout << this->hint_ << ": No sensor input mode option. Use default: depth image" << endl;
+		}
+		else{
+			cout << this->hint_ << ": Sensor input mode: depth image (0)/pointcloud (1). Your option: " << this->sensorInputMode_ << endl;
+		}		
+
+
 		// localization mode
 		if (not this->nh_.getParam(this->ns_ + "/localization_mode", this->localizationMode_)){
 			this->localizationMode_ = 0;
@@ -43,6 +53,15 @@ namespace mapManager{
 		}
 		else{
 			cout << this->hint_ << ": Depth topic: " << this->depthTopicName_ << endl;
+		}
+
+		// pointcloud topic name
+		if (not this->nh_.getParam(this->ns_ + "/point_cloud_topic", this->pointcloudTopicName_)){
+			this->pointcloudTopicName_ = "/camera/depth/points";
+			cout << this->hint_ << ": No depth image topic name. Use default: /camera/depth/points" << endl;
+		}
+		else{
+			cout << this->hint_ << ": Pointcloud topic: " << this->pointcloudTopicName_ << endl;
 		}
 
 		if (this->localizationMode_ == 0){
@@ -366,20 +385,44 @@ namespace mapManager{
 	}
 
 	void occMap::registerCallback(){
-		// depth pose callback
-		this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
-		if (this->localizationMode_ == 0){
-			this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
-			this->depthPoseSync_.reset(new message_filters::Synchronizer<depthPoseSync>(depthPoseSync(100), *this->depthSub_, *this->poseSub_));
-			this->depthPoseSync_->registerCallback(boost::bind(&occMap::depthPoseCB, this, _1, _2));
+		if (this->sensorInputMode_ == 0){
+			// depth pose callback
+			this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
+			if (this->localizationMode_ == 0){
+				this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
+				this->depthPoseSync_.reset(new message_filters::Synchronizer<depthPoseSync>(depthPoseSync(100), *this->depthSub_, *this->poseSub_));
+				this->depthPoseSync_->registerCallback(boost::bind(&occMap::depthPoseCB, this, _1, _2));
+			}
+			else if (this->localizationMode_ == 1){
+				this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
+				this->depthOdomSync_.reset(new message_filters::Synchronizer<depthOdomSync>(depthOdomSync(100), *this->depthSub_, *this->odomSub_));
+				this->depthOdomSync_->registerCallback(boost::bind(&occMap::depthOdomCB, this, _1, _2));
+			}
+			else{
+				ROS_ERROR("[OccMap]: Invalid localization mode!");
+				exit(0);
+			}
 		}
-		else if (this->localizationMode_ == 1){
-			this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
-			this->depthOdomSync_.reset(new message_filters::Synchronizer<depthOdomSync>(depthOdomSync(100), *this->depthSub_, *this->odomSub_));
-			this->depthOdomSync_->registerCallback(boost::bind(&occMap::depthOdomCB, this, _1, _2));
+		else if (this->sensorInputMode_ == 1){
+			// pointcloud callback
+			this->pointcloudSub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(this->nh_, this->pointcloudTopicName_, 50));
+			if (this->localizationMode_ == 0){
+				this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
+				this->pointcloudPoseSync_.reset(new message_filters::Synchronizer<pointcloudPoseSync>(pointcloudPoseSync(100), *this->pointcloudSub_, *this->poseSub_));
+				this->pointcloudPoseSync_->registerCallback(boost::bind(&occMap::pointcloudPoseCB, this, _1, _2));
+			}
+			else if (this->localizationMode_ == 1){
+				this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
+				this->pointcloudOdomSync_.reset(new message_filters::Synchronizer<pointcloudOdomSync>(pointcloudOdomSync(100), *this->pointcloudSub_, *this->odomSub_));
+				this->pointcloudOdomSync_->registerCallback(boost::bind(&occMap::pointcloudOdomCB, this, _1, _2));
+			}
+			else{
+				ROS_ERROR("[OccMap]: Invalid localization mode!");
+				exit(0);
+			}
 		}
 		else{
-			ROS_ERROR("[OccMap]: Invalid localization mode!");
+			ROS_ERROR("[OccMap]: Invalid sensor input mode!");
 			exit(0);
 		}
 
@@ -451,6 +494,49 @@ namespace mapManager{
 		}
 	}
 
+	void occMap::pointcloudPoseCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const geometry_msgs::PoseStampedConstPtr& pose){
+		// directly get the point cloud
+		this->pointcloud_ = pointcloud;
+
+		// store current position and orientation (camera)
+		Eigen::Matrix4d camPoseMatrix;
+		this->getCameraPose(pose, camPoseMatrix);
+
+		this->position_(0) = camPoseMatrix(0, 3);
+		this->position_(1) = camPoseMatrix(1, 3);
+		this->position_(2) = camPoseMatrix(2, 3);
+		this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+
+		if (this->isInMap(this->position_)){
+			this->occNeedUpdate_ = true;
+		}
+		else{
+			this->occNeedUpdate_ = false;
+		}
+	}
+
+	void occMap::pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom){
+		// directly get the point cloud
+		this->pointcloud_ = pointcloud;
+
+
+		// store current position and orientation (camera)
+		Eigen::Matrix4d camPoseMatrix;
+		this->getCameraPose(odom, camPoseMatrix);
+
+		this->position_(0) = camPoseMatrix(0, 3);
+		this->position_(1) = camPoseMatrix(1, 3);
+		this->position_(2) = camPoseMatrix(2, 3);
+		this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+
+		if (this->isInMap(this->position_)){
+			this->occNeedUpdate_ = true;
+		}
+		else{
+			this->occNeedUpdate_ = false;
+		}
+	}
+
 	void occMap::updateOccupancyCB(const ros::TimerEvent& ){
 		if (not this->occNeedUpdate_){
 			return;
@@ -459,8 +545,14 @@ namespace mapManager{
 		ros::Time startTime, endTime;
 		
 		startTime = ros::Time::now();
-		// project 3D points from depth map
-		this->projectDepthImage();
+		if (this->sensorInputMode_ == 0){
+			// project 3D points from depth map
+			this->projectDepthImage();
+		}
+		else{
+			// directly get pointcloud
+			this->getPointcloud();
+		}
 
 		// raycasting and update occupancy
 		this->raycastUpdate();
@@ -533,6 +625,18 @@ namespace mapManager{
 		} 
 	}
 
+	void occMap::getPointcloud(){
+		this->projPointsNum_ = this->pointcloud_->height * this->pointcloud_->width;
+		this->projPoints_.resize(this->projPointsNum_);
+		Eigen::Vector3d currPointCam, currPointMap;
+		for (int i=0; i<this->projPointsNum_; ++i){
+			currPointCam(0) = this->pointcloud_->data[i * this->pointcloud_->point_step + this->pointcloud_->fields[0].offset];
+			currPointCam(1) = this->pointcloud_->data[i * this->pointcloud_->point_step + this->pointcloud_->fields[1].offset];
+			currPointCam(2) = this->pointcloud_->data[i * this->pointcloud_->point_step + this->pointcloud_->fields[2].offset];
+			currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
+			this->projPoints_[i] = currPointMap;
+		}
+	}
 
 	void occMap::raycastUpdate(){
 		if (this->projPointsNum_ == 0){

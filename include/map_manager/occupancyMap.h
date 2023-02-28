@@ -35,12 +35,17 @@ namespace mapManager{
 		// ROS
 		ros::NodeHandle nh_;
 		std::shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> depthSub_;
+		std::shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> pointcloudSub_;
 		std::shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> poseSub_;
 		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped> depthPoseSync;
 		std::shared_ptr<message_filters::Synchronizer<depthPoseSync>> depthPoseSync_;
 		std::shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odomSub_;
 		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry> depthOdomSync;
 		std::shared_ptr<message_filters::Synchronizer<depthOdomSync>> depthOdomSync_;
+		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, geometry_msgs::PoseStamped> pointcloudPoseSync;
+		std::shared_ptr<message_filters::Synchronizer<pointcloudPoseSync>> pointcloudPoseSync_;
+		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry> pointcloudOdomSync;
+		std::shared_ptr<message_filters::Synchronizer<pointcloudOdomSync>> pointcloudOdomSync_;	
 		ros::Timer occTimer_;
 		ros::Timer inflateTimer_;
 		ros::Timer visTimer_;
@@ -48,8 +53,10 @@ namespace mapManager{
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
 
+		int sensorInputMode_;
 		int localizationMode_;
 		std::string depthTopicName_; // depth image topic
+		std::string pointcloudTopicName_; // point cloud topic
 		std::string poseTopicName_;  // pose topic
 		std::string odomTopicName_; // odom topic 
 
@@ -94,6 +101,7 @@ namespace mapManager{
 		// -----------------------------------------------------------------
 		// SENSOR DATA
 		cv::Mat depthImage_;
+		sensor_msgs::PointCloud2ConstPtr pointcloud_;
 		Eigen::Vector3d position_; // current position
 		Eigen::Matrix3d orientation_; // current orientation
 		Eigen::Vector3i localBoundMin_, localBoundMax_; // sensor data range
@@ -136,11 +144,14 @@ namespace mapManager{
 		// callback
 		void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
 		void depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
+		void pointcloudPoseCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const geometry_msgs::PoseStampedConstPtr& pose);
+		void pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom);
 		void updateOccupancyCB(const ros::TimerEvent& );
 		void inflateMapCB(const ros::TimerEvent& );
 
 		// core function
 		void projectDepthImage();
+		void getPointcloud();
 		void raycastUpdate();
 		void cleanLocalMap();
 		void inflateLocalMap();
