@@ -1,9 +1,9 @@
-sensor_input_mode: 0 # 0: depth image (default) 1: pointcloud 
-localization_mode: 0 # 0: pose (default) 1: odom
+sensor_input_mode: 1 # 0: depth image (default) 1: pointcloud 
+localization_mode: 1 # 0: pose (default) 1: odom
 depth_image_topic: /camera/depth/image_raw
-point_cloud_topic: /camera/depth/points
+point_cloud_topic: /theia/os_cloud_node/points
 pose_topic: /CERLAB/quadcopter/pose
-odom_topic: /CERLAB/quadcopter/odom
+odom_topic: /vins_estimator/odometry
 
 # robot size
 robot_size: [0.5, 0.5, 0.3]
@@ -17,9 +17,9 @@ depth_filter_margin: 2 # filter
 depth_skip_pixel: 2 # filter
 image_cols: 640
 image_rows: 480
-body_to_camera: [0.0,  0.0,  1.0,  0.09,
-                -1.0,  0.0,  0.0,  0.0 ,   
-                 0.0, -1.0,  0.0,  0.095,
+body_to_camera: [1.0,  0.0,  1.0,  0.00,
+                 0.0,  1.0,  0.0,  0.0 ,   
+                 0.0,  1.0,  1.0,  0.43,
                  0.0,  0.0,  0.0,  1.0] # or body to lidar
 
 # Raycasting
@@ -43,4 +43,4 @@ clean_local_map: false
 local_map_size: [20, 20, 6] # meter. in x y z direction (only for visualization)
 max_height_visualization: 2.5 # m
 visualize_global_map: true
-verbose: false
+verbose: true

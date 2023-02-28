@@ -549,7 +549,7 @@ namespace mapManager{
 			// project 3D points from depth map
 			this->projectDepthImage();
 		}
-		else{
+		else if (this->sensorInputMode_ == 1){
 			// directly get pointcloud
 			this->getPointcloud();
 		}
@@ -628,6 +628,7 @@ namespace mapManager{
 	void occMap::getPointcloud(){
 		this->projPointsNum_ = this->pointcloud_->height * this->pointcloud_->width;
 		this->projPoints_.resize(this->projPointsNum_);
+		cout << "projPointsNum_" << this->projPointsNum_ << endl;
 		Eigen::Vector3d currPointCam, currPointMap;
 		for (int i=0; i<this->projPointsNum_; ++i){
 			currPointCam(0) = this->pointcloud_->data[i * this->pointcloud_->point_step + this->pointcloud_->fields[0].offset];
