@@ -496,7 +496,9 @@ namespace mapManager{
 
 	void occMap::pointcloudPoseCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const geometry_msgs::PoseStampedConstPtr& pose){
 		// directly get the point cloud
-		this->pointcloud_ = pointcloud;
+		pcl::PCLPointCloud2 pclPC2;
+		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
+		pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
 
 		// store current position and orientation (camera)
 		Eigen::Matrix4d camPoseMatrix;
@@ -517,7 +519,9 @@ namespace mapManager{
 
 	void occMap::pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom){
 		// directly get the point cloud
-		this->pointcloud_ = pointcloud;
+		pcl::PCLPointCloud2 pclPC2;
+		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
+		pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
 
 
 		// store current position and orientation (camera)
@@ -626,14 +630,13 @@ namespace mapManager{
 	}
 
 	void occMap::getPointcloud(){
-		this->projPointsNum_ = this->pointcloud_->height * this->pointcloud_->width;
+		this->projPointsNum_ = this->pointcloud_.size();
 		this->projPoints_.resize(this->projPointsNum_);
-		cout << "projPointsNum_" << this->projPointsNum_ << endl;
 		Eigen::Vector3d currPointCam, currPointMap;
 		for (int i=0; i<this->projPointsNum_; ++i){
-			currPointCam(0) = this->pointcloud_->data[i * this->pointcloud_->point_step + this->pointcloud_->fields[0].offset];
-			currPointCam(1) = this->pointcloud_->data[i * this->pointcloud_->point_step + this->pointcloud_->fields[1].offset];
-			currPointCam(2) = this->pointcloud_->data[i * this->pointcloud_->point_step + this->pointcloud_->fields[2].offset];
+			currPointCam(0) = this->pointcloud_.points[i].x;
+			currPointCam(1) = this->pointcloud_.points[i].y;
+			currPointCam(2) = this->pointcloud_.points[i].z;
 			currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 			this->projPoints_[i] = currPointMap;
 		}
@@ -658,6 +661,9 @@ namespace mapManager{
 		double length;
 		for (int i=0; i<this->projPointsNum_; ++i){
 			currPoint = this->projPoints_[i];
+			if (std::isnan(currPoint(0)) or std::isnan(currPoint(1)) or std::isnan(currPoint(2))){
+				continue; // nan points can happen when we are using pointcloud as input
+			}
 
 			pointAdjusted = false;
 			// check whether the point is in reserved map range

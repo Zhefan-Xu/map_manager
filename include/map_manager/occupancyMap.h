@@ -101,7 +101,7 @@ namespace mapManager{
 		// -----------------------------------------------------------------
 		// SENSOR DATA
 		cv::Mat depthImage_;
-		sensor_msgs::PointCloud2ConstPtr pointcloud_;
+		pcl::PointCloud<pcl::PointXYZ> pointcloud_;
 		Eigen::Vector3d position_; // current position
 		Eigen::Matrix3d orientation_; // current orientation
 		Eigen::Vector3i localBoundMin_, localBoundMax_; // sensor data range

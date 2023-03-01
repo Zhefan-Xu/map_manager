@@ -175,7 +175,7 @@ add_dependencies(mapManagerOctomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 target_link_libraries(mapManagerOctomap ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(esdf_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
