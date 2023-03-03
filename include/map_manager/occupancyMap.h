@@ -14,6 +14,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <nav_msgs/OccupancyGrid.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -52,6 +53,7 @@ namespace mapManager{
 		ros::Publisher depthCloudPub_;
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
+		ros::Publisher map2DPub_;
 
 		int sensorInputMode_;
 		int localizationMode_;
@@ -182,6 +184,7 @@ namespace mapManager{
 		void publishProjPoints();
 		void publishMap();
 		void publishInflatedMap();
+		void publish2DOccupancyGrid();
 
 		// helper functions
 		double logit(double x);

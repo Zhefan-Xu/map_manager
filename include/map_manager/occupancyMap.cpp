@@ -440,6 +440,7 @@ namespace mapManager{
 		this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud", 10);
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
+		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
 		// this->visWorker_ = std::thread(&occMap::startVisualization, this);
 	}
 
@@ -887,6 +888,7 @@ namespace mapManager{
 		this->publishProjPoints();
 		this->publishMap();
 		this->publishInflatedMap();
+		this->publish2DOccupancyGrid();
 	}
 
 	// void occMap::startVisualization(){
@@ -945,6 +947,7 @@ namespace mapManager{
 			for (int y=minRangeIdx(1); y<=maxRangeIdx(1); ++y){
 				for (int z=minRangeIdx(2); z<=maxRangeIdx(2); ++z){
 					Eigen::Vector3i pointIdx (x, y, z);
+
 					// if (this->occupancy_[this->indexToAddress(pointIdx)] > this->pMinLog_){
 					if (this->isOccupied(pointIdx)){
 						Eigen::Vector3d point;
@@ -1017,5 +1020,50 @@ namespace mapManager{
 		sensor_msgs::PointCloud2 cloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
 		this->inflatedMapVisPub_.publish(cloudMsg);	
+	}
+
+	void occMap::publish2DOccupancyGrid(){
+		Eigen::Vector3d minRange, maxRange;
+		minRange = this->mapSizeMin_;
+		maxRange = this->mapSizeMax_;
+		minRange(2) = this->groundHeight_;
+		Eigen::Vector3i minRangeIdx, maxRangeIdx;
+		this->posToIndex(minRange, minRangeIdx);
+		this->posToIndex(maxRange, maxRangeIdx);
+		this->boundIndex(minRangeIdx);
+		this->boundIndex(maxRangeIdx);
+
+		nav_msgs::OccupancyGrid mapMsg;
+		for (int i=0; i<maxRangeIdx(0); ++i){
+			for (int j=0; j<maxRangeIdx(1); ++j){
+				mapMsg.data.push_back(0);
+			}
+		}
+
+		double z = 0.5;
+		int zIdx = int(z/this->mapRes_);
+		for (int x=minRangeIdx(0); x<=maxRangeIdx(0); ++x){
+			for (int y=minRangeIdx(1); y<=maxRangeIdx(1); ++y){
+				Eigen::Vector3i pointIdx (x, y, zIdx);
+				int map2DIdx = x + maxRangeIdx(1) * y;
+				if (this->isUnknown(pointIdx)){
+					mapMsg.data[map2DIdx] = -1;
+				}
+				else if (this->isOccupied(pointIdx)){
+					mapMsg.data[map2DIdx] = 100;
+				}
+				else{
+					mapMsg.data[map2DIdx] = 0;
+				}
+			}
+		}
+		mapMsg.header.frame_id = "map";
+		mapMsg.header.stamp = ros::Time::now();
+		mapMsg.info.resolution = this->mapRes_;
+		mapMsg.info.width = maxRangeIdx(1);
+		mapMsg.info.height = maxRangeIdx(0);
+		mapMsg.info.origin.position.x = minRange(1);
+		mapMsg.info.origin.position.y = minRange(0);
+		this->map2DPub_.publish(mapMsg);		
 	}
 }
