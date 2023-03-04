@@ -88,6 +88,7 @@ namespace mapManager{
 		Eigen::Vector3d localUpdateRange_; // self defined local update range
 		double localBoundInflate_; // inflate local map for some distance
 		bool cleanLocalMap_; 
+		std::string preloadMapDir_;
 
 		// VISUALZATION
 		double maxVisHeight_;
@@ -140,6 +141,7 @@ namespace mapManager{
 		occMap(const ros::NodeHandle& nh);
 		void initMap(const ros::NodeHandle& nh);
 		void initParam();
+		void initPreloadMap();
 		void registerCallback();
 		void registerPub();
 

@@ -22,6 +22,7 @@ namespace mapManager{
 	void occMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();
+		this->initPreloadMap();
 		this->registerPub();
 		this->registerCallback();
 	}
@@ -337,6 +338,15 @@ namespace mapManager{
 			cout << this->hint_ << ": Clean local map option is set to: " << this->cleanLocalMap_ << endl; 
 		}
 
+		// absolute dir of preload map file(.pcd)
+		if (not this->nh_.getParam(this->ns_ + "/preload_map_dir", this->preloadMapDir_)){
+			this->preloadMapDir_ = "empty";
+			cout << this->hint_ << ": No preload map dir found. Use default: empty." << endl;
+		}
+		else{
+			cout << this->hint_ << ": the preload map absolute dir is found: " << this->preloadMapDir_ << endl;
+		}
+
 		// local map size (visualization)
 		std::vector<double> localMapSizeVec;
 		if (not this->nh_.getParam(this->ns_ + "/local_map_size", localMapSizeVec)){
@@ -382,6 +392,57 @@ namespace mapManager{
 		}
 
 
+	}
+
+	void occMap::initPreloadMap(){
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+
+		if (pcl::io::loadPCDFile<pcl::PointXYZ> (this->preloadMapDir_, *cloud) == -1) //* load the file
+		{
+			ROS_ERROR("Couldn't read file test_pcd.pcd ");
+		}
+		else {
+			std::cout << "Loaded "
+				<< cloud->width * cloud->height
+				<< " data points from test_pcd.pcd with the following fields: "
+				<< std::endl;
+			int address;
+			Eigen::Vector3i pointIndex;
+			Eigen::Vector3d pointPos;
+			Eigen::Vector3i inflateIndex;
+			int inflateAddress;
+
+			// update occupancy info
+			int xInflateSize = ceil(this->robotSize_(0)/(2*this->mapRes_));
+			int yInflateSize = ceil(this->robotSize_(1)/(2*this->mapRes_));
+			int zInflateSize = ceil(this->robotSize_(2)/(2*this->mapRes_));
+
+			const int  maxIndex = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
+			for (const auto& point: *cloud)
+			{
+				address = this->posToAddress(point.x, point.y, point.z);
+				pointPos(0) = point.x; pointPos(1) = point.y; pointPos(2) = point.z;
+				this->posToIndex(pointPos, pointIndex);
+
+				this->occupancy_[address] = this->pMaxLog_;
+				for (int ix=-xInflateSize; ix<=xInflateSize; ++ix){
+					for (int iy=-yInflateSize; iy<=yInflateSize; ++iy){
+						for (int iz=-zInflateSize; iz<=zInflateSize; ++iz){
+							inflateIndex(0) = pointIndex(0) + ix;
+							inflateIndex(1) = pointIndex(1) + iy;
+							inflateIndex(2) = pointIndex(2) + iz;
+							inflateAddress = this->indexToAddress(inflateIndex);
+							if ((inflateAddress < 0) or (inflateAddress > maxIndex)){
+								continue; // those points are not in the reserved map
+							} 
+							this->occupancyInflated_[inflateAddress] = true;
+						}
+					}
+				}
+
+			}
+
+		}
 	}
 
 	void occMap::registerCallback(){
@@ -639,7 +700,9 @@ namespace mapManager{
 			currPointCam(1) = this->pointcloud_.points[i].y;
 			currPointCam(2) = this->pointcloud_.points[i].z;
 			currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
-			this->projPoints_[i] = currPointMap;
+			if ((currPointMap-this->position_).norm()>=0.5){
+				this->projPoints_[i] = currPointMap;
+			}
 		}
 	}
 
