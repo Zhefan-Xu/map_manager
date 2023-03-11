@@ -22,11 +22,22 @@ namespace mapManager{
 	void occMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();
+		this->initPreloadMap();
 		this->registerPub();
 		this->registerCallback();
 	}
 
 	void occMap::initParam(){
+		// sensor input mode
+		if (not this->nh_.getParam(this->ns_ + "/sensor_input_mode", this->sensorInputMode_)){
+			this->sensorInputMode_ = 0;
+			cout << this->hint_ << ": No sensor input mode option. Use default: depth image" << endl;
+		}
+		else{
+			cout << this->hint_ << ": Sensor input mode: depth image (0)/pointcloud (1). Your option: " << this->sensorInputMode_ << endl;
+		}		
+
+
 		// localization mode
 		if (not this->nh_.getParam(this->ns_ + "/localization_mode", this->localizationMode_)){
 			this->localizationMode_ = 0;
@@ -43,6 +54,15 @@ namespace mapManager{
 		}
 		else{
 			cout << this->hint_ << ": Depth topic: " << this->depthTopicName_ << endl;
+		}
+
+		// pointcloud topic name
+		if (not this->nh_.getParam(this->ns_ + "/point_cloud_topic", this->pointcloudTopicName_)){
+			this->pointcloudTopicName_ = "/camera/depth/points";
+			cout << this->hint_ << ": No depth image topic name. Use default: /camera/depth/points" << endl;
+		}
+		else{
+			cout << this->hint_ << ": Pointcloud topic: " << this->pointcloudTopicName_ << endl;
 		}
 
 		if (this->localizationMode_ == 0){
@@ -153,7 +173,6 @@ namespace mapManager{
 			cout << this->hint_ << ": Depth image rows: " << this->imgRows_ << endl;
 		}
 		this->projPoints_.resize(this->imgCols_ * this->imgRows_ / (this->skipPixel_ * this->skipPixel_));
-		this->pointsDepth_.resize(this->projPoints_.size());
 		// ------------------------------------------------------------------------------------
 
 
@@ -319,6 +338,15 @@ namespace mapManager{
 			cout << this->hint_ << ": Clean local map option is set to: " << this->cleanLocalMap_ << endl; 
 		}
 
+		// absolute dir of preload map file(.pcd)
+		if (not this->nh_.getParam(this->ns_ + "/preload_map_dir", this->preloadMapDir_)){
+			this->preloadMapDir_ = "empty";
+			cout << this->hint_ << ": No preload map dir found. Use default: empty." << endl;
+		}
+		else{
+			cout << this->hint_ << ": the preload map absolute dir is found: " << this->preloadMapDir_ << endl;
+		}
+
 		// local map size (visualization)
 		std::vector<double> localMapSizeVec;
 		if (not this->nh_.getParam(this->ns_ + "/local_map_size", localMapSizeVec)){
@@ -330,16 +358,6 @@ namespace mapManager{
 		}
 		this->localMapSize_(0) = localMapSizeVec[0]/2; this->localMapSize_(1) = localMapSizeVec[1]/2; this->localMapSize_(2) = localMapSizeVec[2]/2;
 		this->localMapVoxel_(0) = int(ceil(localMapSizeVec[0]/(2*this->mapRes_))); this->localMapVoxel_(1) = int(ceil(localMapSizeVec[1]/(2*this->mapRes_))); this->localMapVoxel_(2) = int(ceil(localMapSizeVec[2]/(2*this->mapRes_)));
-		// local map:
-		// init min max
-		this->localMapSizeMin_(0) = -localMapSizeVec[0]/2; this->localMapSizeMax_(0) = localMapSizeVec[0]/2;
-		this->localMapSizeMin_(1) = -localMapSizeVec[1]/2; this->localMapSizeMax_(1) = localMapSizeVec[1]/2;
-		this->localMapSizeMin_(2) = this->groundHeight_; this->localMapSizeMax_(2) = this->groundHeight_ + localMapSizeVec[2];
-		
-		// min max for voxel
-		this->localMapVoxelMin_(0) = 0; this->localMapVoxelMax_(0) = ceil(localMapSizeVec[0]/this->mapRes_);
-		this->localMapVoxelMin_(1) = 0; this->localMapVoxelMax_(1) = ceil(localMapSizeVec[1]/this->mapRes_);
-		this->localMapVoxelMin_(2) = 0; this->localMapVoxelMax_(2) = ceil(localMapSizeVec[2]/this->mapRes_);
 
 		// max vis height
 		if (not this->nh_.getParam(this->ns_ + "/max_height_visualization", this->maxVisHeight_)){
@@ -376,21 +394,96 @@ namespace mapManager{
 
 	}
 
-	void occMap::registerCallback(){
-		// depth pose callback
-		this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
-		if (this->localizationMode_ == 0){
-			this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
-			this->depthPoseSync_.reset(new message_filters::Synchronizer<depthPoseSync>(depthPoseSync(100), *this->depthSub_, *this->poseSub_));
-			this->depthPoseSync_->registerCallback(boost::bind(&occMap::depthPoseCB, this, _1, _2));
+	void occMap::initPreloadMap(){
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+
+		if (pcl::io::loadPCDFile<pcl::PointXYZ> (this->preloadMapDir_, *cloud) == -1) //* load the file
+		{
+			ROS_ERROR("Couldn't read file test_pcd.pcd ");
 		}
-		else if (this->localizationMode_ == 1){
-			this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
-			this->depthOdomSync_.reset(new message_filters::Synchronizer<depthOdomSync>(depthOdomSync(100), *this->depthSub_, *this->odomSub_));
-			this->depthOdomSync_->registerCallback(boost::bind(&occMap::depthOdomCB, this, _1, _2));
+		else {
+			std::cout << "Loaded "
+				<< cloud->width * cloud->height
+				<< " data points from test_pcd.pcd with the following fields: "
+				<< std::endl;
+			int address;
+			Eigen::Vector3i pointIndex;
+			Eigen::Vector3d pointPos;
+			Eigen::Vector3i inflateIndex;
+			int inflateAddress;
+
+			// update occupancy info
+			int xInflateSize = ceil(this->robotSize_(0)/(2*this->mapRes_));
+			int yInflateSize = ceil(this->robotSize_(1)/(2*this->mapRes_));
+			int zInflateSize = ceil(this->robotSize_(2)/(2*this->mapRes_));
+
+			const int  maxIndex = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
+			for (const auto& point: *cloud)
+			{
+				address = this->posToAddress(point.x, point.y, point.z);
+				pointPos(0) = point.x; pointPos(1) = point.y; pointPos(2) = point.z;
+				this->posToIndex(pointPos, pointIndex);
+
+				this->occupancy_[address] = this->pMaxLog_;
+				for (int ix=-xInflateSize; ix<=xInflateSize; ++ix){
+					for (int iy=-yInflateSize; iy<=yInflateSize; ++iy){
+						for (int iz=-zInflateSize; iz<=zInflateSize; ++iz){
+							inflateIndex(0) = pointIndex(0) + ix;
+							inflateIndex(1) = pointIndex(1) + iy;
+							inflateIndex(2) = pointIndex(2) + iz;
+							inflateAddress = this->indexToAddress(inflateIndex);
+							if ((inflateAddress < 0) or (inflateAddress > maxIndex)){
+								continue; // those points are not in the reserved map
+							} 
+							this->occupancyInflated_[inflateAddress] = true;
+						}
+					}
+				}
+
+			}
+
+		}
+	}
+
+	void occMap::registerCallback(){
+		if (this->sensorInputMode_ == 0){
+			// depth pose callback
+			this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
+			if (this->localizationMode_ == 0){
+				this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
+				this->depthPoseSync_.reset(new message_filters::Synchronizer<depthPoseSync>(depthPoseSync(100), *this->depthSub_, *this->poseSub_));
+				this->depthPoseSync_->registerCallback(boost::bind(&occMap::depthPoseCB, this, _1, _2));
+			}
+			else if (this->localizationMode_ == 1){
+				this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
+				this->depthOdomSync_.reset(new message_filters::Synchronizer<depthOdomSync>(depthOdomSync(100), *this->depthSub_, *this->odomSub_));
+				this->depthOdomSync_->registerCallback(boost::bind(&occMap::depthOdomCB, this, _1, _2));
+			}
+			else{
+				ROS_ERROR("[OccMap]: Invalid localization mode!");
+				exit(0);
+			}
+		}
+		else if (this->sensorInputMode_ == 1){
+			// pointcloud callback
+			this->pointcloudSub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(this->nh_, this->pointcloudTopicName_, 50));
+			if (this->localizationMode_ == 0){
+				this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
+				this->pointcloudPoseSync_.reset(new message_filters::Synchronizer<pointcloudPoseSync>(pointcloudPoseSync(100), *this->pointcloudSub_, *this->poseSub_));
+				this->pointcloudPoseSync_->registerCallback(boost::bind(&occMap::pointcloudPoseCB, this, _1, _2));
+			}
+			else if (this->localizationMode_ == 1){
+				this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
+				this->pointcloudOdomSync_.reset(new message_filters::Synchronizer<pointcloudOdomSync>(pointcloudOdomSync(100), *this->pointcloudSub_, *this->odomSub_));
+				this->pointcloudOdomSync_->registerCallback(boost::bind(&occMap::pointcloudOdomCB, this, _1, _2));
+			}
+			else{
+				ROS_ERROR("[OccMap]: Invalid localization mode!");
+				exit(0);
+			}
 		}
 		else{
-			ROS_ERROR("[OccMap]: Invalid localization mode!");
+			ROS_ERROR("[OccMap]: Invalid sensor input mode!");
 			exit(0);
 		}
 
@@ -408,6 +501,7 @@ namespace mapManager{
 		this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud", 10);
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
+		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
 		// this->visWorker_ = std::thread(&occMap::startVisualization, this);
 	}
 
@@ -462,6 +556,53 @@ namespace mapManager{
 		}
 	}
 
+	void occMap::pointcloudPoseCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const geometry_msgs::PoseStampedConstPtr& pose){
+		// directly get the point cloud
+		pcl::PCLPointCloud2 pclPC2;
+		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
+		pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
+
+		// store current position and orientation (camera)
+		Eigen::Matrix4d camPoseMatrix;
+		this->getCameraPose(pose, camPoseMatrix);
+
+		this->position_(0) = camPoseMatrix(0, 3);
+		this->position_(1) = camPoseMatrix(1, 3);
+		this->position_(2) = camPoseMatrix(2, 3);
+		this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+
+		if (this->isInMap(this->position_)){
+			this->occNeedUpdate_ = true;
+		}
+		else{
+			this->occNeedUpdate_ = false;
+		}
+	}
+
+	void occMap::pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom){
+		// directly get the point cloud
+		pcl::PCLPointCloud2 pclPC2;
+		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
+		pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
+
+
+		// store current position and orientation (camera)
+		Eigen::Matrix4d camPoseMatrix;
+		this->getCameraPose(odom, camPoseMatrix);
+
+		this->position_(0) = camPoseMatrix(0, 3);
+		this->position_(1) = camPoseMatrix(1, 3);
+		this->position_(2) = camPoseMatrix(2, 3);
+		this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+
+		if (this->isInMap(this->position_)){
+			this->occNeedUpdate_ = true;
+		}
+		else{
+			this->occNeedUpdate_ = false;
+		}
+	}
+
 	void occMap::updateOccupancyCB(const ros::TimerEvent& ){
 		if (not this->occNeedUpdate_){
 			return;
@@ -470,8 +611,14 @@ namespace mapManager{
 		ros::Time startTime, endTime;
 		
 		startTime = ros::Time::now();
-		// project 3D points from depth map
-		this->projectDepthImage();
+		if (this->sensorInputMode_ == 0){
+			// project 3D points from depth map
+			this->projectDepthImage();
+		}
+		else if (this->sensorInputMode_ == 1){
+			// directly get pointcloud
+			this->getPointcloud();
+		}
 
 		// raycasting and update occupancy
 		this->raycastUpdate();
@@ -515,7 +662,6 @@ namespace mapManager{
 		const double inv_fx = 1.0 / this->fx_;
 		const double inv_fy = 1.0 / this->fy_;
 
-		this->pointsDepth_.clear();
 
 		// iterate through each pixel in the depth image
 		for (int v=this->depthFilterMargin_; v<rows-this->depthFilterMargin_; v=v+this->skipPixel_){ // row
@@ -539,16 +685,26 @@ namespace mapManager{
 				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 
 				// store current point
-				// if (this->depthMinValue_<=depth && this->depthMaxValue_>depth){
-				// if (true){
 				this->projPoints_[this->projPointsNum_] = currPointMap;
 				this->projPointsNum_ = this->projPointsNum_ + 1;
-				this->pointsDepth_.push_back(depth);
-
 			}
 		} 
 	}
 
+	void occMap::getPointcloud(){
+		this->projPointsNum_ = this->pointcloud_.size();
+		this->projPoints_.resize(this->projPointsNum_);
+		Eigen::Vector3d currPointCam, currPointMap;
+		for (int i=0; i<this->projPointsNum_; ++i){
+			currPointCam(0) = this->pointcloud_.points[i].x;
+			currPointCam(1) = this->pointcloud_.points[i].y;
+			currPointCam(2) = this->pointcloud_.points[i].z;
+			currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
+			if ((currPointMap-this->position_).norm()>=0.5){
+				this->projPoints_[i] = currPointMap;
+			}
+		}
+	}
 
 	void occMap::raycastUpdate(){
 		if (this->projPointsNum_ == 0){
@@ -569,6 +725,9 @@ namespace mapManager{
 		double length;
 		for (int i=0; i<this->projPointsNum_; ++i){
 			currPoint = this->projPoints_[i];
+			if (std::isnan(currPoint(0)) or std::isnan(currPoint(1)) or std::isnan(currPoint(2))){
+				continue; // nan points can happen when we are using pointcloud as input
+			}
 
 			pointAdjusted = false;
 			// check whether the point is in reserved map range
@@ -792,6 +951,7 @@ namespace mapManager{
 		this->publishProjPoints();
 		this->publishMap();
 		this->publishInflatedMap();
+		this->publish2DOccupancyGrid();
 	}
 
 	// void occMap::startVisualization(){
@@ -850,6 +1010,7 @@ namespace mapManager{
 			for (int y=minRangeIdx(1); y<=maxRangeIdx(1); ++y){
 				for (int z=minRangeIdx(2); z<=maxRangeIdx(2); ++z){
 					Eigen::Vector3i pointIdx (x, y, z);
+
 					// if (this->occupancy_[this->indexToAddress(pointIdx)] > this->pMinLog_){
 					if (this->isOccupied(pointIdx)){
 						Eigen::Vector3d point;
@@ -922,5 +1083,50 @@ namespace mapManager{
 		sensor_msgs::PointCloud2 cloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
 		this->inflatedMapVisPub_.publish(cloudMsg);	
+	}
+
+	void occMap::publish2DOccupancyGrid(){
+		Eigen::Vector3d minRange, maxRange;
+		minRange = this->mapSizeMin_;
+		maxRange = this->mapSizeMax_;
+		minRange(2) = this->groundHeight_;
+		Eigen::Vector3i minRangeIdx, maxRangeIdx;
+		this->posToIndex(minRange, minRangeIdx);
+		this->posToIndex(maxRange, maxRangeIdx);
+		this->boundIndex(minRangeIdx);
+		this->boundIndex(maxRangeIdx);
+
+		nav_msgs::OccupancyGrid mapMsg;
+		for (int i=0; i<maxRangeIdx(0); ++i){
+			for (int j=0; j<maxRangeIdx(1); ++j){
+				mapMsg.data.push_back(0);
+			}
+		}
+
+		double z = 0.5;
+		int zIdx = int(z/this->mapRes_);
+		for (int x=minRangeIdx(0); x<=maxRangeIdx(0); ++x){
+			for (int y=minRangeIdx(1); y<=maxRangeIdx(1); ++y){
+				Eigen::Vector3i pointIdx (x, y, zIdx);
+				int map2DIdx = x + maxRangeIdx(1) * y;
+				if (this->isUnknown(pointIdx)){
+					mapMsg.data[map2DIdx] = -1;
+				}
+				else if (this->isOccupied(pointIdx)){
+					mapMsg.data[map2DIdx] = 100;
+				}
+				else{
+					mapMsg.data[map2DIdx] = 0;
+				}
+			}
+		}
+		mapMsg.header.frame_id = "map";
+		mapMsg.header.stamp = ros::Time::now();
+		mapMsg.info.resolution = this->mapRes_;
+		mapMsg.info.width = maxRangeIdx(1);
+		mapMsg.info.height = maxRangeIdx(0);
+		mapMsg.info.origin.position.x = minRange(1);
+		mapMsg.info.origin.position.y = minRange(0);
+		this->map2DPub_.publish(mapMsg);		
 	}
 }

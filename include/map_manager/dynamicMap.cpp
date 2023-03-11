@@ -23,6 +23,7 @@ namespace mapManager{
 	void dynamicMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();
+		this->initPreloadMap();
 		this->registerPub();
 		this->registerCallback();
 		this->detector_.reset(new mapManager::dynamicDetector (this->nh_));

@@ -3,8 +3,8 @@
 	-------------------------------------
 	occupancy voxel map header file
 */
-#ifndef MAPMANAGER_OCCUPANCYMAP_H
-#define MAPMANAGER_OCCUPANCYMAP_H
+#ifndef MAPMANAGER_OCCUPANCYMAP
+#define MAPMANAGER_OCCUPANCYMAP
 #include <ros/ros.h>
 #include <Eigen/Eigen>
 #include <Eigen/StdVector>
@@ -14,6 +14,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <nav_msgs/OccupancyGrid.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -35,21 +36,29 @@ namespace mapManager{
 		// ROS
 		ros::NodeHandle nh_;
 		std::shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> depthSub_;
+		std::shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> pointcloudSub_;
 		std::shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> poseSub_;
 		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped> depthPoseSync;
 		std::shared_ptr<message_filters::Synchronizer<depthPoseSync>> depthPoseSync_;
 		std::shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odomSub_;
 		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry> depthOdomSync;
 		std::shared_ptr<message_filters::Synchronizer<depthOdomSync>> depthOdomSync_;
+		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, geometry_msgs::PoseStamped> pointcloudPoseSync;
+		std::shared_ptr<message_filters::Synchronizer<pointcloudPoseSync>> pointcloudPoseSync_;
+		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry> pointcloudOdomSync;
+		std::shared_ptr<message_filters::Synchronizer<pointcloudOdomSync>> pointcloudOdomSync_;	
 		ros::Timer occTimer_;
 		ros::Timer inflateTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher depthCloudPub_;
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
+		ros::Publisher map2DPub_;
 
+		int sensorInputMode_;
 		int localizationMode_;
 		std::string depthTopicName_; // depth image topic
+		std::string pointcloudTopicName_; // point cloud topic
 		std::string poseTopicName_;  // pose topic
 		std::string odomTopicName_; // odom topic 
 
@@ -76,11 +85,10 @@ namespace mapManager{
 		double groundHeight_; // ground height in z axis
 		Eigen::Vector3d mapSize_, mapSizeMin_, mapSizeMax_; // reserved min/max map size
 		Eigen::Vector3i mapVoxelMin_, mapVoxelMax_; // reserved min/max map size in voxel
-		Eigen::Vector3d localMapSizeMin_, localMapSizeMax_; // reserved min/max local map size
-		Eigen::Vector3i localMapVoxelMin_, localMapVoxelMax_; // reserved min/max local map size in voxel
 		Eigen::Vector3d localUpdateRange_; // self defined local update range
 		double localBoundInflate_; // inflate local map for some distance
 		bool cleanLocalMap_; 
+		std::string preloadMapDir_;
 
 		// VISUALZATION
 		double maxVisHeight_;
@@ -96,6 +104,7 @@ namespace mapManager{
 		// -----------------------------------------------------------------
 		// SENSOR DATA
 		cv::Mat depthImage_;
+		pcl::PointCloud<pcl::PointXYZ> pointcloud_;
 		Eigen::Vector3d position_; // current position
 		Eigen::Matrix3d orientation_; // current orientation
 		Eigen::Vector3i localBoundMin_, localBoundMax_; // sensor data range
@@ -104,7 +113,6 @@ namespace mapManager{
 		// MAP DATA
 		int projPointsNum_ = 0;
 		std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
-		std::vector<double> pointsDepth_; // depths value in cam frame of projected points from depth image
 		std::vector<int> countHitMiss_;
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
@@ -133,17 +141,21 @@ namespace mapManager{
 		occMap(const ros::NodeHandle& nh);
 		void initMap(const ros::NodeHandle& nh);
 		void initParam();
+		void initPreloadMap();
 		void registerCallback();
 		void registerPub();
 
 		// callback
 		void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
 		void depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
+		void pointcloudPoseCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const geometry_msgs::PoseStampedConstPtr& pose);
+		void pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom);
 		void updateOccupancyCB(const ros::TimerEvent& );
 		void inflateMapCB(const ros::TimerEvent& );
 
 		// core function
 		void projectDepthImage();
+		void getPointcloud();
 		void raycastUpdate();
 		void cleanLocalMap();
 		void inflateLocalMap();
@@ -174,6 +186,7 @@ namespace mapManager{
 		void publishProjPoints();
 		void publishMap();
 		void publishInflatedMap();
+		void publish2DOccupancyGrid();
 
 		// helper functions
 		double logit(double x);
