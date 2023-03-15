@@ -699,7 +699,7 @@ namespace mapManager{
             }
 
             // history length is not enough to run classification
-            if (this->pcHist_[i].size()<this->skipFrame_+1){
+            if (int(this->pcHist_[i].size()) < this->skipFrame_+1){
                 curFrameGap = this->pcHist_[i].size() - 1;
             }
             else{
@@ -709,7 +709,7 @@ namespace mapManager{
             // force dynamic
             // cout<<"box history size"<<this->boxHist_[i].size();
             int dynaFrames = 0;
-            if ( this->boxHist_[i].size() > this->forceDynaCheckRange_){
+            if (int(this->boxHist_[i].size()) > this->forceDynaCheckRange_){
                 // cout<<"inside "
                 for (int j=1 ; j<this->forceDynaCheckRange_+1 ; ++j){
                     if (this->boxHist_[i][j].is_dynamic){
@@ -743,7 +743,7 @@ namespace mapManager{
 
             // find nearest neighbor
             int numSkip = 0;
-            for (int j=0 ; j<currPc.size() ; j++){
+            for (size_t j=0 ; j<currPc.size() ; j++){
 
                 // don't perform classification for points unseen in previous frame
                 if (!this->isInFov(this->positionHist_[curFrameGap], this->orientationHist_[curFrameGap], currPc[j])){
@@ -753,7 +753,6 @@ namespace mapManager{
                     continue;
                 }
 
-                int nnInd = -1; // ind for the nearest neighbor
                 double minDist = 2;
                 Eigen::Vector3d nearestVect;
                 for (size_t k=0 ; k<prevPc.size() ; k++){
@@ -761,7 +760,6 @@ namespace mapManager{
                     // ROS_INFO("dist");
                     double dist = (currPc[j]-prevPc[k]).norm();
                     if (abs(dist) < minDist){
-                        nnInd = k;
                         minDist = dist;
                         nearestVect = currPc[j]-prevPc[k];
                     }
@@ -811,8 +809,8 @@ namespace mapManager{
                 this->boxHist_[i][0].is_dynamic_candidate = true;
                 // dynamic-consistency check
                 int dynaConsistCount = 0;
-                if (this->boxHist_[i].size() >= this->dynamicConsistThresh_){
-                    for (size_t j=0 ; j<this->dynamicConsistThresh_ ; j++){
+                if (int(this->boxHist_[i].size()) >= this->dynamicConsistThresh_){
+                    for (int j=0 ; j<this->dynamicConsistThresh_ ; j++){
                         if (this->boxHist_[i][j].is_dynamic_candidate){
                             dynaConsistCount++;
                         }
@@ -1117,13 +1115,13 @@ namespace mapManager{
     }
 
     void dynamicDetector::updatePoseHist(){
-        if (this->positionHist_.size() == this->skipFrame_){
+        if (int(this->positionHist_.size()) == this->skipFrame_){
             this->positionHist_.pop_back();
         }
         else{
             this->positionHist_.push_front(this->position_);
         }
-        if (this->orientationHist_.size() == this->skipFrame_){
+        if (int(this->orientationHist_.size()) == this->skipFrame_){
             this->orientationHist_.pop_back();
         }
         else{
@@ -1334,7 +1332,6 @@ namespace mapManager{
 
                 // kalman filter to get new state estimation
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
-                mapManager::box3D prevMatchBBox = this->boxHist_[bestMatch[i]][0];
 
                 Eigen::MatrixXd Z;
                 if (this->benchMark_){
@@ -1362,7 +1359,6 @@ namespace mapManager{
                 newEstimatedBBox.z_width = currDetectedBBox.z_width;
                 newEstimatedBBox.is_dynamic = currDetectedBBox.is_dynamic;
                 newEstimatedBBox.is_human = currDetectedBBox.is_human;
-                // cout <<"obj "<<i<< " x "<<newEstimatedBBox.x << " y "<<newEstimatedBBox.y<<" vx " << newEstimatedBBox.Vx << " vy " << newEstimatedBBox.Vy << endl;
             }
             else{
                 boxHistTemp.push_back(newSingleBoxHist);
@@ -1402,7 +1398,7 @@ namespace mapManager{
             for (size_t i=0; i<trackedBBoxesTemp.size(); ++i){ 
                 // cout <<" index "<<i<<endl;
                 // cout <<"history box size "<<boxHistTemp[i].size()<<endl;
-                if (boxHistTemp[i].size() >= this->fixSizeHistThresh_){
+                if (int(boxHistTemp[i].size()) >= this->fixSizeHistThresh_){
                     // cout <<"x for BBOX "<<trackedBBoxesTemp[i].x_width<<" x for history bbox "<<boxHistTemp[i][0].x_width <<endl;
                     // cout <<"y for BBOX "<<trackedBBoxesTemp[i].y_width<<" y for history bbox "<<boxHistTemp[i][0].y_width <<endl;
                     if ((abs(trackedBBoxesTemp[i].x_width-boxHistTemp[i][1].x_width)/boxHistTemp[i][1].x_width) <= this->fixSizeDimThresh_ &&

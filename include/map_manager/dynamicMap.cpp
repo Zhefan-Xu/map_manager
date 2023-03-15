@@ -23,12 +23,11 @@ namespace mapManager{
 	void dynamicMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();
-		this->initPreloadMap();
+		this->initPrebuiltMap();
 		this->registerPub();
 		this->registerCallback();
 		this->detector_.reset(new mapManager::dynamicDetector (this->nh_));
         this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicMap::freeMapCB, this);
-
 	}
 
 	void dynamicMap::freeMapCB(const ros::TimerEvent&){

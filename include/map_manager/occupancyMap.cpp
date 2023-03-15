@@ -22,7 +22,7 @@ namespace mapManager{
 	void occMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();
-		this->initPreloadMap();
+		this->initPrebuiltMap();
 		this->registerPub();
 		this->registerCallback();
 	}
@@ -338,13 +338,13 @@ namespace mapManager{
 			cout << this->hint_ << ": Clean local map option is set to: " << this->cleanLocalMap_ << endl; 
 		}
 
-		// absolute dir of preload map file(.pcd)
-		if (not this->nh_.getParam(this->ns_ + "/preload_map_dir", this->preloadMapDir_)){
-			this->preloadMapDir_ = "empty";
-			cout << this->hint_ << ": No preload map dir found. Use default: empty." << endl;
+		// absolute dir of prebuilt map file (.pcd)
+		if (not this->nh_.getParam(this->ns_ + "/prebuilt_map_directory", this->prebuiltMapDir_)){
+			this->prebuiltMapDir_ = "";
+			cout << this->hint_ << ": Not using prebuilt map." << endl;
 		}
 		else{
-			cout << this->hint_ << ": the preload map absolute dir is found: " << this->preloadMapDir_ << endl;
+			cout << this->hint_ << ": the prebuilt map absolute dir is found: " << this->prebuiltMapDir_ << endl;
 		}
 
 		// local map size (visualization)
@@ -394,18 +394,15 @@ namespace mapManager{
 
 	}
 
-	void occMap::initPreloadMap(){
+	void occMap::initPrebuiltMap(){
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
-		if (pcl::io::loadPCDFile<pcl::PointXYZ> (this->preloadMapDir_, *cloud) == -1) //* load the file
+		if (pcl::io::loadPCDFile<pcl::PointXYZ> (this->prebuiltMapDir_, *cloud) == -1) //* load the file
 		{
-			ROS_ERROR("Couldn't read file test_pcd.pcd ");
+			cout << this->hint_ << ": No prebuilt map found/not using the prebuilt map." << endl;
 		}
 		else {
-			std::cout << "Loaded "
-				<< cloud->width * cloud->height
-				<< " data points from test_pcd.pcd with the following fields: "
-				<< std::endl;
+			cout << this->hint_ << "Loaded " << cloud->width * cloud->height << " data points from test_pcd.pcd with the following fields: " << endl;
 			int address;
 			Eigen::Vector3i pointIndex;
 			Eigen::Vector3d pointPos;
@@ -441,7 +438,6 @@ namespace mapManager{
 				}
 
 			}
-
 		}
 	}
 

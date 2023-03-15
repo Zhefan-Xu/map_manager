@@ -1,9 +1,0 @@
-float64 xsize
-float64 ysize
-float64 zsize
-bool ignore_unknown
----
-float64 x
-float64 y
-float64 z
-float64 yaw
