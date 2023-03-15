@@ -137,8 +137,8 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/occupancyMap.cpp
                             include/${PROJECT_NAME}/dynamicMap.cpp
                             include/${PROJECT_NAME}/detector/dynamicDetector.cpp
                             include/${PROJECT_NAME}/detector/dbscan.cpp
-                            include/${PROJECT_NAME}/detector/kalman_filter.cpp
-                            include/${PROJECT_NAME}/detector/uv_detector.cpp)
+                            include/${PROJECT_NAME}/detector/kalmanFilter.cpp
+                            include/${PROJECT_NAME}/detector/uvDetector.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

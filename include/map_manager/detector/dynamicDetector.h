@@ -24,8 +24,8 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/detector/dbscan.h>
-#include <map_manager/detector/uv_detector.h>
-#include <map_manager/detector/kalman_filter.h>
+#include <map_manager/detector/uvDetector.h>
+#include <map_manager/detector/kalmanFilter.h>
 #include <map_manager/detector/utils.h>
 
 namespace mapManager{

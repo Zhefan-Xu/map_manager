@@ -1,17 +1,21 @@
+/*
+    FILE: uvDetector.h
+    ------------------
+    helper class header for uv detector
+*/
 #ifndef UV_DETECTOR_H
 #define UV_DETECTOR_H
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/core/types.hpp>
 #include <math.h>
 #include <vector>
 #include <map_manager/detector/utils.h>
-#include <map_manager/detector/kalman_filter.h>
+#include <map_manager/detector/kalmanFilter.h>
 #include <queue>
 #include <Eigen/Dense>
 
-// using namespace std;
-// using namespace cv;
-// using Eigen::MatrixXd;
 namespace mapManager{
     
     class UVbox
