@@ -35,8 +35,6 @@ body_to_camera_color: [0.0,  0.0,  1.0,  0.065,
 # Raycasting (max depth)
 raycast_max_length: 5.0
 
-benchmark: 0
-
 # time difference
 time_difference: 0.033
 

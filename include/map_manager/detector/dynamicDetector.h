@@ -90,7 +90,6 @@ namespace mapManager{
         std::string poseTopicName_;
         std::string odomTopicName_;
         double raycastMaxLength_;
-        int benchMark_;
         double groundHeight_;
         int dbMinPointsCluster_;
         double dbEpsilon_;

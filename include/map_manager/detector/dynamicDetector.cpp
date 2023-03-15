@@ -209,15 +209,6 @@ namespace mapManager{
             cout << this->hint_ << ": Raycast max length: " << this->raycastMaxLength_ << endl;
         }
 
-        // turn on benchmark copmarison with ETH-ZJU method
-        if (not this->nh_.getParam(this->ns_ + "/benchmark", this->benchMark_)){
-            this->benchMark_ = 0;
-            cout << this->hint_ << ": No benchmark flag. Use default: 0." << endl;
-        }
-        else{
-            cout << this->hint_ << ": benchmark flag: " << this->benchMark_ << endl;
-        }
-
         // min num of points for a voxel to be occupied in voxel filter
         if (not this->nh_.getParam(this->ns_ + "/voxel_occupied_thresh", this->voxelOccThresh_)){
             this->voxelOccThresh_ = 10;
@@ -931,30 +922,10 @@ namespace mapManager{
                 bbox.Vx = 0;
                 bbox.Vy = 0;
 
-
-                // benchmark methods uses point cloud center for further state estimation
-                if (this->benchMark_){
-                    Eigen::Vector3d matchedPcClusterCenter(0.,0.,0.);
-                    Eigen::Vector3d matchedPcClusterStd(0.,0.,0.);
-                    this->calcPcFeat(matchedPcCluster, matchedPcClusterCenter, matchedPcClusterStd);
-                    bbox.x = matchedPcClusterCenter(0);
-                    bbox.y = matchedPcClusterCenter(1);
-                    bbox.z = matchedPcClusterCenter(2);
-
-                    cout << " center differecne: " << matchedPcClusterCenter(0) - (xmin+xmax)/2 << " " <<matchedPcClusterCenter(1) - (ymin+ymax)/2 << " " << matchedPcClusterCenter(2) - (zmin+zmax)/2 << endl;
-                }
-
-                if (this->benchMark_ == 2){
-                    bbox.x = this->uvBBoxes_[bestMatchForUVBBox].x;
-                    bbox.y = this->uvBBoxes_[bestMatchForUVBBox].y;
-                    bbox.z = this->uvBBoxes_[bestMatchForUVBBox].z;
-                }
-                
                 filteredBBoxesTemp.push_back(bbox);
                 filteredPcClustersTemp.push_back(matchedPcCluster);      
                 filteredPcClusterCentersTemp.push_back(matchedPcClusterCenter);
                 filteredPcClusterStdsTemp.push_back(matchedPcClusterStd);
-
             }
         }
 
@@ -1108,13 +1079,7 @@ namespace mapManager{
                 this->pcHist_[i].push_back(this->filteredPcClusters_[i]);
                 // cout << "init kalman" << endl;
                 MatrixXd states, A, B, H, P, Q, R;       
-                if (this->benchMark_) {
-                    this->kalmanFilterMatrixVel(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
-                }
-                else {
-                    this->kalmanFilterMatrixAcc(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
-                }
-		// cout << "after kf matrix formation" << endl;
+                this->kalmanFilterMatrixAcc(this->filteredBBoxes_[i], states, A, B, H, P, Q, R);
                 mapManager::kalman_filter newFilter;
                 newFilter.setup(states, A, B, H, P, Q, R);
                 this->filters_.push_back(newFilter);
@@ -1269,25 +1234,18 @@ namespace mapManager{
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
 
                 Eigen::MatrixXd Z;
-                if (this->benchMark_){
-                    this->getKalmanObservationVel(currDetectedBBox, bestMatch[i], Z);
-                    filtersTemp.back().estimate(Z, MatrixXd::Zero(4,1));
-                }
-                else {
-                    this->getKalmanObservationAcc(currDetectedBBox, bestMatch[i], Z);
-                    filtersTemp.back().estimate(Z, MatrixXd::Zero(6,1));
-                }
+                this->getKalmanObservationAcc(currDetectedBBox, bestMatch[i], Z);
+                filtersTemp.back().estimate(Z, MatrixXd::Zero(6,1));
+                
                 
                 newEstimatedBBox.x = filtersTemp.back().output(0);
                 newEstimatedBBox.y = filtersTemp.back().output(1);
                 newEstimatedBBox.z = currDetectedBBox.z;
                 newEstimatedBBox.Vx = filtersTemp.back().output(2);
                 newEstimatedBBox.Vy = filtersTemp.back().output(3);
-
-                if (!this->benchMark_){
-                    newEstimatedBBox.Ax = filtersTemp.back().output(4);
-                    newEstimatedBBox.Ay = filtersTemp.back().output(5);   
-                }             
+                newEstimatedBBox.Ax = filtersTemp.back().output(4);
+                newEstimatedBBox.Ay = filtersTemp.back().output(5);   
+                          
 
                 newEstimatedBBox.x_width = currDetectedBBox.x_width;
                 newEstimatedBBox.y_width = currDetectedBBox.y_width;
@@ -1302,12 +1260,8 @@ namespace mapManager{
                 // create new kalman filter for this object
                 mapManager::box3D currDetectedBBox = this->filteredBBoxes_[i];
                 MatrixXd states, A, B, H, P, Q, R;    
-                if (this->benchMark_) {
-                    this->kalmanFilterMatrixVel(currDetectedBBox, states, A, B, H, P, Q, R);
-                }
-                else {
-                    this->kalmanFilterMatrixAcc(currDetectedBBox, states, A, B, H, P, Q, R);
-                }
+                this->kalmanFilterMatrixAcc(currDetectedBBox, states, A, B, H, P, Q, R);
+                
                 newFilter.setup(states, A, B, H, P, Q, R);
                 filtersTemp.push_back(newFilter);
                 newEstimatedBBox = currDetectedBBox;
