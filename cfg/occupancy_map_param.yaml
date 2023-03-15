@@ -42,7 +42,7 @@ map_size: [40, 40, 3] # meter. in x y z direction (reserved size)
 local_update_range: [5, 5, 3]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
-preload_map_dir: /home/cerlab/catkin_ws/static_map.pcd
+prebuilt_map_directory: /home/cerlab/catkin_ws/static_map.pcd
 
 # visualziation
 local_map_size: [20, 20, 6] # meter. in x y z direction (only for visualization)

@@ -3,9 +3,7 @@
 	--------------------------------------
 	function definition of kalman_filter velocity estimator
 */
-#include <Eigen/Dense>
 #include <map_manager/detector/kalmanFilter.h>
-#include <iostream>
 using Eigen::MatrixXd;
 
 namespace mapManager{

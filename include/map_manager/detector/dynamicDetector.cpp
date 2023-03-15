@@ -499,18 +499,6 @@ namespace mapManager{
 
         // velocity visualization pub
         this->velVisPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>(this->ns_ + "/velocity_visualizaton", 10);
-
-        // test state estimation
-        this->dynamicVelPub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/dynamic_vel", 1);     
-		this->dynamicPosPub_ = this->nh_.advertise<geometry_msgs::PointStamped>(this->ns_+"/dynamic_pos", 1);
-
-        // test running time
-        this->detectingTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/detecting_time", 1);  
-        this->trackingTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/tracking_time", 1);  
-        this->classificationTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/classification_time", 1);  
-        this->UVTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/uv_time", 1);  
-        this->DBSCANTimePub_ = this->nh_.advertise<std_msgs::Float64>(this->ns_+"/dbscan_time", 1);  
-
     }   
 
     void dynamicDetector::registerCallback(){
@@ -619,40 +607,17 @@ namespace mapManager{
     }
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
-	ros::Time totalStartTime = ros::Time::now();
-        // cout << "detector CB" << endl;
-        ros::Time dbStartTime = ros::Time::now();
+	    ros::Time totalStartTime = ros::Time::now();
         this->dbscanDetect();
-        ros::Time dbEndTime = ros::Time::now();
-        cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
-        std_msgs::Float64 dbscanTime;
-        dbscanTime.data = (dbEndTime - dbStartTime).toSec();
-        this->DBSCANTimePub_.publish(dbscanTime);
-
-        ros::Time uvStartTime = ros::Time::now();
         this->uvDetect();
-        ros::Time uvEndTime = ros::Time::now();
-        cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
-        std_msgs::Float64 uvTime;
-        uvTime.data = (uvEndTime - uvStartTime).toSec();
-        this->UVTimePub_.publish(uvTime);
-
-
         this->yoloDetectionTo3D();
-	
         this->filterBBoxes();
-
         this->newDetectFlag_ = true; // get a new detection
 	    ros::Time totalEndTime = ros::Time::now();
 	    cout << "detect time: " << (totalEndTime - totalStartTime).toSec() << endl;
-        std_msgs::Float64 detectingTime;
-        detectingTime.data = (totalEndTime - totalStartTime).toSec();
-        this->detectingTimePub_.publish(detectingTime);
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
-        // cout << "tracking CB" << endl;
-        ros::Time trackingStartTime = ros::Time::now();
         // data association
         std::vector<int> bestMatch; // for each current detection, which index of previous obstacle match
         this->boxAssociation(bestMatch);
@@ -665,17 +630,10 @@ namespace mapManager{
             this->boxHist_.clear();
             this->pcHist_.clear();
         }
-        
-        ros::Time trackingEndTime = ros::Time::now();
-        cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
-        std_msgs::Float64 trackingTime;
-        trackingTime.data = (trackingEndTime - trackingStartTime).toSec();
-        this->trackingTimePub_.publish(trackingTime);
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
         // cout << "classification CB " << endl;
-        ros::Time clStartTime = ros::Time::now();
         
         // for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
         //     cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
@@ -829,28 +787,6 @@ namespace mapManager{
         }
 
         this->dynamicBBoxes_ = dynamicBBoxesTemp;
-
-	// print dynamic identification info
-        // for (size_t i=0 ; i<this->dynamicBBoxes_.size() ; ++i){
-        //     if (this->dynamicBBoxes_[i].is_dynamic){
-        //         ROS_INFO(
-        //             "============================DYNAMIC OBJ %i DETECTED!==========================",i
-        //         );
-        //     }
-        //     else{
-        //         ROS_INFO(
-        //             "++++++++++++++++++++++++++++STATIC OBJ %i DETECTED!++++++++++++++++++++++++++",i
-        //         );
-        //     }
-        // }
-
-        ros::Time clEndTime = ros::Time::now();
-        cout << "dynamic classification time: " << (clEndTime - clStartTime).toSec() << endl;
-        std_msgs::Float64 classificationTime;
-        classificationTime.data = (clEndTime - clStartTime).toSec();
-        this->classificationTimePub_.publish(classificationTime);
-
-
     }
 
     void dynamicDetector::visCB(const ros::TimerEvent&){
@@ -869,7 +805,6 @@ namespace mapManager{
         this->publish3dBox(this->dynamicBBoxes_, this->dynamicBBoxesPub_, 0, 1, 1);
         this->publishHistoryTraj();
         this->publishVelVis();
-        this->publishVelAndPos(this->dynamicBBoxes_);
     }
 
     void dynamicDetector::uvDetect(){
@@ -2091,21 +2026,6 @@ namespace mapManager{
         this->velVisPub_.publish(velVisMsg);
     }
 
-    void dynamicDetector::publishVelAndPos(const std::vector<box3D> &dynamicBBoxes){
-		std_msgs::Float64 velocity;
-		geometry_msgs::PointStamped p;
-		for (size_t i=0 ; i<dynamicBBoxes.size() ; i++){
-            double v = std::sqrt(std::pow(dynamicBBoxes[i].Vx,2) + std::pow(dynamicBBoxes[i].Vy,2));
-			velocity.data = v;
-			p.header.frame_id = "map";
-			p.header.stamp = ros::Time::now();
-			p.point.x = dynamicBBoxes[i].x;
-			p.point.y = dynamicBBoxes[i].y;
-			p.point.z = dynamicBBoxes[i].z;
-			this->dynamicVelPub_.publish(velocity);
-			this->dynamicPosPub_.publish(p);
-		}
-	}
 
     void dynamicDetector::transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
                                                Eigen::Vector3d& newCenter, Eigen::Vector3d& newSize){
