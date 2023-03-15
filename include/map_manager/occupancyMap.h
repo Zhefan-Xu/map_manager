@@ -24,6 +24,7 @@
 #include <map_manager/raycast.h>
 #include <thread>
 
+
 using std::cout; using std::endl;
 namespace mapManager{
 	class occMap{

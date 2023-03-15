@@ -28,6 +28,7 @@
 #include <map_manager/detector/kalman_filter.h>
 #include <map_manager/detector/utils.h>
 
+
 namespace mapManager{
     class dynamicDetector{
     private:

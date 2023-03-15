@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   message_filters
   image_transport
+  vision_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -113,7 +114,7 @@ generate_messages(
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES map_manager
- CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge
+ CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge vision_msgs
  DEPENDS PCL
 )
 
@@ -143,7 +144,8 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp
                             include/${PROJECT_NAME}/detector/dbscan.cpp
                             include/${PROJECT_NAME}/detector/boxDetector.cpp
                             include/${PROJECT_NAME}/detector/kalman_filter.cpp
-                            include/${PROJECT_NAME}/detector/uv_detector.cpp)
+                            include/${PROJECT_NAME}/detector/uv_detector.cpp
+                            include/${PROJECT_NAME}/dynamicMapUGV.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -159,6 +161,7 @@ add_executable(occupancy_map_node src/occupancy_map_node.cpp)
 add_executable(esdf_map_node src/esdf_map_node.cpp)
 add_executable(dynamic_map_node src/dynamic_map_node.cpp)
 add_executable(dynamic_detector_node src/dynamic_detector_node.cpp)
+add_executable(dynamic_map_ugv_node src/dynamic_map_ugv_node.cpp) 
 
 
 ## Rename C++ executable without prefix
@@ -184,6 +187,7 @@ target_link_libraries(occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(esdf_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_detector_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(dynamic_map_ugv_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 
 #############

@@ -19,6 +19,7 @@ namespace mapManager{
 	protected:
 		std::shared_ptr<mapManager::dynamicDetector> detector_;
 		ros::Timer freeMapTimer_;
+		ros::Subscriber lidarSub_ ;
 
 
 	public:
