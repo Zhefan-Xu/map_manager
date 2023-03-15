@@ -598,18 +598,16 @@ namespace mapManager{
     }
 
     void dynamicDetector::detectionCB(const ros::TimerEvent&){
-	    ros::Time totalStartTime = ros::Time::now();
+        // detection thread
         this->dbscanDetect();
         this->uvDetect();
         this->yoloDetectionTo3D();
         this->filterBBoxes();
         this->newDetectFlag_ = true; // get a new detection
-	    ros::Time totalEndTime = ros::Time::now();
-	    cout << "detect time: " << (totalEndTime - totalStartTime).toSec() << endl;
     }
 
     void dynamicDetector::trackingCB(const ros::TimerEvent&){
-        // data association
+        // data association thread
         std::vector<int> bestMatch; // for each current detection, which index of previous obstacle match
         this->boxAssociation(bestMatch);
 
@@ -624,12 +622,7 @@ namespace mapManager{
     }
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
-        // cout << "classification CB " << endl;
-        
-        // for (size_t i=0 ; i<this->filteredPcClusters_.size() ; i++){
-        //     cout << "pc size: " << this->filteredPcClusters_[i].size() << endl;
-        // }
-
+        // Identification thread
         std::vector<Eigen::Vector3d> currPc;
         std::vector<Eigen::Vector3d> prevPc;
         std::vector<mapManager::box3D> dynamicBBoxesTemp;
@@ -820,7 +813,6 @@ namespace mapManager{
             this->uvDetector_->display_bird_view();
             this->uvDetector_->display_depth();
 
-
             // transform to the world frame (recalculate the boudning boxes)
             std::vector<mapManager::box3D> uvBBoxes;
             this->transformUVBBoxes(uvBBoxes);
@@ -837,8 +829,6 @@ namespace mapManager{
 
         // 3. filter points
         this->filterPoints(this->projPoints_, this->filteredPoints_);
-        // this->filteredPoints_ = this->projPoints_;
-        // cout << "size: " << this->filteredPoints_.size() << endl;
 
         // 4. cluster points and get bounding boxes
         this->clusterPointsAndBBoxes(this->filteredPoints_, this->dbBBoxes_, this->pcClusters_, this->pcClusterCenters_, this->pcClusterStds_);
@@ -855,35 +845,6 @@ namespace mapManager{
         }
         this->yoloBBoxes_ = yoloBBoxesTemp;    
     }
-
-    void dynamicDetector::transformUVBBoxes(std::vector<mapManager::box3D>& bboxes){
-        bboxes.clear();
-        for(size_t i = 0; i < this->uvDetector_->box3Ds.size(); ++i){
-            mapManager::box3D bbox;
-            double x = this->uvDetector_->box3Ds[i].x; 
-            double y = this->uvDetector_->box3Ds[i].y;
-            double z = this->uvDetector_->box3Ds[i].z;
-            double xWidth = this->uvDetector_->box3Ds[i].x_width;
-            double yWidth = this->uvDetector_->box3Ds[i].y_width;
-            double zWidth = this->uvDetector_->box3Ds[i].z_width;
-
-            Eigen::Vector3d center (x, y, z);
-            Eigen::Vector3d size (xWidth, yWidth, zWidth);
-            Eigen::Vector3d newCenter, newSize;
-
-            this->transformBBox(center, size, this->position_, this->orientation_, newCenter, newSize);
-
-            // assign values to bounding boxes in the map frame
-            bbox.x = newCenter(0);
-            bbox.y = newCenter(1);
-            bbox.z = newCenter(2);
-            bbox.x_width = newSize(0);
-            bbox.y_width = newSize(1);
-            bbox.z_width = newSize(2);
-            bboxes.push_back(bbox);            
-        }        
-    }
-
 
     void dynamicDetector::filterBBoxes(){
         std::vector<mapManager::box3D> filteredBBoxesTemp;
@@ -980,7 +941,6 @@ namespace mapManager{
                         bbox.Vx = 0;
                         bbox.Vy = 0;
                         
-        
                         filteredBBoxesTempCopy[bestMatchForYoloBBox] = bbox; // replace the filtered bbox with the new fused bounding box
                         filteredPcClustersTempCopy[bestMatchForYoloBBox] = emptyPoints;      // since it is yolo based, we dont need pointcloud for classification                     
                         filteredPcClusterCentersTempCopy[bestMatchForYoloBBox] = emptyPcFeat;
@@ -994,31 +954,40 @@ namespace mapManager{
             filteredPcClusterStdsTemp = filteredPcClusterStdsTempCopy;
         }
 
-        // if (this->boxHist_.size()){
-        //     for (size_t i=0; i<filteredBBoxesTemp.size(); ++i){ 
-        //         cout <<" index "<<i<<endl;
-        //         cout <<"history box size "<<boxHist_[i].size()<<endl;
-        //         if (this->boxHist_[i].size() >= this->fixSizeHistThresh_){
-        //             cout <<"x for BBOX "<<filteredBBoxesTemp[i].x_width<<" x for history bbox "<<this->boxHist_[i][0].x_width <<endl;
-        //             cout <<"y for BBOX "<<filteredBBoxesTemp[i].y_width<<" y for history bbox "<<this->boxHist_[i][0].y_width <<endl;
-        //             if ((filteredBBoxesTemp[i].x_width-this->boxHist_[i][0].x_width)/this->boxHist_[i][0].x_width <= this->fixSizeDimThresh_ &&
-        //                 (filteredBBoxesTemp[i].y_width-this->boxHist_[i][0].y_width)/this->boxHist_[i][0].y_width <= this->fixSizeDimThresh_&&
-        //                 (filteredBBoxesTemp[i].z_width-this->boxHist_[i][0].z_width)/this->boxHist_[i][0].z_width <= this->fixSizeDimThresh_){
-        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].x_width;
-        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].y_width;
-        //                 filteredBBoxesTemp[i].x_width = this->boxHist_[i][0].z_width;
-        //             }
-
-        //         }
-        //     }
-        // }
-        
-
         this->filteredBBoxes_ = filteredBBoxesTemp;
         this->filteredPcClusters_ = filteredPcClustersTemp;
         this->filteredPcClusterCenters_ = filteredPcClusterCentersTemp;
         this->filteredPcClusterStds_ = filteredPcClusterStdsTemp;
     }
+
+    void dynamicDetector::transformUVBBoxes(std::vector<mapManager::box3D>& bboxes){
+        bboxes.clear();
+        for(size_t i = 0; i < this->uvDetector_->box3Ds.size(); ++i){
+            mapManager::box3D bbox;
+            double x = this->uvDetector_->box3Ds[i].x; 
+            double y = this->uvDetector_->box3Ds[i].y;
+            double z = this->uvDetector_->box3Ds[i].z;
+            double xWidth = this->uvDetector_->box3Ds[i].x_width;
+            double yWidth = this->uvDetector_->box3Ds[i].y_width;
+            double zWidth = this->uvDetector_->box3Ds[i].z_width;
+
+            Eigen::Vector3d center (x, y, z);
+            Eigen::Vector3d size (xWidth, yWidth, zWidth);
+            Eigen::Vector3d newCenter, newSize;
+
+            this->transformBBox(center, size, this->position_, this->orientation_, newCenter, newSize);
+
+            // assign values to bounding boxes in the map frame
+            bbox.x = newCenter(0);
+            bbox.y = newCenter(1);
+            bbox.z = newCenter(2);
+            bbox.x_width = newSize(0);
+            bbox.y_width = newSize(1);
+            bbox.z_width = newSize(2);
+            bboxes.push_back(bbox);            
+        }        
+    }
+
 
     void dynamicDetector::updatePoseHist(){
         if (int(this->positionHist_.size()) == this->skipFrame_){

@@ -64,8 +64,6 @@ namespace mapManager{
         ros::Publisher historyTrajPub_;
         ros::Publisher velVisPub_;
 
-
-
         // DETECTOR
         std::shared_ptr<mapManager::UVdetector> uvDetector_;
         std::shared_ptr<mapManager::DBSCAN> dbCluster_;
@@ -180,10 +178,28 @@ namespace mapManager{
         // detect function
         void uvDetect();
         void dbscanDetect();
-        void filterBBoxes();
         void yoloDetectionTo3D();
+        void filterBBoxes();
 
-        // data association and tracking
+        // uv Detector Functions
+        void transformUVBBoxes(std::vector<mapManager::box3D>& bboxes);
+        
+        // DBSCAN Detector Functions
+        void projectDepthImage();
+        void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
+        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds);
+        void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
+        void updatePoseHist();
+        void calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd);
+        
+        // detection helper functions
+        float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
+        
+        // yolo helper functions
+        void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
+        void calculateMAD(std::vector<double>& depthValues, double& depthMedian, double& MAD);
+
+        // Data association and tracking functions
         void boxAssociation(std::vector<int>& bestMatch);
         void boxAssociationHelper(std::vector<int>& bestMatch);
         void genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat);
@@ -196,27 +212,6 @@ namespace mapManager{
         void getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
         void getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
 
-        
-        // uv Detector Functions
-        void transformUVBBoxes(std::vector<mapManager::box3D>& bboxes);
-
-        // DBSCAN Detector Functions
-        void projectDepthImage();
-        void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
-        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds);
-        void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
-        void updatePoseHist();
-        void calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd);
-
-        // detection helper functions
-        float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
-        // float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
-
-
-
-        // yolo helper functions
-        void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
-        void calculateMAD(std::vector<double>& depthValues, double& depthMedian, double& MAD);
 
 
         // visualization
