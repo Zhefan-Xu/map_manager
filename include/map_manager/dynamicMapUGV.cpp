@@ -30,7 +30,7 @@ namespace mapManager{
 		this->registerCallback();
 		this->detector_.reset(new mapManager::dynamicDetector (this->nh_));
         this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicMapUGV::freeMapCB, this);
-        this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicDetector::visCB, this);
+        this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicMapUGV::visCB, this);
 		this->lidarSub_ = this->nh_.subscribe("/lidar_detector/3D_Lidar_bounding_box",10, &dynamicMapUGV::lidarBoxCB,this);
 
 	}
