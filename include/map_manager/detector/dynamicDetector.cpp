@@ -624,7 +624,7 @@ namespace mapManager{
         ros::Time dbStartTime = ros::Time::now();
         this->dbscanDetect();
         ros::Time dbEndTime = ros::Time::now();
-        cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
+        // cout << "dbscan detect time: " << (dbEndTime - dbStartTime).toSec() << endl;
         std_msgs::Float64 dbscanTime;
         dbscanTime.data = (dbEndTime - dbStartTime).toSec();
         this->DBSCANTimePub_.publish(dbscanTime);
@@ -632,7 +632,7 @@ namespace mapManager{
         ros::Time uvStartTime = ros::Time::now();
         this->uvDetect();
         ros::Time uvEndTime = ros::Time::now();
-        cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
+        // cout << "uv detect time: " << (uvEndTime - uvStartTime).toSec() << endl;
         std_msgs::Float64 uvTime;
         uvTime.data = (uvEndTime - uvStartTime).toSec();
         this->UVTimePub_.publish(uvTime);
@@ -644,7 +644,7 @@ namespace mapManager{
 
         this->newDetectFlag_ = true; // get a new detection
 	    ros::Time totalEndTime = ros::Time::now();
-	    cout << "detect time: " << (totalEndTime - totalStartTime).toSec() << endl;
+	    // cout << "detect time: " << (totalEndTime - totalStartTime).toSec() << endl;
         std_msgs::Float64 detectingTime;
         detectingTime.data = (totalEndTime - totalStartTime).toSec();
         this->detectingTimePub_.publish(detectingTime);
@@ -667,7 +667,7 @@ namespace mapManager{
         }
         
         ros::Time trackingEndTime = ros::Time::now();
-        cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
+        // cout << "tracking time: " << (trackingEndTime - trackingStartTime).toSec() << endl;
         std_msgs::Float64 trackingTime;
         trackingTime.data = (trackingEndTime - trackingStartTime).toSec();
         this->trackingTimePub_.publish(trackingTime);

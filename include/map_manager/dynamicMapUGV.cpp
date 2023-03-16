@@ -25,14 +25,26 @@ namespace mapManager{
 	void dynamicMapUGV::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();
+		this->initDynamicUGVParam();
 		this->initPreloadMap();
 		this->registerPub();
 		this->registerCallback();
 		this->detector_.reset(new mapManager::dynamicDetector (this->nh_));
         this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicMapUGV::freeMapCB, this);
         this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicMapUGV::visCB, this);
-		this->lidarSub_ = this->nh_.subscribe("/lidar_detector/3D_Lidar_bounding_box",10, &dynamicMapUGV::lidarBoxCB,this);
+		this->lidarSub_ = this->nh_.subscribe(this->lidarDetectTopicName_,10, &dynamicMapUGV::lidarBoxCB,this);
 
+	}
+
+	void dynamicMapUGV::initDynamicUGVParam(){
+		// lidar detected bounding box topic name
+		if (not this->nh_.getParam(this->ns_ + "/lidar_detect_topic", this->lidarDetectTopicName_)){
+			this->lidarDetectTopicName_ = "/lidar_detector/Detection_bounding_box";
+			cout << this->hint_ << ": No lidar detection bounding box topic name. Use default: depth image" << endl;
+		}
+		else{
+			cout << this->hint_ << ": The topic name of lidar detection bounding box is: " << this->lidarDetectTopicName_ << endl;
+		}	
 	}
 
 	void dynamicMapUGV::registerPub(){
@@ -66,9 +78,11 @@ namespace mapManager{
 
     void dynamicMapUGV::lidarBoxCB(const vision_msgs::Detection3DArrayConstPtr& box_msg) 
     {
+		cout <<"get lidar box" << endl;
 		double dt = 0.1;
 		int histSize = 5;
         std::vector<box3D> lidarBoxesTemp;
+		lidarBoxesTemp.resize(box_msg->detections.size());
         for(int i=0; i<box_msg->detections.size();i++)
         {    
             std::cout << "Position X " <<box_msg->detections[i].bbox.center.position.x << std::endl;
@@ -88,8 +102,9 @@ namespace mapManager{
 		bestMatch.resize(this->lidarBoxes_.size(),-1);
 		// very first frame, push boxes into boxes history
 		if (this->lidarBoxesHist_.size() == 0){
+			lidarBoxesHistTemp.resize(this->lidarBoxes_.size());
 			for (size_t i=0 ; i<this->lidarBoxes_.size() ; ++i){
-				this->lidarBoxesHist_[i].push_back(this->lidarBoxes_[i]);
+				lidarBoxesHistTemp[i].push_back(this->lidarBoxes_[i]);
 			}
 		}
 		// perform box association
@@ -98,6 +113,7 @@ namespace mapManager{
 			this->findBestMatch(bestMatch);
 
 			// inherent previous history
+			std::cout << "inhere previous history" <<std::endl;
 			for (size_t i=0 ; i<this->lidarBoxes_.size() ; ++i){
 				// if there is a match, inherent history
 				if (bestMatch[i]){
@@ -123,18 +139,20 @@ namespace mapManager{
 		for (size_t i=0 ; i<this->lidarBoxes_.size() ; ++i){
 			this->lidarBoxes_[i].Vx = (this->lidarBoxesHist_[i][0].x - this->lidarBoxesHist_[i].back().x)/(dt*(this->lidarBoxesHist_.size()-1));
 			this->lidarBoxes_[i].Vy = (this->lidarBoxesHist_[i][0].y - this->lidarBoxesHist_[i].back().y)/(dt*(this->lidarBoxesHist_.size()-1));
+			std::cout << "box " << i <<" velocity: " <<this->lidarBoxes_[i].Vx << " " << this->lidarBoxes_[i].Vy << std::endl;
 		}
         // 
     }
 
 	void dynamicMapUGV::findBestMatch(std::vector<int> &bestMatch){
+		std::cout<<"findBestMatch"<<endl;
 		for (size_t i=0 ; i<this->lidarBoxes_.size() ; ++i){
 			double minDist = 10;
 			int bestMatchInd = -1;
 			for (size_t j=0 ; j<this->lidarBoxesHist_.size() ; ++j){ // hist[i][0] is previous box[i]
 				// calc centre distance
 				double x_diff = this->lidarBoxes_[i].x-this->lidarBoxesHist_[j][0].x;
-				double y_diff = this->lidarBoxes_[i].x-this->lidarBoxesHist_[j][0].x;
+				double y_diff = this->lidarBoxes_[i].y-this->lidarBoxesHist_[j][0].y;
 				double dist = std::sqrt(std::pow(x_diff, 2) + std::pow(y_diff , 2));
 
 				if (dist<minDist){
@@ -190,6 +208,7 @@ namespace mapManager{
         double x = centerInCam(0)-position(0);
         double y = centerInCam(1)-position(1);
         double z = std::sqrt(std::pow(y,2)+std::pow(x,2));
+		std::cout << "isInFov: (x,z) :"<< x <<" " <<z <<std::endl;
         return x/z > cos(43.0*M_PI/180.0);
 
     }
@@ -211,6 +230,9 @@ namespace mapManager{
         
 
         for(size_t i = 0; i < boxes.size(); i++){
+			if (this->isInFov(boxes[i], this->position_, this->orientation)){ // only show lidar box when they are out of fov
+				continue;
+			}
             // visualization msgs
             line.text = " Vx " + std::to_string(boxes[i].Vx) + " Vy " + std::to_string(boxes[i].Vy);
             double x = boxes[i].x; 

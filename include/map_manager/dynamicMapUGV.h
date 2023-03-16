@@ -20,6 +20,11 @@ namespace mapManager{
 	private:
 
 	protected:
+
+		// param
+		std::string lidarDetectTopicName_;
+
+		// members
 		std::shared_ptr<mapManager::dynamicDetector> detector_;
 		ros::Timer freeMapTimer_;
 		ros::Subscriber lidarSub_ ;
@@ -36,6 +41,8 @@ namespace mapManager{
 
 		
 		void initMap(const ros::NodeHandle& nh);
+
+		void initDynamicUGVParam();
 
 		void registerPub();
 

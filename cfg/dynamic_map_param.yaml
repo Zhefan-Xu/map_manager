@@ -11,6 +11,7 @@ localization_mode: 0 # 0: pose (default) 1: odom
 depth_image_topic: /camera/depth/image_rect_raw
 pose_topic: /mavros/local_position/pose
 odom_topic: /vins_estimator/imu_propagate
+lidar_detect_topic: /lidar_detector/Detection_bounding_box
 
 # for simulation (non px4)
 # depth_image_topic: /camera/depth/image_raw
