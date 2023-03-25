@@ -611,7 +611,7 @@ namespace mapManager{
         std::vector<int> bestMatch; // for each current detection, which index of previous obstacle match
         this->boxAssociation(bestMatch);
 
-        // kalman filter tracking (TODO: the new bounding boxes should be added when the tracking process is done)
+        // kalman filter tracking
         if (bestMatch.size()){
             this->kalmanFilterAndUpdateHist(bestMatch);
         }
@@ -623,57 +623,56 @@ namespace mapManager{
 
     void dynamicDetector::classificationCB(const ros::TimerEvent&){
         // Identification thread
-        std::vector<Eigen::Vector3d> currPc;
-        std::vector<Eigen::Vector3d> prevPc;
         std::vector<mapManager::box3D> dynamicBBoxesTemp;
-        int curFrameGap;
-        // cout << "pc history size: " << pcHist_.size() << endl;
 
-        for (size_t i=0; i<this->pcHist_.size() ; i++){
-
-            // yolo recognized as dynamic
+        // Iterate through all pointcloud/bounding boxes history (note that yolo's pointclouds are dummy pointcloud (empty))
+        // NOTE: There are 3 cases which we don't need to perform dynamic obstacle identification.
+        for (size_t i=0; i<this->pcHist_.size() ; ++i){
+            // ===================================================================================
+            // CASE I: yolo recognized as dynamic dynamic obstacle
             if (this->boxHist_[i][0].is_human){
-                if (!this->boxHist_[i][0].is_dynamic){
-                    ROS_ERROR("yolo found but not labeld as dynamic !!");
-                }
                 dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
                 continue;
             }
+            // ===================================================================================
 
-            // history length is not enough to run classification
+
+            // ===================================================================================
+            // CASE II: history length is not enough to run classification
+            int curFrameGap;
             if (int(this->pcHist_[i].size()) < this->skipFrame_+1){
                 curFrameGap = this->pcHist_[i].size() - 1;
             }
             else{
                 curFrameGap = this->skipFrame_;
             }
+            // ===================================================================================
 
-            // force dynamic
-            // cout<<"box history size"<<this->boxHist_[i].size();
+
+            // ==================================================================================
+            // CASE III: Force Dynamic (if the obstacle is classifed as dynamic for several time steps)
             int dynaFrames = 0;
             if (int(this->boxHist_[i].size()) > this->forceDynaCheckRange_){
-                // cout<<"inside "
                 for (int j=1 ; j<this->forceDynaCheckRange_+1 ; ++j){
                     if (this->boxHist_[i][j].is_dynamic){
                         ++dynaFrames;
-                        // cout<<"inside ++dynaFrame "<<endl;
                     }
                 }
             }
-            // cout << "dynamic frames: " << dynaFrames << endl;
-            // if (dynaFrames==this->forceDynaFrames_){
+
             if (dynaFrames >= this->forceDynaFrames_){
                 this->boxHist_[i][0].is_dynamic = true;
                 dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);
                 continue;
             }
+            // ===================================================================================
 
-            currPc = this->pcHist_[i][0];
-            prevPc = this->pcHist_[i][curFrameGap];
-            Eigen::Vector3d Vavg(0.,0.,0.);
-            Eigen::Vector3d Vcur(0.,0.,0.);
-            Eigen::Vector3d Vbox(0.,0.,0.);
-            Eigen::Vector3d Vkf(0.,0.,0.);
+            std::vector<Eigen::Vector3d> currPc = this->pcHist_[i][0];
+            std::vector<Eigen::Vector3d> prevPc = this->pcHist_[i][curFrameGap];
+            Eigen::Vector3d Vavg(0.,0.,0.); // average velocity for all points
+            Eigen::Vector3d Vcur(0.,0.,0.); // single point velocity 
+            Eigen::Vector3d Vbox(0.,0.,0.); // bounding box velocity (?)
+            Eigen::Vector3d Vkf(0.,0.,0.);  // velocity estimated from kalman filter
             int numPoints = currPc.size(); // it changes within loop
             int votes = 0;
 
@@ -685,21 +684,17 @@ namespace mapManager{
 
             // find nearest neighbor
             int numSkip = 0;
-            for (size_t j=0 ; j<currPc.size() ; j++){
-
+            for (size_t j=0 ; j<currPc.size() ; ++j){
                 // don't perform classification for points unseen in previous frame
                 if (!this->isInFov(this->positionHist_[curFrameGap], this->orientationHist_[curFrameGap], currPc[j])){
-                    // ROS_WARN("skiped one new point");
-                    numSkip++;
-                    numPoints--;
+                    ++numSkip;
+                    --numPoints;
                     continue;
                 }
 
                 double minDist = 2;
                 Eigen::Vector3d nearestVect;
-                for (size_t k=0 ; k<prevPc.size() ; k++){
-                    // find closer point: update 
-                    // ROS_INFO("dist");
+                for (size_t k=0 ; k<prevPc.size() ; k++){ // find the nearest point in the previous pointcloud
                     double dist = (currPc[j]-prevPc[k]).norm();
                     if (abs(dist) < minDist){
                         minDist = dist;
@@ -707,69 +702,51 @@ namespace mapManager{
                     }
                 }
                 // update Vavg
-                Vcur = nearestVect/(this->dt_*curFrameGap);
-                Vcur(2) = 0;
+                Vcur = nearestVect/(this->dt_*curFrameGap); Vcur(2) = 0;
                 double velSim = Vcur.dot(Vbox)/(Vcur.norm()*Vbox.norm());
-                // cout<<"velocity similarity "<< velSim<<endl;
                 Vavg += Vcur;
 
                 // remove this ??
-                if (minDist == -2 || velSim < 0){
-                    numPoints--;
-                    numSkip++;
-                    // cout << "velSim" << velSim <<endl;
-                    // cout << Vbox <<endl;
-                    // cout <<Vcur <<endl;
+                if (minDist == -2 or velSim < 0){
+                    ++numSkip;
+                    --numPoints;
                 }
                 else{
                     if (Vcur.norm()>this->dynaVelThresh_){
-                        votes++;
+                        ++votes;
                     }
                 }
-                
             }
             
-
-            // cout << "V_AVG for obj "<<i << " is "<<Vavg.norm() << endl;
-            // cout << "votes percentage "<<i << " is "<<double(votes)/double(numPoints) << endl;
             
             // update dynamic boxes
             Vavg /= numPoints;
-            double disturbance = (numPoints>0)?double(votes)/double(numPoints):0;
-            // double displacement = Vavg.norm();
-            double displacement = Vkf.norm();
-            // cout << "votes percentage(disturbance) "<<i << " is "<<disturbance << endl;
-            // cout << "V_AVG for obj(displacement) "<<i << " is "<<Vkf.norm() << endl;
-            // cout << "Hist length(check track): " << i << " is "<< this->boxHist_[i].size() << endl;
-            // cout << "score: " << disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_  <<endl;
-            // cout << "skip " << numSkip << " points, rest: "<< numPoints<< "votes: " <<votes<<endl;
-            // if (disturbance/this->dynaVoteThresh_ + displacement/this->dynaVelThresh_ >= 1){
+            double voteRatio = (numPoints>0)?double(votes)/double(numPoints):0;
+            double velNorm = Vkf.norm();
 
             // voting and velocity threshold
-            if (disturbance>=this->dynaVoteThresh_ && displacement>=this->dynaVelThresh_ && double(numSkip)/double(numPoints)<this->maxSkipRatio_){
-            // if (disturbance>=this->dynaVoteThresh_ && displacement>=this->dynaVelThresh_){
+            // 1. point cloud voting ratio.
+            // 2. velocity (from kalman filter) 
+            // 3. enough valid point correspondence 
+            if (voteRatio>=this->dynaVoteThresh_ && velNorm>=this->dynaVelThresh_ && double(numSkip)/double(numPoints)<this->maxSkipRatio_){
                 this->boxHist_[i][0].is_dynamic_candidate = true;
                 // dynamic-consistency check
                 int dynaConsistCount = 0;
                 if (int(this->boxHist_[i].size()) >= this->dynamicConsistThresh_){
-                    for (int j=0 ; j<this->dynamicConsistThresh_ ; j++){
+                    for (int j=0 ; j<this->dynamicConsistThresh_; ++j){
                         if (this->boxHist_[i][j].is_dynamic_candidate){
-                            dynaConsistCount++;
+                            ++dynaConsistCount;
                         }
                     }
                 }            
                 if (dynaConsistCount == this->dynamicConsistThresh_){
-                    //cout << "dynamic count: " << dynaConsistCount << endl;
                     // set as dynamic and push into history
                     this->boxHist_[i][0].is_dynamic = true;
                     dynamicBBoxesTemp.push_back(this->boxHist_[i][0]);    
                 }
                 
             }
-            
-
         }
-
         this->dynamicBBoxes_ = dynamicBBoxesTemp;
     }
 
