@@ -37,7 +37,6 @@ namespace mapManager{
 			cout << this->hint_ << ": Sensor input mode: depth image (0)/pointcloud (1). Your option: " << this->sensorInputMode_ << endl;
 		}		
 
-
 		// localization mode
 		if (not this->nh_.getParam(this->ns_ + "/localization_mode", this->localizationMode_)){
 			this->localizationMode_ = 0;
@@ -498,7 +497,6 @@ namespace mapManager{
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
-		// this->visWorker_ = std::thread(&occMap::startVisualization, this);
 	}
 
 
@@ -950,15 +948,6 @@ namespace mapManager{
 		this->publish2DOccupancyGrid();
 	}
 
-	// void occMap::startVisualization(){
-	// 	ros::Rate r (10);
-	// 	while (ros::ok()){
-	// 		// this->publishProjPoints();
-	// 		// this->publishMap();
-	// 		this->publishInflatedMap();
-	// 		r.sleep();
-	// 	}
-	// }
 
 	void occMap::publishProjPoints(){
 		pcl::PointXYZ pt;

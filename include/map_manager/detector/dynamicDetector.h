@@ -91,7 +91,7 @@ namespace mapManager{
         double groundHeight_;
         int dbMinPointsCluster_;
         double dbEpsilon_;
-        float boxIOUThresh_;
+        double boxIOUThresh_;
         double yoloOverwriteDistance_; // distance that yolo can overwrite the detection results
         int histSize_;
         double dt_;
@@ -189,11 +189,10 @@ namespace mapManager{
         void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
         void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds);
         void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
-        void updatePoseHist();
         void calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd);
         
         // detection helper functions
-        float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
+        double calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
         
         // yolo helper functions
         void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
@@ -212,8 +211,6 @@ namespace mapManager{
         void getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
         void getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
 
-
-
         // visualization
         void getDynamicPc(std::vector<Eigen::Vector3d>& dynamicPc);
         void publishUVImages(); 
@@ -227,7 +224,8 @@ namespace mapManager{
         void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
                                   Eigen::Vector3d& newCenter, Eigen::Vector3d& newSize);
         bool isInFov(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation, Eigen::Vector3d& point);
-        int getBestOverlapBBox(const mapManager::box3D& currBBox, const std::vector<mapManager::box3D>& targetBBoxes, float& bestIOU);
+        int getBestOverlapBBox(const mapManager::box3D& currBBox, const std::vector<mapManager::box3D>& targetBBoxes, double& bestIOU);
+        void updatePoseHist();
 
 
         // inline helper functions
@@ -341,9 +339,6 @@ namespace mapManager{
             pointsDB.push_back(pDB);
         }
     }
-
-    
-
 }
 
 #endif
