@@ -666,9 +666,8 @@ namespace mapManager{
 
             std::vector<Eigen::Vector3d> currPc = this->pcHist_[i][0];
             std::vector<Eigen::Vector3d> prevPc = this->pcHist_[i][curFrameGap];
-            Eigen::Vector3d Vavg(0.,0.,0.); // average velocity for all points
             Eigen::Vector3d Vcur(0.,0.,0.); // single point velocity 
-            Eigen::Vector3d Vbox(0.,0.,0.); // bounding box velocity (?)
+            Eigen::Vector3d Vbox(0.,0.,0.); // bounding box velocity 
             Eigen::Vector3d Vkf(0.,0.,0.);  // velocity estimated from kalman filter
             int numPoints = currPc.size(); // it changes within loop
             int votes = 0;
@@ -698,13 +697,10 @@ namespace mapManager{
                         nearestVect = currPc[j]-prevPc[k];
                     }
                 }
-                // update Vavg
                 Vcur = nearestVect/(this->dt_*curFrameGap); Vcur(2) = 0;
                 double velSim = Vcur.dot(Vbox)/(Vcur.norm()*Vbox.norm());
-                Vavg += Vcur;
 
-                // remove this ??
-                if (minDist == -2 or velSim < 0){
+                if (velSim < 0){
                     ++numSkip;
                     --numPoints;
                 }
@@ -717,7 +713,6 @@ namespace mapManager{
             
             
             // update dynamic boxes
-            Vavg /= numPoints;
             double voteRatio = (numPoints>0)?double(votes)/double(numPoints):0;
             double velNorm = Vkf.norm();
 

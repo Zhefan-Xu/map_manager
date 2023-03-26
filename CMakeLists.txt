@@ -153,6 +153,7 @@ add_executable(occupancy_map_node src/occupancy_map_node.cpp)
 add_executable(esdf_map_node src/esdf_map_node.cpp)
 add_executable(dynamic_map_node src/dynamic_map_node.cpp)
 add_executable(dynamic_detector_node src/dynamic_detector_node.cpp)
+add_executable(save_map_node src/save_map_node.cpp)
 
 
 ## Rename C++ executable without prefix
@@ -174,6 +175,7 @@ target_link_libraries(occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(esdf_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_detector_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(save_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 
 #############
