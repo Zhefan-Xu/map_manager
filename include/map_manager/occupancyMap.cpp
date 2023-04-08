@@ -58,7 +58,7 @@ namespace mapManager{
 		// pointcloud topic name
 		if (not this->nh_.getParam(this->ns_ + "/point_cloud_topic", this->pointcloudTopicName_)){
 			this->pointcloudTopicName_ = "/camera/depth/points";
-			cout << this->hint_ << ": No depth image topic name. Use default: /camera/depth/points" << endl;
+			cout << this->hint_ << ": No poincloud topic name. Use default: /camera/depth/points" << endl;
 		}
 		else{
 			cout << this->hint_ << ": Pointcloud topic: " << this->pointcloudTopicName_ << endl;
