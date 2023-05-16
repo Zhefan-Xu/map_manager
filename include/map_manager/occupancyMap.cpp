@@ -15,6 +15,7 @@ namespace mapManager{
 		this->ns_ = "occupancy_map";
 		this->hint_ = "[OccMap]";
 		this->initParam();
+		this->initPrebuiltMap();
 		this->registerPub();
 		this->registerCallback();
 	}
