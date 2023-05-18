@@ -139,6 +139,7 @@ namespace mapManager{
 
 		occMap(); // empty constructor
 		occMap(const ros::NodeHandle& nh);
+		virtual ~occMap() = default;
 		void initMap(const ros::NodeHandle& nh);
 		void initParam();
 		void initPrebuiltMap();
