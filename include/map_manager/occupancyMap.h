@@ -355,7 +355,12 @@ namespace mapManager{
 
 	inline void occMap::updateFreeRegions(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions){
 		this->freeRegions_ = freeRegions;
-		this->useFreeRegions_ = true;
+		if (freeRegions.size() != 0){
+			this->useFreeRegions_ = true;
+		}
+		else{
+			this->useFreeRegions_ = false;
+		}
 	}
 
 

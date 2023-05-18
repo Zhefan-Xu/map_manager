@@ -678,6 +678,12 @@ namespace mapManager{
 				currPointCam(2) = depth;
 				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 
+				if (this->useFreeRegions_){ // this region will not be updated and directly set to free
+					if (this->isInFreeRegions(currPointMap)){
+						continue;
+					}
+				}
+
 				// store current point
 				this->projPoints_[this->projPointsNum_] = currPointMap;
 				this->projPointsNum_ = this->projPointsNum_ + 1;
