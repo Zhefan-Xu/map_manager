@@ -679,7 +679,7 @@ namespace mapManager{
 				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 
 				if (this->useFreeRegions_){ // this region will not be updated and directly set to free
-					if (this->isInFreeRegions(currPointMap)){
+					if (this->isInHistFreeRegions(currPointMap)){
 						continue;
 					}
 				}
@@ -825,7 +825,7 @@ namespace mapManager{
 			if (this->useFreeRegions_){ // current used in simulation, this region will not be updated and directly set to free
 				Eigen::Vector3d pos;
 				this->indexToPos(cacheIdx, pos);
-				if (this->isInFreeRegions(pos)){
+				if (this->isInHistFreeRegions(pos)){
 					this->occupancy_[cacheAddress] = this->pMinLog_;
 					continue;
 				}
