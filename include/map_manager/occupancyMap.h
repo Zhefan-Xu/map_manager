@@ -122,7 +122,10 @@ namespace mapManager{
 		std::vector<int> flagTraverse_, flagRayend_;
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions_;
 		std::deque<std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>> histFreeRegions_;
+		Eigen::Vector3d currMapRangeMin_ = Eigen::Vector3d (0, 0, 0); 
+		Eigen::Vector3d currMapRangeMax_ = Eigen::Vector3d (0, 0, 0);
 		bool useFreeRegions_ = false;
+
 		
 
 		// STATUS
@@ -182,6 +185,7 @@ namespace mapManager{
 		void updateFreeRegions(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions);
 		double getRes();
 		void getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax);
+		void getCurrMapRange(Eigen::Vector3d& currRangeMin, Eigen::Vector3d& currRangeMax);
 		bool castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength=5.0, bool ignoreUnknown=true);
 
 		// Visualziation
@@ -420,6 +424,11 @@ namespace mapManager{
 	inline void occMap::getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax){
 		mapSizeMin = this->mapSizeMin_;
 		mapSizeMax = this->mapSizeMax_;
+	}
+
+	inline void occMap::getCurrMapRange(Eigen::Vector3d& currRangeMin, Eigen::Vector3d& currRangeMax){
+		currRangeMin = this->currMapRangeMin_;
+		currRangeMax = this->currMapRangeMax_;
 	}
 
 	inline bool occMap::castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength, bool ignoreUnknown){

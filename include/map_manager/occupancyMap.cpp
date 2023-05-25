@@ -844,6 +844,32 @@ namespace mapManager{
 			}
 
 			this->occupancy_[cacheAddress] = std::min(std::max(this->occupancy_[cacheAddress]+logUpdateValue, this->pMinLog_), this->pMaxLog_);
+
+			// update the entire map range (if it is not unknown)
+			if (not this->isUnknown(cacheIdx)){
+				Eigen::Vector3d cachePos;
+				this->indexToPos(cacheIdx, cachePos);
+				if (cachePos(0) > this->currMapRangeMax_(0)){
+					this->currMapRangeMax_(0) = cachePos(0);
+				}
+				else if (cachePos(0) < this->currMapRangeMin_(0)){
+					this->currMapRangeMin_(0) = cachePos(0);
+				}
+
+				if (cachePos(1) > this->currMapRangeMax_(1)){
+					this->currMapRangeMax_(1) = cachePos(1);
+				}
+				else if (cachePos(1) < this->currMapRangeMin_(1)){
+					this->currMapRangeMin_(1) = cachePos(1);
+				}
+
+				if (cachePos(2) > this->currMapRangeMax_(2)){
+					this->currMapRangeMax_(2) = cachePos(2);
+				}
+				else if (cachePos(2) < this->currMapRangeMin_(2)){
+					this->currMapRangeMin_(2) = cachePos(2);
+				}
+			}
 		}
 
 	}
