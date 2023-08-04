@@ -379,7 +379,7 @@ namespace mapManager{
 		for (int xID=idx1(0); xID<=idx2(0); ++xID){
 			for (int yID=idx1(1); yID<=idx2(1); ++yID){
 				for (int zID=idx1(2); zID<=idx2(2); ++zID){
-					this->setFree(Eigen::Vector3d (xID, yID, zID));
+					this->setFree(Eigen::Vector3i (xID, yID, zID));
 				}	
 			}
 		}

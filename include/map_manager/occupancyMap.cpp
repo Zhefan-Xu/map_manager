@@ -808,7 +808,7 @@ namespace mapManager{
 			hit = this->countHit_[cacheAddress];
 			miss = this->countHitMiss_[cacheAddress] - hit;
 
-			if (hit >= miss){
+			if (hit >= miss and hit != 0){
 				logUpdateValue = this->pHitLog_;
 			}
 			else{
