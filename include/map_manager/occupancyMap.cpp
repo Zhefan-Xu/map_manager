@@ -948,6 +948,7 @@ namespace mapManager{
 
 
 	void occMap::visCB(const ros::TimerEvent& ){
+		// ROS_INFO("visCB");
 		this->publishProjPoints();
 		this->publishMap();
 		this->publishInflatedMap();
@@ -987,8 +988,8 @@ namespace mapManager{
 
 
 	void occMap::publishMap(){
-		pcl::PointXYZ pt;
-		pcl::PointCloud<pcl::PointXYZ> cloud;
+		pcl::PointXYZI pt;
+		pcl::PointCloud<pcl::PointXYZI> cloud;
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){
@@ -1019,6 +1020,7 @@ namespace mapManager{
 							pt.x = point(0);
 							pt.y = point(1);
 							pt.z = point(2);
+							pt.intensity = 0;
 							cloud.push_back(pt);
 						}
 					}
@@ -1037,8 +1039,8 @@ namespace mapManager{
 	}
 
 	void occMap::publishInflatedMap(){
-		pcl::PointXYZ pt;
-		pcl::PointCloud<pcl::PointXYZ> cloud;
+		pcl::PointXYZI pt;
+		pcl::PointCloud<pcl::PointXYZI> cloud;
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){

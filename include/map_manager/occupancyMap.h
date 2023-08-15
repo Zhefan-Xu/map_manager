@@ -27,6 +27,8 @@
 using std::cout; using std::endl;
 namespace mapManager{
 	class occMap{
+	public:
+		Eigen::Vector3i localBoundMin_, localBoundMax_; // sensor data range
 	private:
 
 	protected:
@@ -107,7 +109,7 @@ namespace mapManager{
 		pcl::PointCloud<pcl::PointXYZ> pointcloud_;
 		Eigen::Vector3d position_; // current position
 		Eigen::Matrix3d orientation_; // current orientation
-		Eigen::Vector3i localBoundMin_, localBoundMax_; // sensor data range
+		// Eigen::Vector3i localBoundMin_, localBoundMax_; // sensor data range
 
 
 		// MAP DATA

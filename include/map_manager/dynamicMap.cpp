@@ -477,7 +477,7 @@ namespace mapManager{
 			ROS_ERROR("[dynamicMap]: Invalid localization mode!");
 			exit(0);
 		}
-   
+		ROS_INFO("register occ timer");
 		// occupancy update callback
 		this->occTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicMap::updateOccupancyCB, this);
 
