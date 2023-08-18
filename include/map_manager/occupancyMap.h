@@ -590,7 +590,7 @@ namespace mapManager{
 		Eigen::Vector3d offsetMin = this->mapSizeMin_ - pos;
 		Eigen::Vector3d offsetMax = this->mapSizeMax_ - pos;
 
-		double minRatio = 10000000;
+		double minRatio = std::numeric_limits<double>::max();
 		for (int i=0; i<3; ++i){ // each axis
 			if (diff[i] != 0){
 				double ratio1 = offsetMin[i]/diff[i];
