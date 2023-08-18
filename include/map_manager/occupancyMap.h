@@ -188,6 +188,7 @@ namespace mapManager{
 		void getCurrMapRange(Eigen::Vector3d& currRangeMin, Eigen::Vector3d& currRangeMax);
 		bool castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength=5.0, bool ignoreUnknown=true);
 
+
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
 		// void startVisualization();
@@ -286,7 +287,7 @@ namespace mapManager{
 	}
 
 	inline bool occMap::isInflatedFree(const Eigen::Vector3d& pos){
-		if (not this->isInflatedOccupied(pos) and not this->isUnknown(pos)){
+		if (not this->isInflatedOccupied(pos) and not this->isUnknown(pos) and this->isFree(pos)){
 			return true;
 		}
 		else{
