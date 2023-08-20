@@ -414,6 +414,9 @@ namespace mapManager{
 			int yInflateSize = ceil(this->robotSize_(1)/(2*this->mapRes_));
 			int zInflateSize = ceil(this->robotSize_(2)/(2*this->mapRes_));
 
+			Eigen::Vector3d currMapRangeMin (0.0, 0.0, 0.0);
+			Eigen::Vector3d currMapRangeMax (0.0, 0.0, 0.0);
+
 			const int  maxIndex = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
 			for (const auto& point: *cloud)
 			{
@@ -422,6 +425,31 @@ namespace mapManager{
 				this->posToIndex(pointPos, pointIndex);
 
 				this->occupancy_[address] = this->pMaxLog_;
+				// update map range
+				if (pointPos(0) < currMapRangeMin(0)){
+					currMapRangeMin(0) = pointPos(0);
+				}
+
+				if (pointPos(0) > currMapRangeMax(0)){
+					currMapRangeMax(0) = pointPos(0);
+				}
+
+				if (pointPos(1) < currMapRangeMin(1)){
+					currMapRangeMin(1) = pointPos(1);
+				}
+
+				if (pointPos(1) > currMapRangeMax(1)){
+					currMapRangeMax(1) = pointPos(1);
+				}
+
+				if (pointPos(2) < currMapRangeMin(2)){
+					currMapRangeMin(2) = pointPos(2);
+				}
+
+				if (pointPos(2) > currMapRangeMax(2)){
+					currMapRangeMax(2) = pointPos(2);
+				}
+
 				for (int ix=-xInflateSize; ix<=xInflateSize; ++ix){
 					for (int iy=-yInflateSize; iy<=yInflateSize; ++iy){
 						for (int iz=-zInflateSize; iz<=zInflateSize; ++iz){
@@ -437,6 +465,8 @@ namespace mapManager{
 					}
 				}
 			}
+			this->currMapRangeMin_ = currMapRangeMin;
+			this->currMapRangeMax_ = currMapRangeMax;
 		}
 	}
 
