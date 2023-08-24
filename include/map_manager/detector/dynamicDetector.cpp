@@ -751,9 +751,9 @@ namespace mapManager{
         this->publish3dBox(this->dbBBoxes_, this->dbBBoxesPub_, 1, 0, 0);
         this->publishYoloImages();
         this->publish3dBox(this->yoloBBoxes_, this->yoloBBoxesPub_, 1, 0, 1);
-        this->publish3dBox(this->filteredBBoxes_, this->filteredBBoxesPub_, 0, 0, 1);
+        this->publish3dBox(this->filteredBBoxes_, this->filteredBBoxesPub_, 0, 1, 1);
         this->publish3dBox(this->trackedBBoxes_, this->trackedBBoxesPub_, 1, 1, 0);
-        this->publish3dBox(this->dynamicBBoxes_, this->dynamicBBoxesPub_, 0, 1, 1);
+        this->publish3dBox(this->dynamicBBoxes_, this->dynamicBBoxesPub_, 0, 0, 1);
         this->publishHistoryTraj();
         this->publishVelVis();
     }
@@ -1657,7 +1657,7 @@ namespace mapManager{
         line.type = visualization_msgs::Marker::LINE_LIST;
         line.action = visualization_msgs::Marker::ADD;
         line.ns = "box3D";  
-        line.scale.x = 0.03;
+        line.scale.x = 0.06;
         line.color.r = r;
         line.color.g = g;
         line.color.b = b;
