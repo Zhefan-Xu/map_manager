@@ -40,7 +40,7 @@ namespace mapManager{
 			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 		}
 		this->updateFreeRegions(freeRegions);
-		this->freeHistRegions();
+		// this->freeHistRegions();
 	}
 
 	void dynamicMap::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclePos,
