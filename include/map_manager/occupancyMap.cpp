@@ -527,6 +527,7 @@ namespace mapManager{
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
+		this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
 	}
 
 
@@ -1036,6 +1037,7 @@ namespace mapManager{
 	void occMap::publishMap(){
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
+		pcl::PointCloud<pcl::PointXYZ> exploredCloud;
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){
@@ -1069,6 +1071,16 @@ namespace mapManager{
 							cloud.push_back(pt);
 						}
 					}
+
+					// publish explored voxel map
+					if(!this->isUnknown(pointIdx)){
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						pt.x = point(0);
+						pt.y = point(1);
+						pt.z = point(2);
+						exploredCloud.push_back(pt);
+					}
 				}
 			}
 		}
@@ -1078,9 +1090,17 @@ namespace mapManager{
 		cloud.is_dense = true;
 		cloud.header.frame_id = "map";
 
+		exploredCloud.width = exploredCloud.points.size();
+		exploredCloud.height = 1;
+		exploredCloud.is_dense = true;
+		exploredCloud.header.frame_id = "map";
+
 		sensor_msgs::PointCloud2 cloudMsg;
+		sensor_msgs::PointCloud2 exploredCloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
+		pcl::toROSMsg(exploredCloud, exploredCloudMsg);
 		this->mapVisPub_.publish(cloudMsg);
+		this->mapExploredPub_.publish(exploredCloudMsg);
 	}
 
 	void occMap::publishInflatedMap(){

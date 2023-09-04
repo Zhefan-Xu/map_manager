@@ -22,7 +22,7 @@ def counterCB(pc):
 
     
 def counter():
-    rospy.Subscriber("/dynamic_map/inflated_voxel_map",PointCloud2,counterCB)
+    rospy.Subscriber("/dynamic_map/explored_voxel_map",PointCloud2,counterCB)
     pass
 
 if __name__ == "__main__":

@@ -54,6 +54,7 @@ namespace mapManager{
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
 		ros::Publisher map2DPub_;
+		ros::Publisher mapExploredPub_;
 
 		int sensorInputMode_;
 		int localizationMode_;
