@@ -414,6 +414,9 @@ namespace mapManager{
 			int yInflateSize = ceil(this->robotSize_(1)/(2*this->mapRes_));
 			int zInflateSize = ceil(this->robotSize_(2)/(2*this->mapRes_));
 
+			Eigen::Vector3d currMapRangeMin (0.0, 0.0, 0.0);
+			Eigen::Vector3d currMapRangeMax (0.0, 0.0, 0.0);
+
 			const int  maxIndex = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
 			for (const auto& point: *cloud)
 			{
@@ -422,6 +425,31 @@ namespace mapManager{
 				this->posToIndex(pointPos, pointIndex);
 
 				this->occupancy_[address] = this->pMaxLog_;
+				// update map range
+				if (pointPos(0) < currMapRangeMin(0)){
+					currMapRangeMin(0) = pointPos(0);
+				}
+
+				if (pointPos(0) > currMapRangeMax(0)){
+					currMapRangeMax(0) = pointPos(0);
+				}
+
+				if (pointPos(1) < currMapRangeMin(1)){
+					currMapRangeMin(1) = pointPos(1);
+				}
+
+				if (pointPos(1) > currMapRangeMax(1)){
+					currMapRangeMax(1) = pointPos(1);
+				}
+
+				if (pointPos(2) < currMapRangeMin(2)){
+					currMapRangeMin(2) = pointPos(2);
+				}
+
+				if (pointPos(2) > currMapRangeMax(2)){
+					currMapRangeMax(2) = pointPos(2);
+				}
+
 				for (int ix=-xInflateSize; ix<=xInflateSize; ++ix){
 					for (int iy=-yInflateSize; iy<=yInflateSize; ++iy){
 						for (int iz=-zInflateSize; iz<=zInflateSize; ++iz){
@@ -437,6 +465,8 @@ namespace mapManager{
 					}
 				}
 			}
+			this->currMapRangeMin_ = currMapRangeMin;
+			this->currMapRangeMax_ = currMapRangeMax;
 		}
 	}
 
@@ -679,7 +709,7 @@ namespace mapManager{
 				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
 
 				if (this->useFreeRegions_){ // this region will not be updated and directly set to free
-					if (this->isInFreeRegions(currPointMap)){
+					if (this->isInHistFreeRegions(currPointMap)){
 						continue;
 					}
 				}
@@ -808,7 +838,7 @@ namespace mapManager{
 			hit = this->countHit_[cacheAddress];
 			miss = this->countHitMiss_[cacheAddress] - hit;
 
-			if (hit >= miss){
+			if (hit >= miss and hit != 0){
 				logUpdateValue = this->pHitLog_;
 			}
 			else{
@@ -825,7 +855,7 @@ namespace mapManager{
 			if (this->useFreeRegions_){ // current used in simulation, this region will not be updated and directly set to free
 				Eigen::Vector3d pos;
 				this->indexToPos(cacheIdx, pos);
-				if (this->isInFreeRegions(pos)){
+				if (this->isInHistFreeRegions(pos)){
 					this->occupancy_[cacheAddress] = this->pMinLog_;
 					continue;
 				}
@@ -844,6 +874,32 @@ namespace mapManager{
 			}
 
 			this->occupancy_[cacheAddress] = std::min(std::max(this->occupancy_[cacheAddress]+logUpdateValue, this->pMinLog_), this->pMaxLog_);
+
+			// update the entire map range (if it is not unknown)
+			if (not this->isUnknown(cacheIdx)){
+				Eigen::Vector3d cachePos;
+				this->indexToPos(cacheIdx, cachePos);
+				if (cachePos(0) > this->currMapRangeMax_(0)){
+					this->currMapRangeMax_(0) = cachePos(0);
+				}
+				else if (cachePos(0) < this->currMapRangeMin_(0)){
+					this->currMapRangeMin_(0) = cachePos(0);
+				}
+
+				if (cachePos(1) > this->currMapRangeMax_(1)){
+					this->currMapRangeMax_(1) = cachePos(1);
+				}
+				else if (cachePos(1) < this->currMapRangeMin_(1)){
+					this->currMapRangeMin_(1) = cachePos(1);
+				}
+
+				if (cachePos(2) > this->currMapRangeMax_(2)){
+					this->currMapRangeMax_(2) = cachePos(2);
+				}
+				else if (cachePos(2) < this->currMapRangeMin_(2)){
+					this->currMapRangeMin_(2) = cachePos(2);
+				}
+			}
 		}
 
 	}

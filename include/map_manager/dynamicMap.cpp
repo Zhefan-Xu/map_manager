@@ -27,7 +27,7 @@ namespace mapManager{
 		this->registerPub();
 		this->registerCallback();
 		this->detector_.reset(new mapManager::dynamicDetector (this->nh_));
-        this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicMap::freeMapCB, this);
+        this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicMap::freeMapCB, this);
 	}
 
 	void dynamicMap::freeMapCB(const ros::TimerEvent&){
@@ -35,12 +35,12 @@ namespace mapManager{
 		std::vector<mapManager::box3D> dynamicBBoxes;
 		this->detector_->getDynamicObstacles(dynamicBBoxes);
 		for (mapManager::box3D ob:dynamicBBoxes){
-			Eigen::Vector3d lowerBound (ob.x-ob.x_width/2-2*this->mapRes_-this->robotSize_(0)/2, ob.y-ob.y_width/2-2*this->mapRes_-this->robotSize_(1)/2, 0.0);
-			Eigen::Vector3d upperBound (ob.x+ob.x_width/2+2*this->mapRes_+this->robotSize_(0)/2, ob.y+ob.y_width/2+2*this->mapRes_+this->robotSize_(1)/2, ob.z+ob.z_width+2*this->mapRes_+this->robotSize_(2)/2);
-			this->freeRegion(lowerBound, upperBound);
+			Eigen::Vector3d lowerBound (ob.x-ob.x_width/2-2*this->mapRes_-this->robotSize_(0)/2 - 0.2, ob.y-ob.y_width/2-2*this->mapRes_-this->robotSize_(1)/2 - 0.2, 0.0);
+			Eigen::Vector3d upperBound (ob.x+ob.x_width/2+2*this->mapRes_+this->robotSize_(0)/2 + 0.2, ob.y+ob.y_width/2+2*this->mapRes_+this->robotSize_(1)/2 - 0.2, ob.z+ob.z_width+2*this->mapRes_+this->robotSize_(2)/2);
 			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 		}
 		this->updateFreeRegions(freeRegions);
+		// this->freeHistRegions();
 	}
 
 	void dynamicMap::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclePos,
