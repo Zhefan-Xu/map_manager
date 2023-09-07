@@ -369,10 +369,6 @@ namespace mapManager{
 	}
 
 	inline void occMap::freeRegion(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2){
-		if (not this->isInMap(pos1) and not this->isInMap(pos2)){
-			return;
-		}
-
 		Eigen::Vector3i idx1, idx2;
 		this->posToIndex(pos1, idx1);
 		this->posToIndex(pos2, idx2);
