@@ -700,6 +700,7 @@ namespace mapManager{
 					continue;
 				} else if (depth > this->depthMaxValue_) {
 					depth = this->raycastMaxLength_ + 0.1;
+					continue;
 				}
 				rowPtr =  rowPtr + this->skipPixel_;
 
