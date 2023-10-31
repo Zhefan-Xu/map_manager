@@ -13,7 +13,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  octomap_ros
   message_generation
   cv_bridge
   message_filters
@@ -63,11 +62,9 @@ find_package(PCL 1.7 REQUIRED)
 # )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  CheckCollision.srv
-  RandomSample.srv
-)
+# add_service_files(
+#   FILES
+# )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -77,10 +74,10 @@ add_service_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   std_msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -135,17 +132,17 @@ include_directories(
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/map_manager.cpp
 # )
-add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp
-                            include/${PROJECT_NAME}/occupancyMap.cpp
+add_library(${PROJECT_NAME} include/${PROJECT_NAME}/occupancyMap.cpp
                             include/${PROJECT_NAME}/ESDFMap.cpp
                             include/${PROJECT_NAME}/raycast.cpp
                             include/${PROJECT_NAME}/dynamicMap.cpp
                             include/${PROJECT_NAME}/detector/dynamicDetector.cpp
                             include/${PROJECT_NAME}/detector/dbscan.cpp
-                            include/${PROJECT_NAME}/detector/boxDetector.cpp
-                            include/${PROJECT_NAME}/detector/kalman_filter.cpp
-                            include/${PROJECT_NAME}/detector/uv_detector.cpp
-                            include/${PROJECT_NAME}/dynamicMapUGV.cpp)
+                            # include/${PROJECT_NAME}/detector/boxDetector.cpp
+                            # include/${PROJECT_NAME}/detector/kalman_filter.cpp
+                            include/${PROJECT_NAME}/dynamicMapUGV.cpp
+                            include/${PROJECT_NAME}/detector/kalmanFilter.cpp
+                            include/${PROJECT_NAME}/detector/uvDetector.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -156,12 +153,12 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/mapManagerOctomap.cpp
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/map_manager_node.cpp)
-add_executable(mapManagerOctomap src/mapManagerOctomapNode.cpp)
 add_executable(occupancy_map_node src/occupancy_map_node.cpp)
 add_executable(esdf_map_node src/esdf_map_node.cpp)
 add_executable(dynamic_map_node src/dynamic_map_node.cpp)
 add_executable(dynamic_detector_node src/dynamic_detector_node.cpp)
 add_executable(dynamic_map_ugv_node src/dynamic_map_ugv_node.cpp) 
+add_executable(save_map_node src/save_map_node.cpp)
 
 
 ## Rename C++ executable without prefix
@@ -173,21 +170,18 @@ add_executable(dynamic_map_ugv_node src/dynamic_map_ugv_node.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_generate_messages_cpp)
-add_dependencies(mapManagerOctomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-target_link_libraries(mapManagerOctomap ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(esdf_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_detector_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_map_ugv_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(save_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 
 #############
@@ -199,10 +193,10 @@ target_link_libraries(dynamic_map_ugv_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-# catkin_install_python(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+catkin_install_python(PROGRAMS
+  scripts/voxel_counter/voxel_counter_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html

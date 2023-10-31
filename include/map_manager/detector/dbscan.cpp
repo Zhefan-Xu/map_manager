@@ -3,7 +3,7 @@
     ------------------
     helper class function definitions for dbscan
 */
-#include "dbscan.h"
+#include <map_manager/detector/dbscan.h>
 #include <iostream>
 
 namespace mapManager{

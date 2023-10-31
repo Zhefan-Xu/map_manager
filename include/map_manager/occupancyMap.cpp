@@ -15,6 +15,7 @@ namespace mapManager{
 		this->ns_ = "occupancy_map";
 		this->hint_ = "[OccMap]";
 		this->initParam();
+		this->initPrebuiltMap();
 		this->registerPub();
 		this->registerCallback();
 	}
@@ -22,7 +23,7 @@ namespace mapManager{
 	void occMap::initMap(const ros::NodeHandle& nh){
 		this->nh_ = nh;
 		this->initParam();
-		this->initPreloadMap();
+		this->initPrebuiltMap();
 		this->registerPub();
 		this->registerCallback();
 	}
@@ -36,7 +37,6 @@ namespace mapManager{
 		else{
 			cout << this->hint_ << ": Sensor input mode: depth image (0)/pointcloud (1). Your option: " << this->sensorInputMode_ << endl;
 		}		
-
 
 		// localization mode
 		if (not this->nh_.getParam(this->ns_ + "/localization_mode", this->localizationMode_)){
@@ -59,7 +59,7 @@ namespace mapManager{
 		// pointcloud topic name
 		if (not this->nh_.getParam(this->ns_ + "/point_cloud_topic", this->pointcloudTopicName_)){
 			this->pointcloudTopicName_ = "/camera/depth/points";
-			cout << this->hint_ << ": No depth image topic name. Use default: /camera/depth/points" << endl;
+			cout << this->hint_ << ": No poincloud topic name. Use default: /camera/depth/points" << endl;
 		}
 		else{
 			cout << this->hint_ << ": Pointcloud topic: " << this->pointcloudTopicName_ << endl;
@@ -338,13 +338,13 @@ namespace mapManager{
 			cout << this->hint_ << ": Clean local map option is set to: " << this->cleanLocalMap_ << endl; 
 		}
 
-		// absolute dir of preload map file(.pcd)
-		if (not this->nh_.getParam(this->ns_ + "/preload_map_dir", this->preloadMapDir_)){
-			this->preloadMapDir_ = "empty";
-			cout << this->hint_ << ": No preload map dir found. Use default: empty." << endl;
+		// absolute dir of prebuilt map file (.pcd)
+		if (not this->nh_.getParam(this->ns_ + "/prebuilt_map_directory", this->prebuiltMapDir_)){
+			this->prebuiltMapDir_ = "";
+			cout << this->hint_ << ": Not using prebuilt map." << endl;
 		}
 		else{
-			cout << this->hint_ << ": the preload map absolute dir is found: " << this->preloadMapDir_ << endl;
+			cout << this->hint_ << ": the prebuilt map absolute dir is found: " << this->prebuiltMapDir_ << endl;
 		}
 
 		// local map size (visualization)
@@ -394,18 +394,15 @@ namespace mapManager{
 
 	}
 
-	void occMap::initPreloadMap(){
+	void occMap::initPrebuiltMap(){
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
-		if (pcl::io::loadPCDFile<pcl::PointXYZ> (this->preloadMapDir_, *cloud) == -1) //* load the file
+		if (pcl::io::loadPCDFile<pcl::PointXYZ> (this->prebuiltMapDir_, *cloud) == -1) //* load the file
 		{
-			ROS_ERROR("Couldn't read file test_pcd.pcd ");
+			cout << this->hint_ << ": No prebuilt map found/not using the prebuilt map." << endl;
 		}
 		else {
-			std::cout << "Loaded "
-				<< cloud->width * cloud->height
-				<< " data points from test_pcd.pcd with the following fields: "
-				<< std::endl;
+			cout << this->hint_ << "Loaded " << cloud->width * cloud->height << " data points from test_pcd.pcd with the following fields: " << endl;
 			int address;
 			Eigen::Vector3i pointIndex;
 			Eigen::Vector3d pointPos;
@@ -417,6 +414,9 @@ namespace mapManager{
 			int yInflateSize = ceil(this->robotSize_(1)/(2*this->mapRes_));
 			int zInflateSize = ceil(this->robotSize_(2)/(2*this->mapRes_));
 
+			Eigen::Vector3d currMapRangeMin (0.0, 0.0, 0.0);
+			Eigen::Vector3d currMapRangeMax (0.0, 0.0, 0.0);
+
 			const int  maxIndex = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
 			for (const auto& point: *cloud)
 			{
@@ -425,6 +425,31 @@ namespace mapManager{
 				this->posToIndex(pointPos, pointIndex);
 
 				this->occupancy_[address] = this->pMaxLog_;
+				// update map range
+				if (pointPos(0) < currMapRangeMin(0)){
+					currMapRangeMin(0) = pointPos(0);
+				}
+
+				if (pointPos(0) > currMapRangeMax(0)){
+					currMapRangeMax(0) = pointPos(0);
+				}
+
+				if (pointPos(1) < currMapRangeMin(1)){
+					currMapRangeMin(1) = pointPos(1);
+				}
+
+				if (pointPos(1) > currMapRangeMax(1)){
+					currMapRangeMax(1) = pointPos(1);
+				}
+
+				if (pointPos(2) < currMapRangeMin(2)){
+					currMapRangeMin(2) = pointPos(2);
+				}
+
+				if (pointPos(2) > currMapRangeMax(2)){
+					currMapRangeMax(2) = pointPos(2);
+				}
+
 				for (int ix=-xInflateSize; ix<=xInflateSize; ++ix){
 					for (int iy=-yInflateSize; iy<=yInflateSize; ++iy){
 						for (int iz=-zInflateSize; iz<=zInflateSize; ++iz){
@@ -439,9 +464,9 @@ namespace mapManager{
 						}
 					}
 				}
-
 			}
-
+			this->currMapRangeMin_ = currMapRangeMin;
+			this->currMapRangeMax_ = currMapRangeMax;
 		}
 	}
 
@@ -473,6 +498,7 @@ namespace mapManager{
 				this->pointcloudPoseSync_->registerCallback(boost::bind(&occMap::pointcloudPoseCB, this, _1, _2));
 			}
 			else if (this->localizationMode_ == 1){
+				ROS_INFO("here");
 				this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
 				this->pointcloudOdomSync_.reset(new message_filters::Synchronizer<pointcloudOdomSync>(pointcloudOdomSync(100), *this->pointcloudSub_, *this->odomSub_));
 				this->pointcloudOdomSync_->registerCallback(boost::bind(&occMap::pointcloudOdomCB, this, _1, _2));
@@ -502,8 +528,9 @@ namespace mapManager{
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
-		// this->visWorker_ = std::thread(&occMap::startVisualization, this);
+		this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
 	}
+
 
 
 	void occMap::depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose){
@@ -580,7 +607,6 @@ namespace mapManager{
 	}
 
 	void occMap::pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom){
-		ROS_INFO("in pointcloud odom cb");
 		// directly get the point cloud
 		pcl::PCLPointCloud2 pclPC2;
 		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
@@ -670,13 +696,28 @@ namespace mapManager{
 			for (int u=this->depthFilterMargin_; u<cols-this->depthFilterMargin_; u=u+this->skipPixel_){ // column
 				depth = (*rowPtr) * inv_factor;
 				
+				// if (*rowPtr == 0) {
+				// 	depth = this->raycastMaxLength_ + 0.1;
+				// 	rowPtr =  rowPtr + this->skipPixel_;
+				// 	continue;
+				// } else if (depth < this->depthMinValue_) {
+				// 	continue;
+				// } else if (depth > this->depthMaxValue_ and depth < 1.5 * this->depthMaxValue_) {
+				// 	depth = this->raycastMaxLength_ + 0.1;
+				// }
+				// else if (depth >= 1.5 * this->depthMaxValue_){
+				// 	rowPtr =  rowPtr + this->skipPixel_;
+				// 	continue;
+				// }
+
 				if (*rowPtr == 0) {
 					depth = this->raycastMaxLength_ + 0.1;
 				} else if (depth < this->depthMinValue_) {
 					continue;
-				} else if (depth > this->depthMaxValue_) {
+				} else if (depth > this->depthMaxValue_ ) {
 					depth = this->raycastMaxLength_ + 0.1;
 				}
+
 				rowPtr =  rowPtr + this->skipPixel_;
 
 				// get 3D point in camera frame
@@ -684,6 +725,12 @@ namespace mapManager{
 				currPointCam(1) = (v - this->cy_) * depth * inv_fy;
 				currPointCam(2) = depth;
 				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
+
+				if (this->useFreeRegions_){ // this region will not be updated and directly set to free
+					if (this->isInHistFreeRegions(currPointMap)){
+						continue;
+					}
+				}
 
 				// store current point
 				this->projPoints_[this->projPointsNum_] = currPointMap;
@@ -809,7 +856,7 @@ namespace mapManager{
 			hit = this->countHit_[cacheAddress];
 			miss = this->countHitMiss_[cacheAddress] - hit;
 
-			if (hit >= miss){
+			if (hit >= miss and hit != 0){
 				logUpdateValue = this->pHitLog_;
 			}
 			else{
@@ -826,7 +873,7 @@ namespace mapManager{
 			if (this->useFreeRegions_){ // current used in simulation, this region will not be updated and directly set to free
 				Eigen::Vector3d pos;
 				this->indexToPos(cacheIdx, pos);
-				if (this->isInFreeRegions(pos)){
+				if (this->isInHistFreeRegions(pos)){
 					this->occupancy_[cacheAddress] = this->pMinLog_;
 					continue;
 				}
@@ -845,6 +892,32 @@ namespace mapManager{
 			}
 
 			this->occupancy_[cacheAddress] = std::min(std::max(this->occupancy_[cacheAddress]+logUpdateValue, this->pMinLog_), this->pMaxLog_);
+
+			// update the entire map range (if it is not unknown)
+			if (not this->isUnknown(cacheIdx)){
+				Eigen::Vector3d cachePos;
+				this->indexToPos(cacheIdx, cachePos);
+				if (cachePos(0) > this->currMapRangeMax_(0)){
+					this->currMapRangeMax_(0) = cachePos(0);
+				}
+				else if (cachePos(0) < this->currMapRangeMin_(0)){
+					this->currMapRangeMin_(0) = cachePos(0);
+				}
+
+				if (cachePos(1) > this->currMapRangeMax_(1)){
+					this->currMapRangeMax_(1) = cachePos(1);
+				}
+				else if (cachePos(1) < this->currMapRangeMin_(1)){
+					this->currMapRangeMin_(1) = cachePos(1);
+				}
+
+				if (cachePos(2) > this->currMapRangeMax_(2)){
+					this->currMapRangeMax_(2) = cachePos(2);
+				}
+				else if (cachePos(2) < this->currMapRangeMin_(2)){
+					this->currMapRangeMin_(2) = cachePos(2);
+				}
+			}
 		}
 
 	}
@@ -955,15 +1028,6 @@ namespace mapManager{
 		this->publish2DOccupancyGrid();
 	}
 
-	// void occMap::startVisualization(){
-	// 	ros::Rate r (10);
-	// 	while (ros::ok()){
-	// 		// this->publishProjPoints();
-	// 		// this->publishMap();
-	// 		this->publishInflatedMap();
-	// 		r.sleep();
-	// 	}
-	// }
 
 	void occMap::publishProjPoints(){
 		pcl::PointXYZ pt;
@@ -990,6 +1054,7 @@ namespace mapManager{
 	void occMap::publishMap(){
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
+		pcl::PointCloud<pcl::PointXYZ> exploredCloud;
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){
@@ -1023,6 +1088,16 @@ namespace mapManager{
 							cloud.push_back(pt);
 						}
 					}
+
+					// publish explored voxel map
+					if(!this->isUnknown(pointIdx)){
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						pt.x = point(0);
+						pt.y = point(1);
+						pt.z = point(2);
+						exploredCloud.push_back(pt);
+					}
 				}
 			}
 		}
@@ -1032,9 +1107,17 @@ namespace mapManager{
 		cloud.is_dense = true;
 		cloud.header.frame_id = "map";
 
+		exploredCloud.width = exploredCloud.points.size();
+		exploredCloud.height = 1;
+		exploredCloud.is_dense = true;
+		exploredCloud.header.frame_id = "map";
+
 		sensor_msgs::PointCloud2 cloudMsg;
+		sensor_msgs::PointCloud2 exploredCloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
+		pcl::toROSMsg(exploredCloud, exploredCloudMsg);
 		this->mapVisPub_.publish(cloudMsg);
+		this->mapExploredPub_.publish(exploredCloudMsg);
 	}
 
 	void occMap::publishInflatedMap(){

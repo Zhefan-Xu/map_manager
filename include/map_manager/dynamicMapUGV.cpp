@@ -26,7 +26,7 @@ namespace mapManager{
 		this->nh_ = nh;
 		this->initParam();
 		this->initDynamicUGVParam();
-		this->initPreloadMap();
+		this->initPrebuiltMap();
 		this->registerPub();
 		this->registerCallback();
 		this->detector_.reset(new mapManager::dynamicDetector (this->nh_));

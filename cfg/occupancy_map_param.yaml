@@ -1,9 +1,9 @@
+sensor_input_mode: 1 # 0 depth map 1: pointcloud
 localization_mode: 1 # 0: pose (default) 1: odom
-sensor_input_mode: 1 # depth image (0)/pointcloud (1)
-
-# depth_image_topic: /camera/depth/image_raw
-# pose_topic: /CERLAB/quadcopter/pose
-# odom_topic: /CERLAB/quadcopter/odom
+# depth_image_topic: /camera/depth/image_rect_raw
+# point_cloud_topic: /camera/depth/color/points
+# pose_topic: /mavros/local_position/pose
+# odom_topic: /mavros/local_position/odom
 
 # depth_image_topic: /camera/depth/image_rect_raw
 # pose_topic: /mavros/local_position/pose
@@ -15,26 +15,30 @@ odom_topic: /odom
 point_cloud_topic: /point_cloud
 
 # robot size
-robot_size: [0.5, 0.5, 0.3]
+robot_size: [0.2, 0.2, 0.1]
 
 # Camera Parameters
-depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy
+# depth_intrinsics: [387.1536560058594, 387.1536560058594, 321.3246154785156, 233.5471954345703] # fx,  fy, cx, cy
 # depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
-# depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
-depth_scale_factor: 10 # 10 for simulator
+depth_intrinsics: [408.5106506347656, 459.5744934082031, 640.0, 360.0] # isaac sim
+depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
+# depth_scale_factor: 10 # 10 for simulator
 depth_min_value: 0.5
-depth_max_value: 5.0
+depth_max_value: 4.5
 depth_filter_margin: 2 # filter
 depth_skip_pixel: 2 # filter
-image_cols: 640
+image_cols: 848
 image_rows: 480
-body_to_camera: [0.0,  0.0,  1.0,  0.09,
-                -1.0,  0.0,  0.0,  0.0 ,   
-                 0.0, -1.0,  0.0,  0.095,
+# body_to_camera: [0.0,  0.0,  1.0,  0.06,
+#                 -1.0,  0.0,  0.0,  0.02 ,   
+#                  0.0, -1.0,  0.0,  0.08,
+#                  0.0,  0.0,  0.0,  1.0]
+body_to_camera: [1.0,  0.0,  0.0,  0.0,
+                 0.0,  1.0,  0.0,  0.0,   
+                 0.0,  0.0,  1.0,  0.7,
                  0.0,  0.0,  0.0,  1.0]
-
 # Raycasting
-raycast_max_length: 5.0
+raycast_max_length: 10.0
 p_hit: 0.70
 p_miss: 0.35
 p_min: 0.12
@@ -44,15 +48,16 @@ p_occ: 0.80
 
 # Map
 map_resolution: 0.1
-ground_height: -0.1 # m
+ground_height: -0.2 # m
 map_size: [40, 40, 3] # meter. in x y z direction (reserved size)
-local_update_range: [5, 5, 3]
+local_update_range: [10, 10, 4]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
-preload_map_dir: /home/cerlab/catkin_ws/static_map.pcd
+prebuilt_map_directory: No
+# prebuilt_map_directory: /home/cerlab/catkin_ws/static_map.pcd
 
 # visualziation
 local_map_size: [20, 20, 6] # meter. in x y z direction (only for visualization)
-max_height_visualization: 2.5 # m
+max_height_visualization: 3.0 # m
 visualize_global_map: true
 verbose: false
