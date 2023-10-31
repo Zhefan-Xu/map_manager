@@ -694,19 +694,28 @@ namespace mapManager{
 			for (int u=this->depthFilterMargin_; u<cols-this->depthFilterMargin_; u=u+this->skipPixel_){ // column
 				depth = (*rowPtr) * inv_factor;
 				
+				// if (*rowPtr == 0) {
+				// 	depth = this->raycastMaxLength_ + 0.1;
+				// 	rowPtr =  rowPtr + this->skipPixel_;
+				// 	continue;
+				// } else if (depth < this->depthMinValue_) {
+				// 	continue;
+				// } else if (depth > this->depthMaxValue_ and depth < 1.5 * this->depthMaxValue_) {
+				// 	depth = this->raycastMaxLength_ + 0.1;
+				// }
+				// else if (depth >= 1.5 * this->depthMaxValue_){
+				// 	rowPtr =  rowPtr + this->skipPixel_;
+				// 	continue;
+				// }
+
 				if (*rowPtr == 0) {
 					depth = this->raycastMaxLength_ + 0.1;
-					rowPtr =  rowPtr + this->skipPixel_;
-					continue;
 				} else if (depth < this->depthMinValue_) {
 					continue;
-				} else if (depth > this->depthMaxValue_ and depth < 1.5 * this->depthMaxValue_) {
+				} else if (depth > this->depthMaxValue_ ) {
 					depth = this->raycastMaxLength_ + 0.1;
 				}
-				else if (depth >= 1.5 * this->depthMaxValue_){
-					rowPtr =  rowPtr + this->skipPixel_;
-					continue;
-				}
+
 				rowPtr =  rowPtr + this->skipPixel_;
 
 				// get 3D point in camera frame
