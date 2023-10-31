@@ -580,6 +580,7 @@ namespace mapManager{
 	}
 
 	void occMap::pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom){
+		ROS_INFO("in pointcloud odom cb");
 		// directly get the point cloud
 		pcl::PCLPointCloud2 pclPC2;
 		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2

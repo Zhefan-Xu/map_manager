@@ -1,11 +1,18 @@
-localization_mode: 0 # 0: pose (default) 1: odom
-depth_image_topic: /camera/depth/image_raw
-pose_topic: /CERLAB/quadcopter/pose
-odom_topic: /CERLAB/quadcopter/odom
+localization_mode: 1 # 0: pose (default) 1: odom
+sensor_input_mode: 1 # depth image (0)/pointcloud (1)
+
+# depth_image_topic: /camera/depth/image_raw
+# pose_topic: /CERLAB/quadcopter/pose
+# odom_topic: /CERLAB/quadcopter/odom
 
 # depth_image_topic: /camera/depth/image_rect_raw
 # pose_topic: /mavros/local_position/pose
 # odom_topic: /vins_estimator/imu_propagate
+
+# depth_image_topic: /camera/depth/image_rect_raw
+# pose_topic: /mavros/local_position/pose
+odom_topic: /odom
+point_cloud_topic: /point_cloud
 
 # robot size
 robot_size: [0.5, 0.5, 0.3]
