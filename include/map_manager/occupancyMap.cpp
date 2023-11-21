@@ -529,6 +529,7 @@ namespace mapManager{
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
 		this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
+		this->mapUnkownPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/unkown_voxel_map",10);
 	}
 
 
@@ -740,17 +741,33 @@ namespace mapManager{
 	}
 
 	void occMap::getPointcloud(){
-		this->projPointsNum_ = this->pointcloud_.size();
-		this->projPoints_.resize(this->projPointsNum_);
+		// this->projPointsNum_ = this->pointcloud_.size();
+		// this->projPoints_.resize(this->projPointsNum_);
+
+		this->projPointsNum_ = 0;
+		this->projPoints_.clear();
 		Eigen::Vector3d currPointCam, currPointMap;
-		for (int i=0; i<this->projPointsNum_; ++i){
+		for (int i=0; i<this->pointcloud_.size(); ++i){
 			currPointCam(0) = this->pointcloud_.points[i].x;
 			currPointCam(1) = this->pointcloud_.points[i].y;
 			currPointCam(2) = this->pointcloud_.points[i].z;
 			currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
-			if ((currPointMap-this->position_).norm()>=0.5){
-				this->projPoints_[i] = currPointMap;
+			
+			// remove lidar detection of robot itself
+			if (abs(currPointMap(0)-this->position_(0))<=0.5 
+				and currPointMap(2)<=0.2
+				and abs(currPointMap(1)-this->position_(1))<=0.3){
+				continue;
 			}
+
+			// this->projPoints_[i] = currPointMap;
+			this->projPoints_.push_back(currPointMap);
+			this->projPointsNum_++;
+
+
+			// if ((currPointMap-this->position_).norm()>=1.0){
+			// 	this->projPoints_[i] = currPointMap;
+			// }
 		}
 	}
 
@@ -848,6 +865,7 @@ namespace mapManager{
 		// update occupancy in the cache
 		double logUpdateValue;
 		int cacheAddress, hit, miss;
+		this->updateVoxelCacheCopy_ = this->updateVoxelCache_;
 		while (not this->updateVoxelCache_.empty()){
 			Eigen::Vector3i cacheIdx = this->updateVoxelCache_.front();
 			this->updateVoxelCache_.pop();
@@ -1033,10 +1051,21 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 
-		for (int i=0; i<this->projPointsNum_; ++i){
-			pt.x = this->projPoints_[i](0);
-			pt.y = this->projPoints_[i](1);
-			pt.z = this->projPoints_[i](2);
+		// for (int i=0; i<this->projPointsNum_; ++i){
+		// 	pt.x = this->projPoints_[i](0);
+		// 	pt.y = this->projPoints_[i](1);
+		// 	pt.z = this->projPoints_[i](2);
+		// 	cloud.push_back(pt);
+		// }
+
+		while (not this->updateVoxelCacheCopy_.empty()){
+			Eigen::Vector3i ind = this->updateVoxelCacheCopy_.front();
+			this->updateVoxelCacheCopy_.pop();
+			Eigen::Vector3d pos;
+			this->indexToPos(ind, pos);
+			pt.x = pos(0);
+			pt.y = pos(1);
+			pt.z = pos(2);
 			cloud.push_back(pt);
 		}
 
@@ -1055,6 +1084,7 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 		pcl::PointCloud<pcl::PointXYZ> exploredCloud;
+		pcl::PointCloud<pcl::PointXYZ> unkownCloud;
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){
@@ -1098,6 +1128,18 @@ namespace mapManager{
 						pt.z = point(2);
 						exploredCloud.push_back(pt);
 					}
+					// publish unknown voxel map
+					else{
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						if (point(2) <= this->maxVisHeight_){
+							pt.x = point(0);
+							pt.y = point(1);
+							pt.z = point(2);
+							unkownCloud.push_back(pt);
+						}
+						
+					}
 				}
 			}
 		}
@@ -1112,12 +1154,20 @@ namespace mapManager{
 		exploredCloud.is_dense = true;
 		exploredCloud.header.frame_id = "map";
 
+		unkownCloud.width = unkownCloud.points.size();
+		unkownCloud.height = 1;
+		unkownCloud.is_dense = true;
+		unkownCloud.header.frame_id = "map";
+
 		sensor_msgs::PointCloud2 cloudMsg;
 		sensor_msgs::PointCloud2 exploredCloudMsg;
+		sensor_msgs::PointCloud2 unkownCloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
 		pcl::toROSMsg(exploredCloud, exploredCloudMsg);
+		pcl::toROSMsg(unkownCloud, unkownCloudMsg);
 		this->mapVisPub_.publish(cloudMsg);
 		this->mapExploredPub_.publish(exploredCloudMsg);
+		this->mapUnkownPub_.publish(unkownCloudMsg);
 	}
 
 	void occMap::publishInflatedMap(){

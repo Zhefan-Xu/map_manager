@@ -56,6 +56,7 @@ namespace mapManager{
 		ros::Publisher inflatedMapVisPub_;
 		ros::Publisher map2DPub_;
 		ros::Publisher mapExploredPub_;
+		ros::Publisher mapUnkownPub_;
 
 		int sensorInputMode_;
 		int localizationMode_;
@@ -118,6 +119,7 @@ namespace mapManager{
 		std::vector<int> countHitMiss_;
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
+		std::queue<Eigen::Vector3i> updateVoxelCacheCopy_;
 		std::vector<double> occupancy_; // occupancy log data
 		std::vector<bool> occupancyInflated_; // inflated occupancy data
 		int raycastNum_ = 0; 
@@ -174,6 +176,7 @@ namespace mapManager{
 		bool isInflatedOccupied(const Eigen::Vector3d& pos);
 		bool isInflatedOccupied(const Eigen::Vector3i& idx);
 		bool isInflatedOccupiedLine(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2);
+		bool isInflatedOccupiedLine(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2, bool debug);
 		bool isFree(const Eigen::Vector3d& pos);
 		bool isFree(const Eigen::Vector3i& idx);
 		bool isInflatedFree(const Eigen::Vector3d& pos);
@@ -257,7 +260,9 @@ namespace mapManager{
 		if (this->isInflatedOccupied(pos1) or this->isInflatedOccupied(pos2)){
 			return true;
 		}
-
+		// std::cout << "{inflated line check}: " << std::endl;
+		// std::cout << pos1 << std::endl;
+		// std::cout << pos2 << std::endl;
 		Eigen::Vector3d diff = pos2 - pos1;
 		double dist = diff.norm();
 		Eigen::Vector3d diffUnit = diff/dist;
@@ -275,6 +280,7 @@ namespace mapManager{
 		return false;
 	}
 
+
 	inline bool occMap::isFree(const Eigen::Vector3d& pos){
 		Eigen::Vector3i idx;
 		this->posToIndex(pos, idx);
@@ -291,6 +297,11 @@ namespace mapManager{
 
 	inline bool occMap::isInflatedFree(const Eigen::Vector3d& pos){
 		if (not this->isInflatedOccupied(pos) and not this->isUnknown(pos) and this->isFree(pos)){
+			// if (pos(0)>=1.0 and pos(0)<=3.0 and pos(1)>=-2.0 and pos(1) <= 2.0){
+			// 	ROS_INFO("inside wrong piont isInflatedFree");
+			// 	std::cout << pos(0) << " " << pos(1) << " " << pos(2) << std::endl;
+			// 	std::cout << this->isInflatedOccupied(pos) << " " << this->isUnknown(pos) << " " << this->isFree(pos) << std::endl;
+			// }
 			return true;
 		}
 		else{
