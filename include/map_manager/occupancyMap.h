@@ -22,6 +22,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/raycast.h>
+#include <map_manager/sharedVoxels.h>
 #include <thread>
 
 
@@ -51,12 +52,14 @@ namespace mapManager{
 		ros::Timer occTimer_;
 		ros::Timer inflateTimer_;
 		ros::Timer visTimer_;
+		ros::Timer mapShareTimer_;
 		ros::Publisher depthCloudPub_;
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
 		ros::Publisher map2DPub_;
 		ros::Publisher mapExploredPub_;
 		ros::Publisher mapUnkownPub_;
+		ros::Publisher mapSharedPub_;
 
 		int sensorInputMode_;
 		int localizationMode_;
@@ -77,6 +80,7 @@ namespace mapManager{
 		int depthFilterMargin_, skipPixel_; // depth filter margin
 		int imgCols_, imgRows_;
 		Eigen::Matrix4d body2Cam_; // from body frame to camera frame
+		Eigen::Matrix4d global2Map_; // from robot team global frame to map frame 
 
 		// RAYCASTING
 		double raycastMaxLength_;
@@ -119,9 +123,9 @@ namespace mapManager{
 		std::vector<int> countHitMiss_;
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
-		std::queue<Eigen::Vector3i> updateVoxelCacheCopy_;
 		std::vector<double> occupancy_; // occupancy log data
 		std::vector<bool> occupancyInflated_; // inflated occupancy data
+		std::vector<bool> sharedVoxel_; // 0 for free, 1 for occupied. only voxels with occupancy status changed will be shared 
 		int raycastNum_ = 0; 
 		std::vector<int> flagTraverse_, flagRayend_;
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions_;
@@ -129,7 +133,7 @@ namespace mapManager{
 		Eigen::Vector3d currMapRangeMin_ = Eigen::Vector3d (0, 0, 0); 
 		Eigen::Vector3d currMapRangeMax_ = Eigen::Vector3d (0, 0, 0);
 		bool useFreeRegions_ = false;
-
+		map_manager::sharedVoxels sharedVoxels_; 
 		
 
 		// STATUS
@@ -162,6 +166,7 @@ namespace mapManager{
 		void pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom);
 		void updateOccupancyCB(const ros::TimerEvent& );
 		void inflateMapCB(const ros::TimerEvent& );
+		void mapShareCB(const ros::TimerEvent& );
 
 		// core function
 		void projectDepthImage();
@@ -651,7 +656,7 @@ namespace mapManager{
 		map2body(2, 3) = pose->pose.position.z;
 		map2body(3, 3) = 1.0;
 
-		camPoseMatrix = map2body * this->body2Cam_;
+		camPoseMatrix = this->global2Map_ * map2body * this->body2Cam_;
 	}
 
 	inline void occMap::getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix){
@@ -667,7 +672,7 @@ namespace mapManager{
 		map2body(2, 3) = odom->pose.pose.position.z;
 		map2body(3, 3) = 1.0;
 
-		camPoseMatrix = map2body * this->body2Cam_;
+		camPoseMatrix = this->global2Map_ * map2body * this->body2Cam_;
 	}
 }
 

@@ -55,11 +55,10 @@ find_package(PCL 1.7 REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  sharedVoxels.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -74,10 +73,10 @@ find_package(PCL 1.7 REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -111,7 +110,7 @@ find_package(PCL 1.7 REQUIRED)
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES map_manager
- CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge vision_msgs
+ CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge vision_msgs message_runtime
  DEPENDS PCL
 )
 
@@ -169,8 +168,9 @@ add_executable(save_map_node src/save_map_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
+add_dependencies(occupancy_map_node map_manager_generate_messages_cpp)
+add_dependencies(dynamic_map_node map_manager_generate_messages_cpp)
+add_dependencies(esdf_map_node map_manager_generate_messages_cpp)
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}

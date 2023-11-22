@@ -191,6 +191,22 @@ namespace mapManager{
 			// cout << this->body2Cam_ << endl;
 		}
 
+		// transform matrix: map to global(for multi-robot map transmission)
+		std::vector<double> global2MapVec (16);
+		if (not this->nh_.getParam(this->ns_ + "/map_to_global", global2MapVec)){
+			ROS_ERROR("[OccMap]: Please check global to map matrix!");
+		}
+		else{
+			for (int i=0; i<4; ++i){
+				for (int j=0; j<4; ++j){
+					this->global2Map_(i, j) = global2MapVec[i * 4 + j];
+				}
+			}
+			// cout << this->hint_ << ": from body to camera: " << endl;
+			// cout << this->body2Cam_ << endl;
+		}
+
+
 		// Raycast max length
 		if (not this->nh_.getParam(this->ns_ + "/raycast_max_length", this->raycastMaxLength_)){
 			this->raycastMaxLength_ = 5.0;
@@ -521,6 +537,9 @@ namespace mapManager{
 
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, this);
+
+		// share map callback
+		this->mapShareTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::mapShareCB, this);
 	}
 
 	void occMap::registerPub(){
@@ -529,7 +548,13 @@ namespace mapManager{
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
 		this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
-		this->mapUnkownPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/unkown_voxel_map",10);
+		this->mapUnkownPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/unkown_voxel_map",10);\
+		// test
+		ROS_INFO("1");
+		map_manager::sharedVoxels test;
+		ROS_INFO("2");
+		this->mapSharedPub_ = this->nh_.advertise<map_manager::sharedVoxels>(this->ns_+"/shared_map",10);
+		ROS_INFO("3");
 	}
 
 
@@ -674,6 +699,10 @@ namespace mapManager{
 			this->mapNeedInflate_ = false;
 			this->esdfNeedUpdate_ = true;
 		}
+	}
+
+	void occMap::mapShareCB(const ros::TimerEvent& ){
+		this->mapSharedPub_.publish(this->sharedVoxels_);
 	}
 
 
@@ -865,7 +894,8 @@ namespace mapManager{
 		// update occupancy in the cache
 		double logUpdateValue;
 		int cacheAddress, hit, miss;
-		this->updateVoxelCacheCopy_ = this->updateVoxelCache_;
+		this->sharedVoxels_.occupancy.clear();
+		this->sharedVoxels_.positions.clear();
 		while (not this->updateVoxelCache_.empty()){
 			Eigen::Vector3i cacheIdx = this->updateVoxelCache_.front();
 			this->updateVoxelCache_.pop();
@@ -909,7 +939,43 @@ namespace mapManager{
 				continue;
 			}
 
+			double prevProb = this->occupancy_[cacheAddress];
+
 			this->occupancy_[cacheAddress] = std::min(std::max(this->occupancy_[cacheAddress]+logUpdateValue, this->pMinLog_), this->pMaxLog_);
+
+			// collect voxels whose status changed
+			Eigen::Vector3d sharedVoxelPos;
+			// Eigen::Vector4d sharedVoxelPosHomo;
+			// Eigen::Vector4d posInGlobalHomo;
+			bool occupancy;
+			geometry_msgs::Point p;
+			this->indexToPos(cacheIdx,sharedVoxelPos);
+			// transform from map to global
+			// sharedVoxelPosHomo(0) = sharedVoxelPos(0);
+			// sharedVoxelPosHomo(1) = sharedVoxelPos(1);
+			// sharedVoxelPosHomo(2) = sharedVoxelPos(2);
+			// sharedVoxelPosHomo(3) = 1.0;
+			// posInGlobalHomo = this->map2Global_ * sharedVoxelPosHomo;
+			p.x = sharedVoxelPos(0);
+			p.y = sharedVoxelPos(1);
+			p.z = sharedVoxelPos(2);
+			if (this->isOccupied(cacheIdx)){
+				occupancy = true;
+				// from unkown/free to occupied
+				if (prevProb < this->pOccLog_){
+					this->sharedVoxels_.occupancy.push_back(occupancy);
+					this->sharedVoxels_.positions.push_back(p);
+				}
+			}
+			else if(this->isFree(cacheIdx)){
+				// from unkown/occupied to free
+				occupancy = false;
+				if (prevProb < this->pMaxLog_ or prevProb >= this->pOccLog_){
+					this->sharedVoxels_.occupancy.push_back(occupancy);
+					this->sharedVoxels_.positions.push_back(p);
+				}
+			}
+
 
 			// update the entire map range (if it is not unknown)
 			if (not this->isUnknown(cacheIdx)){
@@ -1051,21 +1117,10 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 
-		// for (int i=0; i<this->projPointsNum_; ++i){
-		// 	pt.x = this->projPoints_[i](0);
-		// 	pt.y = this->projPoints_[i](1);
-		// 	pt.z = this->projPoints_[i](2);
-		// 	cloud.push_back(pt);
-		// }
-
-		while (not this->updateVoxelCacheCopy_.empty()){
-			Eigen::Vector3i ind = this->updateVoxelCacheCopy_.front();
-			this->updateVoxelCacheCopy_.pop();
-			Eigen::Vector3d pos;
-			this->indexToPos(ind, pos);
-			pt.x = pos(0);
-			pt.y = pos(1);
-			pt.z = pos(2);
+		for (int i=0; i<this->projPointsNum_; ++i){
+			pt.x = this->projPoints_[i](0);
+			pt.y = this->projPoints_[i](1);
+			pt.z = this->projPoints_[i](2);
 			cloud.push_back(pt);
 		}
 
