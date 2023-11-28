@@ -1,3 +1,4 @@
+# robot_id: 0
 sensor_input_mode: 1 # 0: depth image (default) 1: pointcloud 
 localization_mode: 1 # 0: pose (default) 1: odom
 depth_image_topic: /depth

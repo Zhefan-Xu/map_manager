@@ -118,6 +118,7 @@ namespace mapManager{
 
 
 		// MAP DATA
+		int id_;
 		int projPointsNum_ = 0;
 		std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
 		std::vector<int> countHitMiss_;
@@ -125,7 +126,7 @@ namespace mapManager{
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
 		std::vector<double> occupancy_; // occupancy log data
 		std::vector<bool> occupancyInflated_; // inflated occupancy data
-		std::vector<bool> sharedVoxel_; // 0 for free, 1 for occupied. only voxels with occupancy status changed will be shared 
+		// std::vector<bool> sharedVoxel_; // 0 for free, 1 for occupied. only voxels with occupancy status changed will be shared 
 		int raycastNum_ = 0; 
 		std::vector<int> flagTraverse_, flagRayend_;
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions_;

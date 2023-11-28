@@ -29,6 +29,16 @@ namespace mapManager{
 	}
 
 	void occMap::initParam(){
+		// robot id
+		if (not this->nh_.getParam(this->ns_ + "/robot_id", this->id_)){
+			this->id_ = 0;
+			cout << this->hint_ << ": No robot id option. Use default: 0" << endl;
+		}
+		else{
+			cout << this->hint_ << ": robot id: " << this->id_ << endl;
+		}	
+		this->sharedVoxels_.from_id = this->id_;
+
 		// sensor input mode
 		if (not this->nh_.getParam(this->ns_ + "/sensor_input_mode", this->sensorInputMode_)){
 			this->sensorInputMode_ = 0;
