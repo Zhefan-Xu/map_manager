@@ -14,20 +14,22 @@ namespace mapManager{
 		this->hint_ = "[dynamicMap]";
 	}
 
-	dynamicMap::dynamicMap(const ros::NodeHandle& nh){
+	dynamicMap::dynamicMap(const ros::NodeHandle& nh, bool freeMap){
 		this->ns_ = "dynamic_map";
 		this->hint_ = "[dynamicMap]";
-		this->initMap(nh);
+		this->initMap(nh, freeMap);
 	}
 
-	void dynamicMap::initMap(const ros::NodeHandle& nh){
+	void dynamicMap::initMap(const ros::NodeHandle& nh, bool freeMap){
 		this->nh_ = nh;
 		this->initParam();
 		this->initPrebuiltMap();
 		this->registerPub();
 		this->registerCallback();
 		this->detector_.reset(new mapManager::dynamicDetector (this->nh_));
-        this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicMap::freeMapCB, this);
+		if (freeMap){
+        	this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicMap::freeMapCB, this);
+		}
 	}
 
 	void dynamicMap::freeMapCB(const ros::TimerEvent&){
@@ -39,7 +41,8 @@ namespace mapManager{
 			Eigen::Vector3d upperBound (ob.x+ob.x_width/2+2*this->mapRes_+this->robotSize_(0)/2 + 0.2, ob.y+ob.y_width/2+2*this->mapRes_+this->robotSize_(1)/2 - 0.2, ob.z+ob.z_width+2*this->mapRes_+this->robotSize_(2)/2);
 			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 		}
-		this->updateFreeRegions(freeRegions);
+		this->freeRegions(freeRegions);
+		// this->updateFreeRegions(freeRegions);
 		// this->freeHistRegions();
 	}
 
