@@ -197,13 +197,13 @@ namespace mapManager{
 					this->body2Cam_(i, j) = body2CamVec[i * 4 + j];
 				}
 			}
-			// cout << this->hint_ << ": from body to camera: " << endl;
-			// cout << this->body2Cam_ << endl;
+			cout << this->hint_ << ": from body to camera: " << endl;
+			cout << this->body2Cam_ << endl;
 		}
 
 		// transform matrix: map to global(for multi-robot map transmission)
 		std::vector<double> global2MapVec (16);
-		if (not this->nh_.getParam(this->ns_ + "/map_to_global", global2MapVec)){
+		if (not this->nh_.getParam(this->ns_ + "/global_to_map_" + std::to_string(this->id_), global2MapVec)){
 			ROS_ERROR("[OccMap]: Please check global to map matrix!");
 		}
 		else{
@@ -212,8 +212,8 @@ namespace mapManager{
 					this->global2Map_(i, j) = global2MapVec[i * 4 + j];
 				}
 			}
-			// cout << this->hint_ << ": from body to camera: " << endl;
-			// cout << this->body2Cam_ << endl;
+			cout << this->hint_ << ": from global to map: " << endl;
+			cout << this->global2Map_ << endl;
 		}
 
 
@@ -549,7 +549,11 @@ namespace mapManager{
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, this);
 
 		// share map callback
-		this->mapShareTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::mapShareCB, this);
+		this->mapShareTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::mapSharedPubCB, this);
+
+		// subscrived map shared by other robots
+		this->mapSharedSub_ = this->nh_.subscribe("/public_shared_map", 10, &occMap::mapSharedSubCB, this);
+
 	}
 
 	void occMap::registerPub(){
@@ -557,8 +561,8 @@ namespace mapManager{
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
-		this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
-		this->mapUnkownPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/unkown_voxel_map",10);\
+		// this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
+		// this->mapUnkownPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/unkown_voxel_map",10);
 		// test
 		ROS_INFO("1");
 		map_manager::sharedVoxels test;
@@ -711,8 +715,26 @@ namespace mapManager{
 		}
 	}
 
-	void occMap::mapShareCB(const ros::TimerEvent& ){
+	void occMap::mapSharedPubCB(const ros::TimerEvent& ){
 		this->mapSharedPub_.publish(this->sharedVoxels_);
+	}
+
+	void occMap::mapSharedSubCB(const map_manager::sharedVoxelsConstPtr& incomeVoxels ){
+		// Do not merge map published by self
+		if (this->id_ == incomeVoxels->from_id){
+			return;
+		}
+
+		for (size_t i=0 ; i<incomeVoxels->occupancy.size() ; ++i){
+			int ind = this->posToAddress(incomeVoxels->positions[i].x, incomeVoxels->positions[i].y, incomeVoxels->positions[i].z);
+			if (incomeVoxels->occupancy[i]){
+				this->occupancy_[ind] = this->pOccLog_; 
+			}
+			else{
+				this->occupancy_[ind] = this->pMinLog_;
+			}
+		}
+
 	}
 
 
@@ -1148,8 +1170,8 @@ namespace mapManager{
 	void occMap::publishMap(){
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
-		pcl::PointCloud<pcl::PointXYZ> exploredCloud;
-		pcl::PointCloud<pcl::PointXYZ> unkownCloud;
+		// pcl::PointCloud<pcl::PointXYZ> exploredCloud;
+		// pcl::PointCloud<pcl::PointXYZ> unkownCloud;
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){
@@ -1184,27 +1206,27 @@ namespace mapManager{
 						}
 					}
 
-					// publish explored voxel map
-					if(!this->isUnknown(pointIdx)){
-						Eigen::Vector3d point;
-						this->indexToPos(pointIdx, point);
-						pt.x = point(0);
-						pt.y = point(1);
-						pt.z = point(2);
-						exploredCloud.push_back(pt);
-					}
-					// publish unknown voxel map
-					else{
-						Eigen::Vector3d point;
-						this->indexToPos(pointIdx, point);
-						if (point(2) <= this->maxVisHeight_){
-							pt.x = point(0);
-							pt.y = point(1);
-							pt.z = point(2);
-							unkownCloud.push_back(pt);
-						}
+					// // publish explored voxel map
+					// if(!this->isUnknown(pointIdx)){
+					// 	Eigen::Vector3d point;
+					// 	this->indexToPos(pointIdx, point);
+					// 	pt.x = point(0);
+					// 	pt.y = point(1);
+					// 	pt.z = point(2);
+					// 	exploredCloud.push_back(pt);
+					// }
+					// // publish unknown voxel map
+					// else{
+					// 	Eigen::Vector3d point;
+					// 	this->indexToPos(pointIdx, point);
+					// 	if (point(2) <= this->maxVisHeight_){
+					// 		pt.x = point(0);
+					// 		pt.y = point(1);
+					// 		pt.z = point(2);
+					// 		unkownCloud.push_back(pt);
+					// 	}
 						
-					}
+					// }
 				}
 			}
 		}
@@ -1214,25 +1236,25 @@ namespace mapManager{
 		cloud.is_dense = true;
 		cloud.header.frame_id = "map";
 
-		exploredCloud.width = exploredCloud.points.size();
-		exploredCloud.height = 1;
-		exploredCloud.is_dense = true;
-		exploredCloud.header.frame_id = "map";
+		// exploredCloud.width = exploredCloud.points.size();
+		// exploredCloud.height = 1;
+		// exploredCloud.is_dense = true;
+		// exploredCloud.header.frame_id = "map";
 
-		unkownCloud.width = unkownCloud.points.size();
-		unkownCloud.height = 1;
-		unkownCloud.is_dense = true;
-		unkownCloud.header.frame_id = "map";
+		// unkownCloud.width = unkownCloud.points.size();
+		// unkownCloud.height = 1;
+		// unkownCloud.is_dense = true;
+		// unkownCloud.header.frame_id = "map";
 
 		sensor_msgs::PointCloud2 cloudMsg;
-		sensor_msgs::PointCloud2 exploredCloudMsg;
-		sensor_msgs::PointCloud2 unkownCloudMsg;
+		// sensor_msgs::PointCloud2 exploredCloudMsg;
+		// sensor_msgs::PointCloud2 unkownCloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
-		pcl::toROSMsg(exploredCloud, exploredCloudMsg);
-		pcl::toROSMsg(unkownCloud, unkownCloudMsg);
+		// pcl::toROSMsg(exploredCloud, exploredCloudMsg);
+		// pcl::toROSMsg(unkownCloud, unkownCloudMsg);
 		this->mapVisPub_.publish(cloudMsg);
-		this->mapExploredPub_.publish(exploredCloudMsg);
-		this->mapUnkownPub_.publish(unkownCloudMsg);
+		// this->mapExploredPub_.publish(exploredCloudMsg);
+		// this->mapUnkownPub_.publish(unkownCloudMsg);
 	}
 
 	void occMap::publishInflatedMap(){

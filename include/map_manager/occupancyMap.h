@@ -57,9 +57,10 @@ namespace mapManager{
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
 		ros::Publisher map2DPub_;
-		ros::Publisher mapExploredPub_;
-		ros::Publisher mapUnkownPub_;
+		// ros::Publisher mapExploredPub_;
+		// ros::Publisher mapUnkownPub_;
 		ros::Publisher mapSharedPub_;
+		ros::Subscriber mapSharedSub_;
 
 		int sensorInputMode_;
 		int localizationMode_;
@@ -131,7 +132,8 @@ namespace mapManager{
 		std::vector<int> flagTraverse_, flagRayend_;
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions_;
 		std::deque<std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>> histFreeRegions_;
-		Eigen::Vector3d currMapRangeMin_ = Eigen::Vector3d (0, 0, 0); 
+		Eigen::Vector3d currMapRangeMin_ = Eigen
+		::Vector3d (0, 0, 0); 
 		Eigen::Vector3d currMapRangeMax_ = Eigen::Vector3d (0, 0, 0);
 		bool useFreeRegions_ = false;
 		map_manager::sharedVoxels sharedVoxels_; 
@@ -167,7 +169,9 @@ namespace mapManager{
 		void pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom);
 		void updateOccupancyCB(const ros::TimerEvent& );
 		void inflateMapCB(const ros::TimerEvent& );
-		void mapShareCB(const ros::TimerEvent& );
+		void mapSharedPubCB(const ros::TimerEvent& );
+		void mapSharedSubCB(const map_manager::sharedVoxelsConstPtr& incomeVoxels);
+
 
 		// core function
 		void projectDepthImage();

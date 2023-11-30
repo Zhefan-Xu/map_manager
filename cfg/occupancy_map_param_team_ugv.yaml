@@ -44,13 +44,17 @@ body_to_camera: [1.0,  0.0,  0.0,  0.0,
                  0.0,  0.0,  0.0,  1.0]
 
 # map in this robot to global map. For multi-robot map transimission
-map_to_global: [1.0,  0.0,  0.0,  0.0,
-                0.0,  1.0,  0.0,  0.0,   
-                0.0,  0.0,  1.0,  0.0,
-                0.0,  0.0,  0.0,  1.0]
+global_to_map_1: [1.0,  0.0,  0.0,  0.0,
+                  0.0,  1.0,  0.0,  0.0,   
+                  0.0,  0.0,  1.0,  0.0,
+                  0.0,  0.0,  0.0,  1.0]
+global_to_map_2: [1.0,  0.0,  0.0,  0.0,
+                  0.0,  1.0,  0.0, -3.0,   
+                  0.0,  0.0,  1.0,  0.0,
+                  0.0,  0.0,  0.0,  1.0]
 
 # Raycasting
-raycast_max_length: 30.0
+raycast_max_length: 5.0
 p_hit: 0.70
 p_miss: 0.35
 p_min: 0.12
@@ -61,8 +65,8 @@ p_occ: 0.80
 # Map
 map_resolution: 0.1
 ground_height: -0.7 # m
-map_size: [25, 15, 4] # meter. in x y z direction (reserved size)
-local_update_range: [10, 10, 4]
+map_size: [25, 25, 4] # meter. in x y z direction (reserved size)
+local_update_range: [5, 5, 4]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
 preload_map_dir: /home/cerlab-ugv/catkin_ws/static_map.pcd
