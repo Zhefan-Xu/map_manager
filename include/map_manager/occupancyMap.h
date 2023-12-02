@@ -23,6 +23,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/raycast.h>
 #include <map_manager/sharedVoxels.h>
+#include <map_manager/robotStates.h>
 #include <thread>
 
 
@@ -61,6 +62,8 @@ namespace mapManager{
 		// ros::Publisher mapUnkownPub_;
 		ros::Publisher mapSharedPub_;
 		ros::Subscriber mapSharedSub_;
+		ros::Publisher robotStatesPub_;
+		ros::Subscriber robotStatesSub_;
 
 		int sensorInputMode_;
 		int localizationMode_;
@@ -119,7 +122,6 @@ namespace mapManager{
 
 
 		// MAP DATA
-		int id_;
 		int projPointsNum_ = 0;
 		std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
 		std::vector<int> countHitMiss_;
@@ -140,6 +142,10 @@ namespace mapManager{
 		
 
 		// STATUS
+		int robot_id_;
+		int robot_num_;
+		std::vector<int> readyRobotsID_; // vector recording IDs of robot being ready to share map
+		bool allRobotsReady_; // all robots in the network are ready to share map
 		bool occNeedUpdate_ = false;
 		bool mapNeedInflate_ = false;
 		bool esdfNeedUpdate_ = false; // only used in ESDFMap
@@ -171,7 +177,7 @@ namespace mapManager{
 		void inflateMapCB(const ros::TimerEvent& );
 		void mapSharedPubCB(const ros::TimerEvent& );
 		void mapSharedSubCB(const map_manager::sharedVoxelsConstPtr& incomeVoxels);
-
+		void robotStatesSubCB(const map_manager::robotStatesConstPtr& states);
 
 		// core function
 		void projectDepthImage();

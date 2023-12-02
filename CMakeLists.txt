@@ -58,6 +58,7 @@ find_package(PCL 1.7 REQUIRED)
 add_message_files(
   FILES
   sharedVoxels.msg
+  robotStates.msg
 )
 
 ## Generate services in the 'srv' folder

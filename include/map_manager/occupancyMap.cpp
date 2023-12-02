@@ -29,15 +29,25 @@ namespace mapManager{
 	}
 
 	void occMap::initParam(){
+		// robot num
+		if (not this->nh_.getParam(this->ns_ + "/robot_num", this->robot_num_)){
+			this->robot_num_ = 0;
+			cout << this->hint_ << ": No robot num option. Use default: 0" << endl;
+		}
+		else{
+			cout << this->hint_ << ": robot num: " << this->robot_num_ << endl;
+		}	
+		this->allRobotsReady_ = false;
+
 		// robot id
-		if (not this->nh_.getParam(this->ns_ + "/robot_id", this->id_)){
-			this->id_ = 0;
+		if (not this->nh_.getParam(this->ns_ + "/robot_id", this->robot_id_)){
+			this->robot_id_ = 0;
 			cout << this->hint_ << ": No robot id option. Use default: 0" << endl;
 		}
 		else{
-			cout << this->hint_ << ": robot id: " << this->id_ << endl;
+			cout << this->hint_ << ": robot id: " << this->robot_id_ << endl;
 		}	
-		this->sharedVoxels_.from_id = this->id_;
+		this->sharedVoxels_.from_id = this->robot_id_;
 
 		// sensor input mode
 		if (not this->nh_.getParam(this->ns_ + "/sensor_input_mode", this->sensorInputMode_)){
@@ -203,7 +213,7 @@ namespace mapManager{
 
 		// transform matrix: map to global(for multi-robot map transmission)
 		std::vector<double> global2MapVec (16);
-		if (not this->nh_.getParam(this->ns_ + "/global_to_map_" + std::to_string(this->id_), global2MapVec)){
+		if (not this->nh_.getParam(this->ns_ + "/global_to_map_" + std::to_string(this->robot_id_), global2MapVec)){
 			ROS_ERROR("[OccMap]: Please check global to map matrix!");
 		}
 		else{
@@ -524,7 +534,6 @@ namespace mapManager{
 				this->pointcloudPoseSync_->registerCallback(boost::bind(&occMap::pointcloudPoseCB, this, _1, _2));
 			}
 			else if (this->localizationMode_ == 1){
-				ROS_INFO("here");
 				this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
 				this->pointcloudOdomSync_.reset(new message_filters::Synchronizer<pointcloudOdomSync>(pointcloudOdomSync(100), *this->pointcloudSub_, *this->odomSub_));
 				this->pointcloudOdomSync_->registerCallback(boost::bind(&occMap::pointcloudOdomCB, this, _1, _2));
@@ -552,8 +561,10 @@ namespace mapManager{
 		this->mapShareTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::mapSharedPubCB, this);
 
 		// subscrived map shared by other robots
-		this->mapSharedSub_ = this->nh_.subscribe("/public_shared_map", 10, &occMap::mapSharedSubCB, this);
-
+		this->mapSharedSub_ = this->nh_.subscribe(this->ns_ + "/shared_map", 10, &occMap::mapSharedSubCB, this);
+		
+		// subscribe all robots states in the robot network
+		this->robotStatesSub_ = this->nh_.subscribe(this->ns_ + "/robot_states", 10, &occMap::robotStatesSubCB, this);
 	}
 
 	void occMap::registerPub(){
@@ -564,11 +575,11 @@ namespace mapManager{
 		// this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
 		// this->mapUnkownPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/unkown_voxel_map",10);
 		// test
-		ROS_INFO("1");
-		map_manager::sharedVoxels test;
-		ROS_INFO("2");
-		this->mapSharedPub_ = this->nh_.advertise<map_manager::sharedVoxels>(this->ns_+"/shared_map",10);
-		ROS_INFO("3");
+		// map_manager::sharedVoxels test;
+		this->mapSharedPub_ = this->nh_.advertise<map_manager::sharedVoxels>(this->ns_ + "/shared_map", 10);
+
+		// publish current robot's states to the robot network
+		this->robotStatesPub_ = this->nh_.advertise<map_manager::robotStates>(this->ns_ + "/robot_states", 10);
 	}
 
 
@@ -717,24 +728,53 @@ namespace mapManager{
 
 	void occMap::mapSharedPubCB(const ros::TimerEvent& ){
 		this->mapSharedPub_.publish(this->sharedVoxels_);
+
+		// all others are ready to subscribe new map, so we can delete prevoius shared voxels
+		if (this->allRobotsReady_){
+			this->sharedVoxels_.occupancy.clear();
+			this->sharedVoxels_.positions.clear();
+		}
 	}
 
 	void occMap::mapSharedSubCB(const map_manager::sharedVoxelsConstPtr& incomeVoxels ){
+		// tell others current robot is ready
+		map_manager::robotStates robotStatesMsg;
+		robotStatesMsg.robot_id = this->robot_id_;
+		robotStatesMsg.ready = true;
+		this->robotStatesPub_.publish(robotStatesMsg);
 		// Do not merge map published by self
-		if (this->id_ == incomeVoxels->from_id){
+		if (this->robot_id_ == incomeVoxels->from_id){
 			return;
 		}
 
 		for (size_t i=0 ; i<incomeVoxels->occupancy.size() ; ++i){
-			int ind = this->posToAddress(incomeVoxels->positions[i].x, incomeVoxels->positions[i].y, incomeVoxels->positions[i].z);
+			int ind = this->posToAddress(incomeVoxels->positions[i].x, 
+										 incomeVoxels->positions[i].y, 
+										 incomeVoxels->positions[i].z);
 			if (incomeVoxels->occupancy[i]){
-				this->occupancy_[ind] = this->pOccLog_; 
+				this->occupancy_[ind] = this->pMaxLog_; 
 			}
 			else{
 				this->occupancy_[ind] = this->pMinLog_;
 			}
 		}
 
+	}
+
+	void occMap::robotStatesSubCB(const map_manager::robotStatesConstPtr& states){
+		if (states->ready){
+			// push robot id if it is a new robot
+			if (this->readyRobotsID_.empty()){
+				this->readyRobotsID_.push_back(states->robot_id);
+			}
+			else if (std::find(this->readyRobotsID_.begin(), this->readyRobotsID_.end(), states->robot_id)==this->readyRobotsID_.end() 
+						  and this->readyRobotsID_.back()!=states->robot_id){
+				this->readyRobotsID_.push_back(states->robot_id);
+			}
+			if (this->readyRobotsID_.size() == this->robot_num_){
+				this->allRobotsReady_ = true;
+			}
+		}
 	}
 
 
@@ -926,8 +966,7 @@ namespace mapManager{
 		// update occupancy in the cache
 		double logUpdateValue;
 		int cacheAddress, hit, miss;
-		this->sharedVoxels_.occupancy.clear();
-		this->sharedVoxels_.positions.clear();
+		
 		while (not this->updateVoxelCache_.empty()){
 			Eigen::Vector3i cacheIdx = this->updateVoxelCache_.front();
 			this->updateVoxelCache_.pop();
