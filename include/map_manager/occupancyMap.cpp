@@ -1041,7 +1041,7 @@ namespace mapManager{
 			else if(this->isFree(cacheIdx)){
 				// from unkown/occupied to free
 				occupancy = false;
-				if (prevProb < this->pMaxLog_ or prevProb >= this->pOccLog_){
+				if (prevProb < this->pMinLog_ or prevProb >= this->pOccLog_){
 					this->sharedVoxels_.occupancy.push_back(occupancy);
 					this->sharedVoxels_.positions.push_back(p);
 				}
