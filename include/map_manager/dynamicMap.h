@@ -8,8 +8,7 @@
 #define MAPMANAGER_DYNAMICMAP_H
 
 #include <map_manager/occupancyMap.h>
-#include <map_manager/detector/dynamicDetector.h>
-
+#include <onboard_detector/dynamicDetector.h>
 
 namespace mapManager{
 
@@ -17,7 +16,7 @@ namespace mapManager{
 	private:
 
 	protected:
-		std::shared_ptr<mapManager::dynamicDetector> detector_;
+		std::shared_ptr<onboardDetector::dynamicDetector> detector_;
 		ros::Timer freeMapTimer_;
 
 

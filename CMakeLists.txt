@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   message_filters
   image_transport
+  onboard_detector
 )
 
 ## System dependencies are found with CMake's conventions
@@ -110,7 +111,7 @@ find_package(PCL 1.7 REQUIRED)
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES map_manager
- CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge
+ CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge onboard_detector
  DEPENDS PCL
 )
 
@@ -134,11 +135,7 @@ include_directories(
 add_library(${PROJECT_NAME} include/${PROJECT_NAME}/occupancyMap.cpp
                             include/${PROJECT_NAME}/ESDFMap.cpp
                             include/${PROJECT_NAME}/raycast.cpp
-                            include/${PROJECT_NAME}/dynamicMap.cpp
-                            include/${PROJECT_NAME}/detector/dynamicDetector.cpp
-                            include/${PROJECT_NAME}/detector/dbscan.cpp
-                            include/${PROJECT_NAME}/detector/kalmanFilter.cpp
-                            include/${PROJECT_NAME}/detector/uvDetector.cpp)
+                            include/${PROJECT_NAME}/dynamicMap.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -152,7 +149,6 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/occupancyMap.cpp
 add_executable(occupancy_map_node src/occupancy_map_node.cpp)
 add_executable(esdf_map_node src/esdf_map_node.cpp)
 add_executable(dynamic_map_node src/dynamic_map_node.cpp)
-add_executable(dynamic_detector_node src/dynamic_detector_node.cpp)
 add_executable(save_map_node src/save_map_node.cpp)
 
 
@@ -174,7 +170,6 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 target_link_libraries(occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(esdf_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
-target_link_libraries(dynamic_detector_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(save_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 
