@@ -133,6 +133,7 @@ include_directories(
 #   src/${PROJECT_NAME}/map_manager.cpp
 # )
 add_library(${PROJECT_NAME} include/${PROJECT_NAME}/occupancyMap.cpp
+                            include/${PROJECT_NAME}/multiRoboOccupancyMap.cpp
                             include/${PROJECT_NAME}/ESDFMap.cpp
                             include/${PROJECT_NAME}/raycast.cpp
                             include/${PROJECT_NAME}/dynamicMap.cpp
@@ -142,7 +143,8 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/occupancyMap.cpp
                             # include/${PROJECT_NAME}/detector/kalman_filter.cpp
                             include/${PROJECT_NAME}/dynamicMapUGV.cpp
                             include/${PROJECT_NAME}/detector/kalmanFilter.cpp
-                            include/${PROJECT_NAME}/detector/uvDetector.cpp)
+                            include/${PROJECT_NAME}/detector/uvDetector.cpp
+                            )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -154,6 +156,7 @@ add_library(${PROJECT_NAME} include/${PROJECT_NAME}/occupancyMap.cpp
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/map_manager_node.cpp)
 add_executable(occupancy_map_node src/occupancy_map_node.cpp)
+add_executable(multi_robo_occupancy_map_node src/multi_robo_occupancy_map_node.cpp)
 add_executable(esdf_map_node src/esdf_map_node.cpp)
 add_executable(dynamic_map_node src/dynamic_map_node.cpp)
 add_executable(dynamic_detector_node src/dynamic_detector_node.cpp)
@@ -170,6 +173,7 @@ add_executable(save_map_node src/save_map_node.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(occupancy_map_node map_manager_generate_messages_cpp)
+add_dependencies(multi_robo_occupancy_map_node map_manager_generate_messages_cpp)
 add_dependencies(dynamic_map_node map_manager_generate_messages_cpp)
 add_dependencies(esdf_map_node map_manager_generate_messages_cpp)
 ## Specify libraries to link a library or executable target against
@@ -178,6 +182,7 @@ add_dependencies(esdf_map_node map_manager_generate_messages_cpp)
 # )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 target_link_libraries(occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(multi_robo_occupancy_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(esdf_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_map_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_detector_node ${catkin_LIBRARIES} ${PROJECT_NAME})

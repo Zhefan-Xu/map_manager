@@ -22,8 +22,6 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/raycast.h>
-#include <map_manager/sharedVoxels.h>
-#include <map_manager/robotStates.h>
 #include <thread>
 
 
@@ -53,17 +51,12 @@ namespace mapManager{
 		ros::Timer occTimer_;
 		ros::Timer inflateTimer_;
 		ros::Timer visTimer_;
-		ros::Timer mapShareTimer_;
 		ros::Publisher depthCloudPub_;
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
 		ros::Publisher map2DPub_;
-		// ros::Publisher mapExploredPub_;
-		// ros::Publisher mapUnkownPub_;
-		ros::Publisher mapSharedPub_;
-		ros::Subscriber mapSharedSub_;
-		ros::Publisher robotStatesPub_;
-		ros::Subscriber robotStatesSub_;
+		ros::Publisher mapExploredPub_;
+		ros::Publisher mapUnkownPub_;
 
 		int sensorInputMode_;
 		int localizationMode_;
@@ -84,7 +77,6 @@ namespace mapManager{
 		int depthFilterMargin_, skipPixel_; // depth filter margin
 		int imgCols_, imgRows_;
 		Eigen::Matrix4d body2Cam_; // from body frame to camera frame
-		Eigen::Matrix4d global2Map_; // from robot team global frame to map frame 
 
 		// RAYCASTING
 		double raycastMaxLength_;
@@ -127,25 +119,20 @@ namespace mapManager{
 		std::vector<int> countHitMiss_;
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
+		std::queue<Eigen::Vector3i> updateVoxelCacheCopy_;
 		std::vector<double> occupancy_; // occupancy log data
 		std::vector<bool> occupancyInflated_; // inflated occupancy data
-		// std::vector<bool> sharedVoxel_; // 0 for free, 1 for occupied. only voxels with occupancy status changed will be shared 
 		int raycastNum_ = 0; 
 		std::vector<int> flagTraverse_, flagRayend_;
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions_;
 		std::deque<std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>> histFreeRegions_;
-		Eigen::Vector3d currMapRangeMin_ = Eigen
-		::Vector3d (0, 0, 0); 
+		Eigen::Vector3d currMapRangeMin_ = Eigen::Vector3d (0, 0, 0); 
 		Eigen::Vector3d currMapRangeMax_ = Eigen::Vector3d (0, 0, 0);
 		bool useFreeRegions_ = false;
-		map_manager::sharedVoxels sharedVoxels_; 
+
 		
 
 		// STATUS
-		int robot_id_;
-		int robot_num_;
-		std::vector<int> readyRobotsID_; // vector recording IDs of robot being ready to share map
-		bool allRobotsReady_; // all robots in the network are ready to share map
 		bool occNeedUpdate_ = false;
 		bool mapNeedInflate_ = false;
 		bool esdfNeedUpdate_ = false; // only used in ESDFMap
@@ -168,16 +155,12 @@ namespace mapManager{
 		void registerPub();
 
 		// callback
-		void singlePointCloudCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud);
 		void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
 		void depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
 		void pointcloudPoseCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const geometry_msgs::PoseStampedConstPtr& pose);
 		void pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom);
 		void updateOccupancyCB(const ros::TimerEvent& );
 		void inflateMapCB(const ros::TimerEvent& );
-		void mapSharedPubCB(const ros::TimerEvent& );
-		void mapSharedSubCB(const map_manager::sharedVoxelsConstPtr& incomeVoxels);
-		void robotStatesSubCB(const map_manager::robotStatesConstPtr& states);
 
 		// core function
 		void projectDepthImage();
@@ -192,7 +175,6 @@ namespace mapManager{
 		bool isInflatedOccupied(const Eigen::Vector3d& pos);
 		bool isInflatedOccupied(const Eigen::Vector3i& idx);
 		bool isInflatedOccupiedLine(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2);
-		bool isInflatedOccupiedLine(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2, bool debug);
 		bool isFree(const Eigen::Vector3d& pos);
 		bool isFree(const Eigen::Vector3i& idx);
 		bool isInflatedFree(const Eigen::Vector3d& pos);
@@ -667,7 +649,7 @@ namespace mapManager{
 		map2body(2, 3) = pose->pose.position.z;
 		map2body(3, 3) = 1.0;
 
-		camPoseMatrix = this->global2Map_ * map2body * this->body2Cam_;
+		camPoseMatrix = map2body * this->body2Cam_;
 	}
 
 	inline void occMap::getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix){
@@ -683,7 +665,7 @@ namespace mapManager{
 		map2body(2, 3) = odom->pose.pose.position.z;
 		map2body(3, 3) = 1.0;
 
-		camPoseMatrix = this->global2Map_ * map2body * this->body2Cam_;
+		camPoseMatrix = map2body * this->body2Cam_;
 	}
 }
 

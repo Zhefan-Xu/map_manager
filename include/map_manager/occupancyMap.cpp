@@ -29,26 +29,6 @@ namespace mapManager{
 	}
 
 	void occMap::initParam(){
-		// robot num
-		if (not this->nh_.getParam(this->ns_ + "/robot_num", this->robot_num_)){
-			this->robot_num_ = 0;
-			cout << this->hint_ << ": No robot num option. Use default: 0" << endl;
-		}
-		else{
-			cout << this->hint_ << ": robot num: " << this->robot_num_ << endl;
-		}	
-		this->allRobotsReady_ = false;
-
-		// robot id
-		if (not this->nh_.getParam(this->ns_ + "/robot_id", this->robot_id_)){
-			this->robot_id_ = 0;
-			cout << this->hint_ << ": No robot id option. Use default: 0" << endl;
-		}
-		else{
-			cout << this->hint_ << ": robot id: " << this->robot_id_ << endl;
-		}	
-		this->sharedVoxels_.from_id = this->robot_id_;
-
 		// sensor input mode
 		if (not this->nh_.getParam(this->ns_ + "/sensor_input_mode", this->sensorInputMode_)){
 			this->sensorInputMode_ = 0;
@@ -207,25 +187,9 @@ namespace mapManager{
 					this->body2Cam_(i, j) = body2CamVec[i * 4 + j];
 				}
 			}
-			cout << this->hint_ << ": from body to camera: " << endl;
-			cout << this->body2Cam_ << endl;
+			// cout << this->hint_ << ": from body to camera: " << endl;
+			// cout << this->body2Cam_ << endl;
 		}
-
-		// transform matrix: map to global(for multi-robot map transmission)
-		std::vector<double> global2MapVec (16);
-		if (not this->nh_.getParam(this->ns_ + "/global_to_map_" + std::to_string(this->robot_id_), global2MapVec)){
-			ROS_ERROR("[OccMap]: Please check global to map matrix!");
-		}
-		else{
-			for (int i=0; i<4; ++i){
-				for (int j=0; j<4; ++j){
-					this->global2Map_(i, j) = global2MapVec[i * 4 + j];
-				}
-			}
-			cout << this->hint_ << ": from global to map: " << endl;
-			cout << this->global2Map_ << endl;
-		}
-
 
 		// Raycast max length
 		if (not this->nh_.getParam(this->ns_ + "/raycast_max_length", this->raycastMaxLength_)){
@@ -534,6 +498,7 @@ namespace mapManager{
 				this->pointcloudPoseSync_->registerCallback(boost::bind(&occMap::pointcloudPoseCB, this, _1, _2));
 			}
 			else if (this->localizationMode_ == 1){
+				ROS_INFO("here");
 				this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
 				this->pointcloudOdomSync_.reset(new message_filters::Synchronizer<pointcloudOdomSync>(pointcloudOdomSync(100), *this->pointcloudSub_, *this->odomSub_));
 				this->pointcloudOdomSync_->registerCallback(boost::bind(&occMap::pointcloudOdomCB, this, _1, _2));
@@ -556,15 +521,6 @@ namespace mapManager{
 
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, this);
-
-		// share map callback
-		this->mapShareTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::mapSharedPubCB, this);
-
-		// subscrived map shared by other robots
-		this->mapSharedSub_ = this->nh_.subscribe(this->ns_ + "/shared_map", 10, &occMap::mapSharedSubCB, this);
-		
-		// subscribe all robots states in the robot network
-		this->robotStatesSub_ = this->nh_.subscribe(this->ns_ + "/robot_states", 10, &occMap::robotStatesSubCB, this);
 	}
 
 	void occMap::registerPub(){
@@ -572,17 +528,9 @@ namespace mapManager{
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
-		// this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
-		// this->mapUnkownPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/unkown_voxel_map",10);
-		// test
-		// map_manager::sharedVoxels test;
-		this->mapSharedPub_ = this->nh_.advertise<map_manager::sharedVoxels>(this->ns_ + "/shared_map", 10);
-
-		// publish current robot's states to the robot network
-		this->robotStatesPub_ = this->nh_.advertise<map_manager::robotStates>(this->ns_ + "/robot_states", 10);
+		this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
+		this->mapUnkownPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/unkown_voxel_map",10);
 	}
-
-
 
 	void occMap::depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose){
 		// store current depth image
@@ -723,57 +671,6 @@ namespace mapManager{
 			this->inflateLocalMap();
 			this->mapNeedInflate_ = false;
 			this->esdfNeedUpdate_ = true;
-		}
-	}
-
-	void occMap::mapSharedPubCB(const ros::TimerEvent& ){
-		this->mapSharedPub_.publish(this->sharedVoxels_);
-
-		// all others are ready to subscribe new map, so we can delete prevoius shared voxels
-		if (this->allRobotsReady_){
-			this->sharedVoxels_.occupancy.clear();
-			this->sharedVoxels_.positions.clear();
-		}
-	}
-
-	void occMap::mapSharedSubCB(const map_manager::sharedVoxelsConstPtr& incomeVoxels ){
-		// tell others current robot is ready
-		map_manager::robotStates robotStatesMsg;
-		robotStatesMsg.robot_id = this->robot_id_;
-		robotStatesMsg.ready = true;
-		this->robotStatesPub_.publish(robotStatesMsg);
-		// Do not merge map published by self
-		if (this->robot_id_ == incomeVoxels->from_id){
-			return;
-		}
-
-		for (size_t i=0 ; i<incomeVoxels->occupancy.size() ; ++i){
-			int ind = this->posToAddress(incomeVoxels->positions[i].x, 
-										 incomeVoxels->positions[i].y, 
-										 incomeVoxels->positions[i].z);
-			if (incomeVoxels->occupancy[i]){
-				this->occupancy_[ind] = this->pMaxLog_; 
-			}
-			else{
-				this->occupancy_[ind] = this->pMinLog_;
-			}
-		}
-
-	}
-
-	void occMap::robotStatesSubCB(const map_manager::robotStatesConstPtr& states){
-		if (states->ready){
-			// push robot id if it is a new robot
-			if (this->readyRobotsID_.empty()){
-				this->readyRobotsID_.push_back(states->robot_id);
-			}
-			else if (std::find(this->readyRobotsID_.begin(), this->readyRobotsID_.end(), states->robot_id)==this->readyRobotsID_.end() 
-						  and this->readyRobotsID_.back()!=states->robot_id){
-				this->readyRobotsID_.push_back(states->robot_id);
-			}
-			if (this->readyRobotsID_.size() == this->robot_num_){
-				this->allRobotsReady_ = true;
-			}
 		}
 	}
 
@@ -966,7 +863,7 @@ namespace mapManager{
 		// update occupancy in the cache
 		double logUpdateValue;
 		int cacheAddress, hit, miss;
-		
+		this->updateVoxelCacheCopy_ = this->updateVoxelCache_;
 		while (not this->updateVoxelCache_.empty()){
 			Eigen::Vector3i cacheIdx = this->updateVoxelCache_.front();
 			this->updateVoxelCache_.pop();
@@ -1010,43 +907,7 @@ namespace mapManager{
 				continue;
 			}
 
-			double prevProb = this->occupancy_[cacheAddress];
-
 			this->occupancy_[cacheAddress] = std::min(std::max(this->occupancy_[cacheAddress]+logUpdateValue, this->pMinLog_), this->pMaxLog_);
-
-			// collect voxels whose status changed
-			Eigen::Vector3d sharedVoxelPos;
-			// Eigen::Vector4d sharedVoxelPosHomo;
-			// Eigen::Vector4d posInGlobalHomo;
-			bool occupancy;
-			geometry_msgs::Point p;
-			this->indexToPos(cacheIdx,sharedVoxelPos);
-			// transform from map to global
-			// sharedVoxelPosHomo(0) = sharedVoxelPos(0);
-			// sharedVoxelPosHomo(1) = sharedVoxelPos(1);
-			// sharedVoxelPosHomo(2) = sharedVoxelPos(2);
-			// sharedVoxelPosHomo(3) = 1.0;
-			// posInGlobalHomo = this->map2Global_ * sharedVoxelPosHomo;
-			p.x = sharedVoxelPos(0);
-			p.y = sharedVoxelPos(1);
-			p.z = sharedVoxelPos(2);
-			if (this->isOccupied(cacheIdx)){
-				occupancy = true;
-				// from unkown/free to occupied
-				if (prevProb < this->pOccLog_){
-					this->sharedVoxels_.occupancy.push_back(occupancy);
-					this->sharedVoxels_.positions.push_back(p);
-				}
-			}
-			else if(this->isFree(cacheIdx)){
-				// from unkown/occupied to free
-				occupancy = false;
-				if (prevProb < this->pMinLog_ or prevProb >= this->pOccLog_){
-					this->sharedVoxels_.occupancy.push_back(occupancy);
-					this->sharedVoxels_.positions.push_back(p);
-				}
-			}
-
 
 			// update the entire map range (if it is not unknown)
 			if (not this->isUnknown(cacheIdx)){
@@ -1188,10 +1049,21 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 
-		for (int i=0; i<this->projPointsNum_; ++i){
-			pt.x = this->projPoints_[i](0);
-			pt.y = this->projPoints_[i](1);
-			pt.z = this->projPoints_[i](2);
+		// for (int i=0; i<this->projPointsNum_; ++i){
+		// 	pt.x = this->projPoints_[i](0);
+		// 	pt.y = this->projPoints_[i](1);
+		// 	pt.z = this->projPoints_[i](2);
+		// 	cloud.push_back(pt);
+		// }
+
+		while (not this->updateVoxelCacheCopy_.empty()){
+			Eigen::Vector3i ind = this->updateVoxelCacheCopy_.front();
+			this->updateVoxelCacheCopy_.pop();
+			Eigen::Vector3d pos;
+			this->indexToPos(ind, pos);
+			pt.x = pos(0);
+			pt.y = pos(1);
+			pt.z = pos(2);
 			cloud.push_back(pt);
 		}
 
@@ -1209,8 +1081,8 @@ namespace mapManager{
 	void occMap::publishMap(){
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
-		// pcl::PointCloud<pcl::PointXYZ> exploredCloud;
-		// pcl::PointCloud<pcl::PointXYZ> unkownCloud;
+		pcl::PointCloud<pcl::PointXYZ> exploredCloud;
+		pcl::PointCloud<pcl::PointXYZ> unkownCloud;
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){
@@ -1245,27 +1117,27 @@ namespace mapManager{
 						}
 					}
 
-					// // publish explored voxel map
-					// if(!this->isUnknown(pointIdx)){
-					// 	Eigen::Vector3d point;
-					// 	this->indexToPos(pointIdx, point);
-					// 	pt.x = point(0);
-					// 	pt.y = point(1);
-					// 	pt.z = point(2);
-					// 	exploredCloud.push_back(pt);
-					// }
-					// // publish unknown voxel map
-					// else{
-					// 	Eigen::Vector3d point;
-					// 	this->indexToPos(pointIdx, point);
-					// 	if (point(2) <= this->maxVisHeight_){
-					// 		pt.x = point(0);
-					// 		pt.y = point(1);
-					// 		pt.z = point(2);
-					// 		unkownCloud.push_back(pt);
-					// 	}
+					// publish explored voxel map
+					if(!this->isUnknown(pointIdx)){
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						pt.x = point(0);
+						pt.y = point(1);
+						pt.z = point(2);
+						exploredCloud.push_back(pt);
+					}
+					// publish unknown voxel map
+					else{
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						if (point(2) <= this->maxVisHeight_){
+							pt.x = point(0);
+							pt.y = point(1);
+							pt.z = point(2);
+							unkownCloud.push_back(pt);
+						}
 						
-					// }
+					}
 				}
 			}
 		}
@@ -1275,25 +1147,25 @@ namespace mapManager{
 		cloud.is_dense = true;
 		cloud.header.frame_id = "map";
 
-		// exploredCloud.width = exploredCloud.points.size();
-		// exploredCloud.height = 1;
-		// exploredCloud.is_dense = true;
-		// exploredCloud.header.frame_id = "map";
+		exploredCloud.width = exploredCloud.points.size();
+		exploredCloud.height = 1;
+		exploredCloud.is_dense = true;
+		exploredCloud.header.frame_id = "map";
 
-		// unkownCloud.width = unkownCloud.points.size();
-		// unkownCloud.height = 1;
-		// unkownCloud.is_dense = true;
-		// unkownCloud.header.frame_id = "map";
+		unkownCloud.width = unkownCloud.points.size();
+		unkownCloud.height = 1;
+		unkownCloud.is_dense = true;
+		unkownCloud.header.frame_id = "map";
 
 		sensor_msgs::PointCloud2 cloudMsg;
-		// sensor_msgs::PointCloud2 exploredCloudMsg;
-		// sensor_msgs::PointCloud2 unkownCloudMsg;
+		sensor_msgs::PointCloud2 exploredCloudMsg;
+		sensor_msgs::PointCloud2 unkownCloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
-		// pcl::toROSMsg(exploredCloud, exploredCloudMsg);
-		// pcl::toROSMsg(unkownCloud, unkownCloudMsg);
+		pcl::toROSMsg(exploredCloud, exploredCloudMsg);
+		pcl::toROSMsg(unkownCloud, unkownCloudMsg);
 		this->mapVisPub_.publish(cloudMsg);
-		// this->mapExploredPub_.publish(exploredCloudMsg);
-		// this->mapUnkownPub_.publish(unkownCloudMsg);
+		this->mapExploredPub_.publish(exploredCloudMsg);
+		this->mapUnkownPub_.publish(unkownCloudMsg);
 	}
 
 	void occMap::publishInflatedMap(){
