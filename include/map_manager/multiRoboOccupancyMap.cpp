@@ -168,7 +168,7 @@ namespace mapManager{
 		// store current position and orientation (camera)
 		Eigen::Matrix4d camPoseMatrix;
 		this->getCameraPose(odom, camPoseMatrix);
-		camPoseMatrix = this->global2Map_ * camPoseMatrix; // transform to global map frame according to inter_robot transform
+		// camPoseMatrix = this->global2Map_ * camPoseMatrix; // transform to global map frame according to inter_robot transform
 
 		this->position_(0) = camPoseMatrix(0, 3);
 		this->position_(1) = camPoseMatrix(1, 3);
@@ -192,7 +192,7 @@ namespace mapManager{
 		// store current position and orientation (camera)
 		Eigen::Matrix4d camPoseMatrix;
 		this->getCameraPose(pose, camPoseMatrix);
-		camPoseMatrix = this->global2Map_ * camPoseMatrix; // transform to global map frame according to inter_robot transform
+		// camPoseMatrix = this->global2Map_ * camPoseMatrix; // transform to global map frame according to inter_robot transform
 
 		this->position_(0) = camPoseMatrix(0, 3);
 		this->position_(1) = camPoseMatrix(1, 3);
