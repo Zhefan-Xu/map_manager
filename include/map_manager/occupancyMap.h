@@ -52,6 +52,7 @@ namespace mapManager{
 		ros::Timer inflateTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher depthCloudPub_;
+		ros::Publisher freeRegionPub_;
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
 		ros::Publisher map2DPub_;

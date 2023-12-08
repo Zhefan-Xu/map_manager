@@ -8,8 +8,8 @@
 	<remap from="/odom_transformed" to="/odom_transformed_$(arg robot_id)" />
   	<node pkg="odom_transformer" type="odom_transformer.py" name="odom_transformer_node" output="screen"> 
 		<param name="transform_matrix" type="yaml" value="[ [1.0, 0.0, 0.0, 0.0], 
-															[0.0, 1.0, 0.0,-3.0], 
-															[0.0, 0.0, 1.0, 0.0], 
+															[0.0, 1.0, 0.0,-6.3], 
+															[0.0, 0.0, 1.0,-0.15], 
 															[0.0, 0.0, 0.0, 1.0]]"/>
 		<!-- <param name="transform_matrix" value="$(arg transform_matrix)"/> -->  
 	</node>
