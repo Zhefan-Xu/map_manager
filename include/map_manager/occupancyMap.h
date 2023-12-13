@@ -55,6 +55,8 @@ namespace mapManager{
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
 		ros::Publisher map2DPub_;
+		ros::Publisher mapExploredPub_;
+		ros::Publisher mapUnkownPub_;
 
 		int sensorInputMode_;
 		int localizationMode_;
@@ -89,7 +91,7 @@ namespace mapManager{
 		Eigen::Vector3d localUpdateRange_; // self defined local update range
 		double localBoundInflate_; // inflate local map for some distance
 		bool cleanLocalMap_; 
-		std::string preloadMapDir_;
+		std::string prebuiltMapDir_;
 
 		// VISUALZATION
 		double maxVisHeight_;
@@ -117,12 +119,17 @@ namespace mapManager{
 		std::vector<int> countHitMiss_;
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
+		std::queue<Eigen::Vector3i> updateVoxelCacheCopy_;
 		std::vector<double> occupancy_; // occupancy log data
 		std::vector<bool> occupancyInflated_; // inflated occupancy data
 		int raycastNum_ = 0; 
 		std::vector<int> flagTraverse_, flagRayend_;
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions_;
+		std::deque<std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>> histFreeRegions_;
+		Eigen::Vector3d currMapRangeMin_ = Eigen::Vector3d (0, 0, 0); 
+		Eigen::Vector3d currMapRangeMax_ = Eigen::Vector3d (0, 0, 0);
 		bool useFreeRegions_ = false;
+
 		
 
 		// STATUS
@@ -140,9 +147,10 @@ namespace mapManager{
 
 		occMap(); // empty constructor
 		occMap(const ros::NodeHandle& nh);
+		virtual ~occMap() = default;
 		void initMap(const ros::NodeHandle& nh);
 		void initParam();
-		void initPreloadMap();
+		void initPrebuiltMap();
 		void registerCallback();
 		void registerPub();
 
@@ -176,10 +184,14 @@ namespace mapManager{
 		void setFree(const Eigen::Vector3d& pos);
 		void setFree(const Eigen::Vector3i& idx);
 		void freeRegion(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2);
+		void freeRegions(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions);
+		void freeHistRegions();
 		void updateFreeRegions(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions);
 		double getRes();
 		void getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax);
+		void getCurrMapRange(Eigen::Vector3d& currRangeMin, Eigen::Vector3d& currRangeMax);
 		bool castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength=5.0, bool ignoreUnknown=true);
+
 
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
@@ -203,7 +215,9 @@ namespace mapManager{
 		bool isInLocalUpdateRange(const Eigen::Vector3d& pos);
 		bool isInLocalUpdateRange(const Eigen::Vector3i& idx);
 		bool isInFreeRegion(const Eigen::Vector3d& pos, const std::pair<Eigen::Vector3d, Eigen::Vector3d>& freeRegion);
+		bool isInFreeRegions(const Eigen::Vector3d& pos, const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions);
 		bool isInFreeRegions(const Eigen::Vector3d& pos);
+		bool isInHistFreeRegions(const Eigen::Vector3d& pos);
 		Eigen::Vector3d adjustPointInMap(const Eigen::Vector3d& point);
 		Eigen::Vector3d adjustPointRayLength(const Eigen::Vector3d& point);
 		int updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);
@@ -244,7 +258,9 @@ namespace mapManager{
 		if (this->isInflatedOccupied(pos1) or this->isInflatedOccupied(pos2)){
 			return true;
 		}
-
+		// std::cout << "{inflated line check}: " << std::endl;
+		// std::cout << pos1 << std::endl;
+		// std::cout << pos2 << std::endl;
 		Eigen::Vector3d diff = pos2 - pos1;
 		double dist = diff.norm();
 		Eigen::Vector3d diffUnit = diff/dist;
@@ -262,6 +278,7 @@ namespace mapManager{
 		return false;
 	}
 
+
 	inline bool occMap::isFree(const Eigen::Vector3d& pos){
 		Eigen::Vector3i idx;
 		this->posToIndex(pos, idx);
@@ -277,7 +294,12 @@ namespace mapManager{
 	}
 
 	inline bool occMap::isInflatedFree(const Eigen::Vector3d& pos){
-		if (not this->isInflatedOccupied(pos) and not this->isUnknown(pos)){
+		if (not this->isInflatedOccupied(pos) and not this->isUnknown(pos) and this->isFree(pos)){
+			// if (pos(0)>=1.0 and pos(0)<=3.0 and pos(1)>=-2.0 and pos(1) <= 2.0){
+			// 	ROS_INFO("inside wrong piont isInflatedFree");
+			// 	std::cout << pos(0) << " " << pos(1) << " " << pos(2) << std::endl;
+			// 	std::cout << this->isInflatedOccupied(pos) << " " << this->isUnknown(pos) << " " << this->isFree(pos) << std::endl;
+			// }
 			return true;
 		}
 		else{
@@ -324,21 +346,40 @@ namespace mapManager{
 
 	inline void occMap::setFree(const Eigen::Vector3d& pos){
 		if (not this->isInMap(pos)) return;
-		int address = this->posToAddress(pos);
-		this->occupancy_[address] = this->pMinLog_;
+		Eigen::Vector3i idx;
+		this->posToIndex(pos, idx);
+		this->setFree(idx);
 	}
 
 	inline void occMap::setFree(const Eigen::Vector3i& idx){
 		if (not this->isInMap(idx)) return;
 		int address = this->indexToAddress(idx);
 		this->occupancy_[address] = this->pMinLog_;
+
+		// also set inflated map to free
+		int xInflateSize = ceil(this->robotSize_(0)/(2*this->mapRes_));
+		int yInflateSize = ceil(this->robotSize_(1)/(2*this->mapRes_));
+		int zInflateSize = ceil(this->robotSize_(2)/(2*this->mapRes_));
+		Eigen::Vector3i inflateIndex;
+		int inflateAddress;
+		const int maxIndex = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
+		for (int ix=-xInflateSize; ix<=xInflateSize; ++ix){
+			for (int iy=-yInflateSize; iy<=yInflateSize; ++iy){
+				for (int iz=-zInflateSize; iz<=zInflateSize; ++iz){
+					inflateIndex(0) = idx(0) + ix;
+					inflateIndex(1) = idx(1) + iy;
+					inflateIndex(2) = idx(2) + iz;
+					inflateAddress = this->indexToAddress(inflateIndex);
+					if ((inflateAddress < 0) or (inflateAddress > maxIndex)){
+						continue; // those points are not in the reserved map
+					} 
+					this->occupancyInflated_[inflateAddress] = false;
+				}
+			}
+		}
 	}
 
 	inline void occMap::freeRegion(const Eigen::Vector3d& pos1, const Eigen::Vector3d& pos2){
-		if (not this->isInMap(pos1) and not this->isInMap(pos2)){
-			return;
-		}
-
 		Eigen::Vector3i idx1, idx2;
 		this->posToIndex(pos1, idx1);
 		this->posToIndex(pos2, idx2);
@@ -347,15 +388,41 @@ namespace mapManager{
 		for (int xID=idx1(0); xID<=idx2(0); ++xID){
 			for (int yID=idx1(1); yID<=idx2(1); ++yID){
 				for (int zID=idx1(2); zID<=idx2(2); ++zID){
-					this->setFree(Eigen::Vector3d (xID, yID, zID));
+					this->setFree(Eigen::Vector3i (xID, yID, zID));
 				}	
 			}
 		}
 	}
 
+	inline void occMap::freeRegions(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions){
+		for (std::pair<Eigen::Vector3d, Eigen::Vector3d> freeRegion : freeRegions){
+			this->freeRegion(freeRegion.first, freeRegion.second);
+		}
+	}
+
+	inline void occMap::freeHistRegions(){
+		for (std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions : this->histFreeRegions_){
+			this->freeRegions(freeRegions);
+		}
+	}
+
 	inline void occMap::updateFreeRegions(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions){
 		this->freeRegions_ = freeRegions;
-		this->useFreeRegions_ = true;
+		if (this->histFreeRegions_.size() <= 30){
+			this->histFreeRegions_.push_back(freeRegions);
+		}
+		else{
+			this->histFreeRegions_.pop_front();
+			this->histFreeRegions_.push_back(freeRegions);
+		}
+
+
+		if (this->histFreeRegions_.size() != 0){
+			this->useFreeRegions_ = true;
+		}
+		else{
+			this->useFreeRegions_ = false;
+		}
 	}
 
 
@@ -366,6 +433,11 @@ namespace mapManager{
 	inline void occMap::getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax){
 		mapSizeMin = this->mapSizeMin_;
 		mapSizeMax = this->mapSizeMax_;
+	}
+
+	inline void occMap::getCurrMapRange(Eigen::Vector3d& currRangeMin, Eigen::Vector3d& currRangeMax){
+		currRangeMin = this->currMapRangeMin_;
+		currRangeMax = this->currMapRangeMax_;
 	}
 
 	inline bool occMap::castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength, bool ignoreUnknown){
@@ -496,9 +568,23 @@ namespace mapManager{
 		}
 	}
 
-	inline bool occMap::isInFreeRegions(const Eigen::Vector3d& pos){
-		for (std::pair<Eigen::Vector3d, Eigen::Vector3d> freeRegion : this->freeRegions_){
+
+	inline bool occMap::isInFreeRegions(const Eigen::Vector3d& pos, const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions){
+		for (std::pair<Eigen::Vector3d, Eigen::Vector3d> freeRegion : freeRegions){
 			if (this->isInFreeRegion(pos, freeRegion)){
+				return true;
+			}
+		}
+		return false;
+	}
+
+	inline bool occMap::isInFreeRegions(const Eigen::Vector3d& pos){
+		return this->isInFreeRegions(pos, this->freeRegions_);
+	}
+
+	inline bool occMap::isInHistFreeRegions(const Eigen::Vector3d& pos){
+		for (std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions : this->histFreeRegions_){
+			if (this->isInFreeRegions(pos, freeRegions)){
 				return true;
 			}
 		}
@@ -512,7 +598,7 @@ namespace mapManager{
 		Eigen::Vector3d offsetMin = this->mapSizeMin_ - pos;
 		Eigen::Vector3d offsetMax = this->mapSizeMax_ - pos;
 
-		double minRatio = 10000000;
+		double minRatio = std::numeric_limits<double>::max();
 		for (int i=0; i<3; ++i){ // each axis
 			if (diff[i] != 0){
 				double ratio1 = offsetMin[i]/diff[i];

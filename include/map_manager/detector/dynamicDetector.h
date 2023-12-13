@@ -24,8 +24,8 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/detector/dbscan.h>
-#include <map_manager/detector/uv_detector.h>
-#include <map_manager/detector/kalman_filter.h>
+#include <map_manager/detector/uvDetector.h>
+#include <map_manager/detector/kalmanFilter.h>
 #include <map_manager/detector/utils.h>
 
 
@@ -64,15 +64,6 @@ namespace mapManager{
         ros::Publisher dynamicBBoxesPub_;
         ros::Publisher historyTrajPub_;
         ros::Publisher velVisPub_;
-        ros::Publisher dynamicVelPub_;
-        ros::Publisher dynamicPosPub_;
-        ros::Publisher detectingTimePub_;
-        ros::Publisher trackingTimePub_;
-        ros::Publisher classificationTimePub_;
-        ros::Publisher UVTimePub_;
-        ros::Publisher DBSCANTimePub_;
-
-
 
         // DETECTOR
         std::shared_ptr<mapManager::UVdetector> uvDetector_;
@@ -98,11 +89,10 @@ namespace mapManager{
         std::string poseTopicName_;
         std::string odomTopicName_;
         double raycastMaxLength_;
-        int benchMark_;
         double groundHeight_;
         int dbMinPointsCluster_;
         double dbEpsilon_;
-        float boxIOUThresh_;
+        double boxIOUThresh_;
         double yoloOverwriteDistance_; // distance that yolo can overwrite the detection results
         int histSize_;
         double dt_;
@@ -189,10 +179,27 @@ namespace mapManager{
         // detect function
         void uvDetect();
         void dbscanDetect();
-        void filterBBoxes();
         void yoloDetectionTo3D();
+        void filterBBoxes();
 
-        // data association and tracking
+        // uv Detector Functions
+        void transformUVBBoxes(std::vector<mapManager::box3D>& bboxes);
+        
+        // DBSCAN Detector Functions
+        void projectDepthImage();
+        void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
+        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds);
+        void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
+        void calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd);
+        
+        // detection helper functions
+        double calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
+        
+        // yolo helper functions
+        void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
+        void calculateMAD(std::vector<double>& depthValues, double& depthMedian, double& MAD);
+
+        // Data association and tracking functions
         void boxAssociation(std::vector<int>& bestMatch);
         void boxAssociationHelper(std::vector<int>& bestMatch);
         void genFeat(const std::vector<mapManager::box3D>& propedBoxes, int numObjs, std::vector<Eigen::VectorXd>& propedBoxesFeat, std::vector<Eigen::VectorXd>& currBoxesFeat);
@@ -205,29 +212,6 @@ namespace mapManager{
         void getKalmanObservationVel(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
         void getKalmanObservationAcc(const mapManager::box3D& currDetectedBBox, int bestMatchIdx, MatrixXd& Z);
 
-        
-        // uv Detector Functions
-        void transformUVBBoxes(std::vector<mapManager::box3D>& bboxes);
-
-        // DBSCAN Detector Functions
-        void projectDepthImage();
-        void filterPoints(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
-        void clusterPointsAndBBoxes(const std::vector<Eigen::Vector3d>& points, std::vector<mapManager::box3D>& bboxes, std::vector<std::vector<Eigen::Vector3d>>& pcClusters, std::vector<Eigen::Vector3d>& pcClusterCenters, std::vector<Eigen::Vector3d>& pcClusterStds);
-        void voxelFilter(const std::vector<Eigen::Vector3d>& points, std::vector<Eigen::Vector3d>& filteredPoints);
-        void updatePoseHist();
-        void calcPcFeat(const std::vector<Eigen::Vector3d>& pcCluster, Eigen::Vector3d& pcClusterCenter, Eigen::Vector3d& pcClusterStd);
-
-        // detection helper functions
-        float calBoxIOU(const mapManager::box3D& box1, const mapManager::box3D& box2);
-        // float overlapLengthIfCIOU(float& overlap, float& l1, float& l2, mapManager::box3D& box1, mapManager::box3D& box2);// CIOU: complete-IOU
-
-
-
-        // yolo helper functions
-        void getYolo3DBBox(const vision_msgs::Detection2D& detection, mapManager::box3D& bbox3D, cv::Rect& bboxVis); 
-        void calculateMAD(std::vector<double>& depthValues, double& depthMedian, double& MAD);
-
-
         // visualization
         void getDynamicPc(std::vector<Eigen::Vector3d>& dynamicPc);
         void publishUVImages(); 
@@ -236,13 +220,13 @@ namespace mapManager{
         void publish3dBox(const std::vector<mapManager::box3D>& bboxes, const ros::Publisher& publisher, double r, double g, double b);
         void publishHistoryTraj();
         void publishVelVis();
-        void publishVelAndPos(const std::vector<box3D> &dynamicBBoxes);
 
         // helper function
         void transformBBox(const Eigen::Vector3d& center, const Eigen::Vector3d& size, const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
                                   Eigen::Vector3d& newCenter, Eigen::Vector3d& newSize);
         bool isInFov(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation, Eigen::Vector3d& point);
-        int getBestOverlapBBox(const mapManager::box3D& currBBox, const std::vector<mapManager::box3D>& targetBBoxes, float& bestIOU);
+        int getBestOverlapBBox(const mapManager::box3D& currBBox, const std::vector<mapManager::box3D>& targetBBoxes, double& bestIOU);
+        void updatePoseHist();
 
 
         // inline helper functions
@@ -356,9 +340,6 @@ namespace mapManager{
             pointsDB.push_back(pDB);
         }
     }
-
-    
-
 }
 
 #endif

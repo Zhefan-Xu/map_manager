@@ -26,7 +26,7 @@ namespace mapManager{
 		this->nh_ = nh;
 		this->initParam();
 		this->initDynamicUGVParam();
-		this->initPreloadMap();
+		this->initPrebuiltMap();
 		this->registerPub();
 		this->registerCallback();
 		this->detector_.reset(new mapManager::dynamicDetector (this->nh_));
@@ -230,7 +230,7 @@ namespace mapManager{
         
 
         for(size_t i = 0; i < boxes.size(); i++){
-			if (this->isInFov(boxes[i], this->position_, this->orientation)){ // only show lidar box when they are out of fov
+			if (this->isInFov(boxes[i], this->position_, this->orientation_)){ // only show lidar box when they are out of fov
 				continue;
 			}
             // visualization msgs

@@ -1,3 +1,16 @@
+# MULTI ROBOT MAP PARAMETER
+robot_num: 2 # desired number of robots in the network
+# map in this robot to global map. For multi-robot map transimission
+global_to_map_1: [1.0,  0.0,  0.0,  0.0,
+                  0.0,  1.0,  0.0,  0.0,   
+                  0.0,  0.0,  1.0,  0.0,
+                  0.0,  0.0,  0.0,  1.0]
+global_to_map_2: [1.0,  0.0,  0.0, -2.0,
+                  0.0,  1.0,  0.0, -2.0,   
+                  0.0,  0.0,  1.0,  0.0,
+                  0.0,  0.0,  0.0,  1.0]
+
+# GENERAL OCCUPANCY MAP PARAMETER
 sensor_input_mode: 1 # 0: depth image (default) 1: pointcloud 
 localization_mode: 1 # 0: pose (default) 1: odom
 depth_image_topic: /depth
@@ -65,3 +78,27 @@ local_map_size: [25, 15, 6] # meter. in x y z direction (only for visualization)
 max_height_visualization: 3.0 # m
 visualize_global_map: true
 verbose: false
+
+# # Raycasting
+# raycast_max_length: 5.0
+# p_hit: 0.70
+# p_miss: 0.35
+# p_min: 0.12
+# p_max: 0.97
+# p_occ: 0.80
+
+
+# # Map
+# map_resolution: 0.1
+# ground_height: -0.7 # m
+# map_size: [25, 25, 4] # meter. in x y z direction (reserved size)
+# local_update_range: [5, 5, 4]
+# local_bound_inflation: 3.0 # inflate local bound in meter
+# clean_local_map: false
+# preload_map_dir: /home/cerlab-ugv/catkin_ws/static_map.pcd
+
+# # visualziation
+# local_map_size: [25, 15, 6] # meter. in x y z direction (only for visualization)
+# max_height_visualization: 3.0 # m
+# visualize_global_map: true
+# verbose: false

@@ -1,14 +1,10 @@
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/core/types.hpp>
-#include <math.h>
-#include <vector>
-#include <map_manager/detector/uv_detector.h>
-#include <map_manager/detector/kalman_filter.h>
-#include <queue>
+/*
+    FILE: uvDetector.h
+    ------------------
+    helper class function definitions for uv detector
+*/
 
-using namespace std;
-using namespace cv;
+#include <map_manager/detector/uvDetector.h>
 
 // UVbox
 namespace mapManager{
@@ -16,14 +12,14 @@ namespace mapManager{
     {
         this->id = 0;
         this->toppest_parent_id = 0;
-        this->bb = Rect(Point2f(0, 0), Point2f(0, 0));
+        this->bb = cv::Rect(cv::Point2f(0, 0), cv::Point2f(0, 0));
     }
 
     UVbox::UVbox(int seg_id, int row, int left, int right)
     {
         this->id = seg_id;
         this->toppest_parent_id = seg_id;
-        this->bb = Rect(Point2f(left, row), Point2f(right, row));
+        this->bb = cv::Rect(cv::Point2f(left, row), cv::Point2f(right, row));
     }
 
     UVbox merge_two_UVbox(UVbox father, UVbox son)
@@ -33,7 +29,7 @@ namespace mapManager{
         int left =      (father.bb.tl().x < son.bb.tl().x)?father.bb.tl().x:son.bb.tl().x;
         int bottom =    (father.bb.br().y > son.bb.br().y)?father.bb.br().y:son.bb.br().y;
         int right =     (father.bb.br().x > son.bb.br().x)?father.bb.br().x:son.bb.br().x;
-        father.bb = Rect(Point2f(left, top), Point2f(right, bottom));
+        father.bb = cv::Rect(cv::Point2f(left, top), cv::Point2f(right, bottom));
         return father;
     }
 
@@ -86,7 +82,6 @@ namespace mapManager{
         }   
         // fix size
         box_3D = this->now_box_3D;
-        
     }
     
     void UVtracker::check_status(vector<box3D> &box_3D)
@@ -108,7 +103,7 @@ namespace mapManager{
                     
                     // inherit history
                     this->now_history[now_id] = this->pre_history[pre_id];
-                    this->now_history[now_id].push_back(Point2f(this->now_bb[now_id].x + 0.5 * this->now_bb[now_id].width, this->now_bb[now_id].y + 0.5 * this->now_bb[now_id].height));
+                    this->now_history[now_id].push_back(cv::Point2f(this->now_bb[now_id].x + 0.5 * this->now_bb[now_id].width, this->now_bb[now_id].y + 0.5 * this->now_bb[now_id].height));
                     this->now_box_3D_history[now_id] = this->pre_box_3D_history[pre_id];
                     
                     // add current 3D box to box history only if when it is full in the FOV. otherwise, clear the history and track again
@@ -128,7 +123,7 @@ namespace mapManager{
             {
                 // std::cout<<now_id<<" LOSS TRACK\n"<<std::endl;
                 // add current detection to history
-                this->now_history[now_id].push_back(Point2f(this->now_bb[now_id].x + 0.5 * this->now_bb[now_id].width, this->now_bb[now_id].y + 0.5 * this->now_bb[now_id].height));
+                this->now_history[now_id].push_back(cv::Point2f(this->now_bb[now_id].x + 0.5 * this->now_bb[now_id].width, this->now_bb[now_id].y + 0.5 * this->now_bb[now_id].height));
         
                 Eigen::MatrixXd V(2,1);
                 V << 0.0, 0.0;
@@ -140,12 +135,9 @@ namespace mapManager{
 
             }
         }
-
-
     }  
 
     // UVdetector     
-
     UVdetector::UVdetector()
     {
         this->row_downsample = 4;
@@ -166,20 +158,16 @@ namespace mapManager{
 
         this->x0 = 0;
         this->y0 = 0;
-
-
     }
 
-    
-
-    void UVdetector::readdata(queue<Mat> depthq)
+    void UVdetector::readdata(queue<cv::Mat> depthq)
     {
         this->depth = max(depthq.front(), depthq.back());
         double minVal; 
         double maxVal; 
         cv::Point minLoc; 
         cv::Point maxLoc;
-        // resize(this->depth, this->depth, Size(50,50));
+        // resize(this->depth, this->depth, cv::Size(50,50));
         minMaxLoc( this->depth, &minVal, &maxVal, &minLoc, &maxLoc );   
     }
 
@@ -193,10 +181,10 @@ namespace mapManager{
         minMaxLoc( this->depth, &minVal, &maxVal, &minLoc, &maxLoc ); 
     }
 
-    void UVdetector::readrgb(Mat RGB)
+    void UVdetector::readrgb(cv::Mat RGB)
     {
         this->RGB = RGB;
-        resize(this->RGB, this->RGB, Size(720,400));
+        resize(this->RGB, this->RGB, cv::Size(720,400));
         // imshow("RGB", this->RGB);
     }
 
@@ -205,8 +193,8 @@ namespace mapManager{
         // rescale depth map
         cv::Mat depth_rescale;
         
-        resize(this->depth, depth_rescale, Size(),this->col_scale , 1);
-        cv::Mat depth_low_res_temp = Mat::zeros(depth_rescale.rows, depth_rescale.cols, CV_8UC1);
+        resize(this->depth, depth_rescale, cv::Size(),this->col_scale , 1);
+        cv::Mat depth_low_res_temp = cv::Mat::zeros(depth_rescale.rows, depth_rescale.cols, CV_8UC1);
 
         
 
@@ -216,7 +204,7 @@ namespace mapManager{
 
         int bin_width = ceil((this->max_dist - this->min_dist) / float(histSize));
 
-        this->U_map = Mat::zeros(histSize, depth_rescale.cols, CV_8UC1);
+        this->U_map = cv::Mat::zeros(histSize, depth_rescale.cols, CV_8UC1);
 
         int depth_rescale_val = 0;
 
@@ -244,7 +232,7 @@ namespace mapManager{
 
         // smooth the U map
         
-        GaussianBlur(this->U_map, this->U_map, Size(5,9), 10, 10);
+        GaussianBlur(this->U_map, this->U_map, cv::Size(5,9), 10, 10);
         // printf("rescaled depth map: %d", depth_rescale.at<unsigned short>(testy,testx));
     }
 
@@ -368,7 +356,7 @@ namespace mapManager{
         cv::minMaxIdx(depth_normalized, &min, &max);
         cv::convertScaleAbs(depth_normalized, depth_normalized, 255. / max);
         depth_normalized.convertTo(depth_normalized, CV_8UC1);
-        applyColorMap(depth_normalized, depth_normalized, COLORMAP_BONE);
+        applyColorMap(depth_normalized, depth_normalized, cv::COLORMAP_BONE);
 
         // loop for adding bounding boxes
         for (size_t i=0;i<this->bounding_box_D.size();i++){
@@ -383,7 +371,7 @@ namespace mapManager{
     {   
         // this function returns 3D boxes in world frame for publishing
         cv::Mat depth_resize;
-        resize(depth, depth_resize, Size(), this->col_scale, 1);
+        resize(depth, depth_resize, cv::Size(), this->col_scale, 1);
         float histSize = this->depth.rows / this->row_downsample;
         // printf("rows, ros_downsmaple %d, %d\n", this->depth.rows, this->row_downsample);
         float bin_width = ceil((this->max_dist - this->min_dist) / histSize);
@@ -404,7 +392,7 @@ namespace mapManager{
         size_t im_frame_y;
         size_t im_frame_y_width;
 
-        // GaussianBlur(depth_resize, depth_resize, Size(5,9), 0, 0);
+        // GaussianBlur(depth_resize, depth_resize, cv::Size(5,9), 0, 0);
 
         // parameter for tunning
         int num_check  = 15;
@@ -454,7 +442,7 @@ namespace mapManager{
             float bb_y = y_up;
             // std::cout<<" y_up  "<<y_up<<" y_down "<<y_down<<std::endl;
             float bb_height = y_down-y_up;
-            this->bounding_box_D.push_back(Rect(bb_x, bb_y, bb_width, bb_height));
+            this->bounding_box_D.push_back(cv::Rect(bb_x, bb_y, bb_width, bb_height));
         
             box3D curr_box;
             // extract x,y coordinates in input depth frame
@@ -511,14 +499,14 @@ namespace mapManager{
             cvtColor(this->U_map_show, this->U_map_show, cv::COLOR_GRAY2RGB);
             cv::convertScaleAbs(this->U_map_show, this->U_map_show, 255./ max);
             this->U_map_show.convertTo(this->U_map_show, CV_8UC1);
-            applyColorMap(this->U_map_show, this->U_map_show, COLORMAP_JET);
+            applyColorMap(this->U_map_show, this->U_map_show, cv::COLORMAP_JET);
 
             for(size_t b = 0; b < this->bounding_box_U.size(); b++)
             {
-                cv::Rect final_bb = Rect(this->bounding_box_U[b].tl(),Size(this->bounding_box_U[b].width, 2 * this->bounding_box_U[b].height));
-                rectangle(this->U_map_show, final_bb, Scalar(0, 255, 0), 1, 8, 0);
+                cv::Rect final_bb = cv::Rect(this->bounding_box_U[b].tl(),cv::Size(this->bounding_box_U[b].width, 2 * this->bounding_box_U[b].height));
+                rectangle(this->U_map_show, final_bb, cv::Scalar(0, 255, 0), 1, 8, 0);
                 
-                // circle(this->U_map_show, Point2f(this->bounding_box_U[b].tl().x + 0.5 * this->bounding_box_U[b].width, this->bounding_box_U[b].br().y ), 2, Scalar(0, 0, 255), 5, 8, 0);
+                // circle(this->U_map_show, cv::Point2f(this->bounding_box_U[b].tl().x + 0.5 * this->bounding_box_U[b].width, this->bounding_box_U[b].br().y ), 2, cv::Scalar(0, 0, 255), 5, 8, 0);
             }
         } 
         // imshow("U map", this->U_map_show);
@@ -543,24 +531,24 @@ namespace mapManager{
             float bb_height = this->bounding_box_U[b].height * bin_width / 10;
             float bb_x = bb_depth * (this->bounding_box_U[b].tl().x / this->col_scale - this->px) / this->fx;
             float bb_y = bb_depth - 0.5 * bb_height;// assume farthest depth value is the depth of center point, then assume detected depth difference is the depth of the whole body. y is the depth direction
-            this->bounding_box_B[b] = Rect(bb_x, bb_y, bb_width, bb_height);
+            this->bounding_box_B[b] = cv::Rect(bb_x, bb_y, bb_width, bb_height);
         }
 
         // initialize the bird's view
-        this->bird_view = Mat::zeros(500, 1000, CV_8UC1);
+        this->bird_view = cv::Mat::zeros(500, 1000, CV_8UC1);
         cvtColor(this->bird_view, this->bird_view, cv::COLOR_GRAY2RGB);
     }
 
     void UVdetector::display_bird_view() 
     {
         // center point
-        cv::Point2f center = Point2f(this->bird_view.cols / 2, this->bird_view.rows);
-        cv::Point2f left_end_to_center = Point2f( this->bird_view.rows * (0 - this->px) / this->fx, -this->bird_view.rows);
-        cv::Point2f right_end_to_center = Point2f( this->bird_view.rows * (this->depth.cols - this->px) / this->fx, -this->bird_view.rows);
+        cv::Point2f center = cv::Point2f(this->bird_view.cols / 2, this->bird_view.rows);
+        cv::Point2f left_end_to_center = cv::Point2f( this->bird_view.rows * (0 - this->px) / this->fx, -this->bird_view.rows);
+        cv::Point2f right_end_to_center = cv::Point2f( this->bird_view.rows * (this->depth.cols - this->px) / this->fx, -this->bird_view.rows);
 
         // draw the two side lines
-        line(this->bird_view, center, center + left_end_to_center, Scalar(0, 255, 0), 3, 8, 0);
-        line(this->bird_view, center, center + right_end_to_center, Scalar(0, 255, 0), 3, 8, 0);
+        line(this->bird_view, center, center + left_end_to_center, cv::Scalar(0, 255, 0), 3, 8, 0);
+        line(this->bird_view, center, center + right_end_to_center, cv::Scalar(0, 255, 0), 3, 8, 0);
 
         for(size_t b = 0; b < this->bounding_box_U.size(); b++)
         {
@@ -569,36 +557,36 @@ namespace mapManager{
             final_bb.y = center.y - final_bb.y - final_bb.height;
             final_bb.x = final_bb.x + center.x; 
             // draw center 
-            cv::Point2f bb_center = Point2f(final_bb.x + 0.5 * final_bb.width, final_bb.y + 0.5 * final_bb.height);
-            rectangle(this->bird_view, final_bb, Scalar(0, 0, 255), 3, 8, 0);
-            circle(this->bird_view, bb_center, 3, Scalar(0, 0, 255), 5, 8, 0);
+            cv::Point2f bb_center = cv::Point2f(final_bb.x + 0.5 * final_bb.width, final_bb.y + 0.5 * final_bb.height);
+            rectangle(this->bird_view, final_bb, cv::Scalar(0, 0, 255), 3, 8, 0);
+            circle(this->bird_view, bb_center, 3, cv::Scalar(0, 0, 255), 5, 8, 0);
         }
 
         // show
-        resize(this->bird_view, this->bird_view, Size(), 0.5, 0.5);
+        resize(this->bird_view, this->bird_view, cv::Size(), 0.5, 0.5);
         // imshow("Bird's View", this->bird_view);
         // waitKey(1);
     }
 
     void UVdetector::add_tracking_result()
     {
-        cv::Point2f center = Point2f(this->bird_view.cols / 2, this->bird_view.rows);
+        cv::Point2f center = cv::Point2f(this->bird_view.cols / 2, this->bird_view.rows);
         for(size_t b = 0; b < this->tracker.now_bb.size(); b++)
         {
             // change coordinates
-            cv::Point2f estimated_center = Point2f(this->tracker.now_filter[b].output(0), this->tracker.now_filter[b].output(1));
+            cv::Point2f estimated_center = cv::Point2f(this->tracker.now_filter[b].output(0), this->tracker.now_filter[b].output(1));
             estimated_center.y = center.y - estimated_center.y;
             estimated_center.x = estimated_center.x + center.x; 
             // draw center 
-            circle(this->bird_view, estimated_center, 5, Scalar(0, 255, 0), 5, 8, 0);
+            circle(this->bird_view, estimated_center, 5, cv::Scalar(0, 255, 0), 5, 8, 0);
             // draw bounding box
-            cv::Point2f bb_size = Point2f(this->tracker.now_filter[b].output(4), this->tracker.now_filter[b].output(5));
-            rectangle(this->bird_view, Rect(estimated_center - 0.5 * bb_size, estimated_center + 0.5 * bb_size), Scalar(0, 255, 0), 3, 8, 0);
+            cv::Point2f bb_size = cv::Point2f(this->tracker.now_filter[b].output(4), this->tracker.now_filter[b].output(5));
+            rectangle(this->bird_view, cv::Rect(estimated_center - 0.5 * bb_size, estimated_center + 0.5 * bb_size), cv::Scalar(0, 255, 0), 3, 8, 0);
             // draw velocity
-            cv::Point2f velocity = Point2f(this->tracker.now_filter[b].output(2), this->tracker.now_filter[b].output(3));
+            cv::Point2f velocity = cv::Point2f(this->tracker.now_filter[b].output(2), this->tracker.now_filter[b].output(3));
             velocity.y = -velocity.y;// y direction in birdvie map is in opposite of opencv::line default
             // printf("velocity in birdview 10mm/s: %f, %f , center x ,y: %f, %f, bbox size x, y:%f, %f\n", velocity.x, -velocity.y, estimated_center.x, estimated_center.y, bb_size.x, bb_size.y);
-            line(this->bird_view, estimated_center, estimated_center + velocity, Scalar(255, 255, 255), 3, 8, 0);
+            line(this->bird_view, estimated_center, estimated_center + velocity, cv::Scalar(255, 255, 255), 3, 8, 0);
             for(size_t h = 1; h < this->tracker.now_history[b].size(); h++)
             {
                 // trajectory
@@ -608,7 +596,7 @@ namespace mapManager{
                 cv::Point2f end = this->tracker.now_history[b][h];
                 end.y = center.y - end.y;
                 end.x = end.x + center.x;
-                line(this->bird_view, start, end, Scalar(0, 0, 255), 3, 8, 0);
+                line(this->bird_view, start, end, cv::Scalar(0, 0, 255), 3, 8, 0);
             }
         }
     }
