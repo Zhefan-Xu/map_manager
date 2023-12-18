@@ -190,6 +190,7 @@ namespace mapManager{
 		void updateFreeRegions(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& freeRegions);
 		double getRes();
 		void getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax);
+		void getMapVoxelRange(Eigen::Vector3i& mapVoxelSizeMax);
 		void getCurrMapRange(Eigen::Vector3d& currRangeMin, Eigen::Vector3d& currRangeMax);
 		bool castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength=5.0, bool ignoreUnknown=true);
 
@@ -436,6 +437,10 @@ namespace mapManager{
 		mapSizeMax = this->mapSizeMax_;
 	}
 
+	inline void occMap::getMapVoxelRange(Eigen::Vector3i& mapVoxelSizeMax){
+		mapVoxelSizeMax = this->mapVoxelMax_;
+	}
+
 	inline void occMap::getCurrMapRange(Eigen::Vector3d& currRangeMin, Eigen::Vector3d& currRangeMax){
 		currRangeMin = this->currMapRangeMin_;
 		currRangeMax = this->currMapRangeMax_;
@@ -620,7 +625,7 @@ namespace mapManager{
 
 	inline Eigen::Vector3d occMap::adjustPointRayLength(const Eigen::Vector3d& point){
 		double length = (point - this->position_).norm();
-		return (point - this->position_) * (this->raycastMaxLength_/length) + this->position_;
+		return 0.9*(point - this->position_) * (this->raycastMaxLength_/length) + this->position_;
 	}
 
 	inline int occMap::updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied){

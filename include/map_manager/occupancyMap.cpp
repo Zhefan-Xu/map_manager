@@ -287,7 +287,7 @@ namespace mapManager{
 			this->mapSize_(2) = mapSizeVec[2];
 
 			// init min max
-			this->mapSizeMin_(0) = -mapSizeVec[0]/2; this->mapSizeMax_(0) = mapSizeVec[0]/2;
+			this->mapSizeMin_(0) = -mapSizeVec[0]/2+9.5; this->mapSizeMax_(0) = mapSizeVec[0]/2;
 			this->mapSizeMin_(1) = -mapSizeVec[1]/2; this->mapSizeMax_(1) = mapSizeVec[1]/2;
 			this->mapSizeMin_(2) = this->groundHeight_; this->mapSizeMax_(2) = this->groundHeight_ + mapSizeVec[2];
 			
@@ -760,9 +760,9 @@ namespace mapManager{
 			}
 
 			// remove lidar points out of raycasting range
-			if ((currPointMap-this->position_).norm() > this->raycastMaxLength_){
-				continue;
-			}
+			// if ((currPointMap-this->position_).norm() > this->raycastMaxLength_){
+			// 	continue;
+			// }
 
 			// this->projPoints_[i] = currPointMap;
 			this->projPoints_.push_back(currPointMap);
@@ -863,9 +863,9 @@ namespace mapManager{
 					this->flagTraverse_[raycastVoxelID] = this->raycastNum_;
 				}
 
-				if(prevIdx(2) == idx(2) and this->isOccupied(idx)){
-					continue;
-				}
+				// if(prevIdx(2) == idx(2) and this->isOccupied(idx)){
+				// 	continue;
+				// }
 
 				// if(this->isOccupied(idx)){
 				// 	continue;
