@@ -1,9 +1,7 @@
 # 3D Mapping Library For Autonomous Robots
 This package is a library implementing various 3D mapping algorithms, such as occupancy voxel map, ESDF Map, [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194) (our mapping for dynamic environments), for autonomous mobile robots. 
 
-```
-sudo ln -s /usr/include/eigen3/Eigen/ /usr/include/Eigen
-```
+**Author**: [Zhefan Xu](https://zhefanxu.com/) and Xiaoyang Zhan, Computational Engineering & Robotics Lab (CERLAB) at Carnegie Mellon University (CMU).
 
 ## I. Installation Guide
 This repo has been tested on ROS Melodic with Ubuntu 18.04 and ROS Noetic with Ubuntu 20.04 and it depends on [onboard_detector](https://github.com/Zhefan-Xu/onboard_detector) which provides the dynamic obstacle detection and tracking for our [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194). 
@@ -15,6 +13,12 @@ git clone https://github.com/Zhefan-Xu/map_manager.git
 cd ~/catkin_ws
 catkin_make
 ```
+
+If you have catkin_make issue with Eigen package, try the command below:
+```
+sudo ln -s /usr/include/eigen3/Eigen/ /usr/include/Eigen
+```
+
 ### II. Run DEMO 
 a. **Occupancy Map:** In case you do not have/want a hardware platform to play with this repo, we have provided a lightweight [simulator](https://github.com/Zhefan-Xu/uav_simulator.git) for testing. Run the following command to launch the occupancy voxel map:
 
