@@ -7,7 +7,7 @@ This package is a library implementing various 3D mapping algorithms, such as oc
 This repo has been tested on ROS Melodic with Ubuntu 18.04 and ROS Noetic with Ubuntu 20.04 and it depends on [onboard_detector](https://github.com/Zhefan-Xu/onboard_detector) which provides the dynamic obstacle detection and tracking for our [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194). 
 
 ```
-git clone https://github.com/Zhefan-Xu/onboard_detector.git
+cd ~/catkin_ws/src
 git clone https://github.com/Zhefan-Xu/map_manager.git
 
 cd ~/catkin_ws
