@@ -1,5 +1,5 @@
-# 3D Mapping For Autonomous Robots
-This repo contains 3D [octomap](https://octomap.github.io/), [occupancy map](https://en.wikipedia.org/wiki/Occupancy_grid_mapping) and ESDF map for autonomous navigation.
+# 3D Mapping Library For Autonomous Robots
+This package is a library implementing various 3D mapping algorithms, such as occupancy voxel map, ESDF Map, [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194) (our mapping for dynamic environments), for autonomous mobile robots. 
 
 ```
 sudo ln -s /usr/include/eigen3/Eigen/ /usr/include/Eigen
