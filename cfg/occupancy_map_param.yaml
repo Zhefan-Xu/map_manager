@@ -2,8 +2,10 @@ sensor_input_mode: 0 # 0 camera 1: lidar
 localization_mode: 1 # 0: pose (default) 1: odom
 depth_image_topic: /camera/depth/image_raw
 # depth_image_topic: /no_topic
-pose_topic: /mavros/local_position/pose
-odom_topic: /mavros/local_position/odom
+pose_topic: /CERLAB/quadcopter/pose
+odom_topic: /CERLAB/quadcopter/odom
+# pose_topic: /mavros/local_position/pose
+# odom_topic: /mavros/local_position/odom
 
 # robot size
 robot_size: [0.5, 0.5, 0.3]
