@@ -16,9 +16,7 @@ cd ~/catkin_ws
 catkin_make
 ```
 ### II. Run DEMO 
-a. Run in simulation: In case you do not have/want a hardware platform to play with this repo, we have provided a lightweight [simulator](https://github.com/Zhefan-Xu/uav_simulator.git) for testing.
-
-You can run the following command to visualize the occupancy voxel map:
+a. Run in simulation: In case you do not have/want a hardware platform to play with this repo, we have provided a lightweight [simulator](https://github.com/Zhefan-Xu/uav_simulator.git) for testing. Run the following command to launch the occupancy voxel map:
 ```
 roslaunch uav_simulator start.launch
 roslaunch map_manager occupancy_map.launch # check the launch file for ESDF map and dynamic map
