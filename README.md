@@ -19,7 +19,7 @@ If you have catkin_make issue with Eigen package, try the command below:
 sudo ln -s /usr/include/eigen3/Eigen/ /usr/include/Eigen
 ```
 
-### II. Run DEMO 
+## II. Run DEMO 
 a. **Occupancy Map:** In case you do not have/want a hardware platform to play with this repo, we have provided a lightweight [simulator](https://github.com/Zhefan-Xu/uav_simulator.git) for testing. Run the following command to launch the occupancy voxel map:
 
 ```
@@ -57,22 +57,25 @@ The related paper can be found on:
 **Zhefan Xu\*, Xiaoyang Zhan\*, Baihan Chen, Yumeng Xiu, Chenhao Yang, and Kenji Shimada, "A real-time dynamic obstacle tracking and mapping system for UAV navigation and collision avoidance with an RGB-D camera”, IEEE International Conference on Robotics and Automation (ICRA), 2023.** [\[paper\]](https://ieeexplore.ieee.org/abstract/document/10161194) [\[video\]](https://youtu.be/u5zblVx8KRc?si=3c2AC9mc6pZBUypd).
 
 
-### III. Parameters
-Please find parameters in ```map_manager/cfg/***.yaml``` files.
+## III. Parameters
+All mapping parameters can be edited and modified in ```map_manager/cfg/***.yaml``` files.
 
-### IV. ROS Topics
-Subsribe the following topics for occupancy and ESDF map:
+## IV. ROS Topics
+- This package subscribes the following topics for occupancy, ESDF, and dynamic map:
   - Localization topic: ```robot/odometry``` or ```robot/pose``` (please enter the name of your topic in the parameter files)
   - Depth camera topic: ```camera/depth``` (defined in the config file)
   
-Publish the following topics:
+- This package publish the following topics:
   - occupancy map visualization: ```occupancy_map/inflated_voxel_map```
   - esdf map visualization: ```esdf_map/inflated_voxel_map``` and ```esdf_map/esdf```
+  - esdf map visualization: ```dynamic_map/inflated_voxel_map```
 
-### V. C++ Code API
+    
+## V. C++ Code API
 Example code:
 ```
 #include <map_manager/ESDFMap.h>
+#include <map_manager/dynamicMap.h>
 
 int main(){
   ...
@@ -83,18 +86,19 @@ int main(){
   Eigen::Vector3d pos (1.0, 1.0, 1.0)
   bool hasCollision = m.isOccupied(pos);
   
-  // get distance with gradient
+  // get distance with gradient (ESDF map)
   Eigen::Vector3d grad;
   double dist = m.getDistanceWithGradTrilinear(pos, grad);
+
+
+  map_manager::dynamicMap dm;
+  dm.init(nh)
+  // get dynamic obstacles (dynamic map)
+  std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+  dm.getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
   ...
 }
 ```
-### VI. Example
-ESDF Map: ![Screenshot from 2022-07-21 15-48-26](https://user-images.githubusercontent.com/55560905/180302896-ee4a9a80-4aac-4cff-8425-7fe42a45b827.png)
-Occupancy Map Video:
-
-
-https://user-images.githubusercontent.com/55560905/180305608-402a8e33-f2d6-40fd-9c66-18e610a120ac.mp4
 
 
 
