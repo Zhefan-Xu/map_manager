@@ -1,7 +1,7 @@
 # 3D Mapping Library For Autonomous Robots
 This package is a library implementing various 3D mapping algorithms, such as occupancy voxel map, ESDF Map, [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194) (our mapping for dynamic environments), for autonomous mobile robots. 
 
-**Author**: [Zhefan Xu](https://zhefanxu.com/) and Xiaoyang Zhan, Computational Engineering & Robotics Lab (CERLAB) at Carnegie Mellon University (CMU).
+**Authors**: [Zhefan Xu](https://zhefanxu.com/) and Xiaoyang Zhan, Computational Engineering & Robotics Lab (CERLAB) at Carnegie Mellon University (CMU).
 
 ## I. Installation Guide
 This repo has been tested on ROS Melodic with Ubuntu 18.04 and ROS Noetic with Ubuntu 20.04 and it depends on [onboard_detector](https://github.com/Zhefan-Xu/onboard_detector) which provides the dynamic obstacle detection and tracking for our [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194). 
