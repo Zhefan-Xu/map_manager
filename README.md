@@ -41,14 +41,14 @@ The example screenshot of ESDF map is shown below which visualizes the distance 
 
 ![ESDF](https://github.com/Zhefan-Xu/map_manager/assets/55560905/e37243c6-eefe-4824-800d-1d8b35aaa74b)
 
-c. **Dynamic Map:** The dynamic map integrates a dynamic object detector to represent both static and moving obstacles in dynamic environments. The following command will launch the dynamic map:
+c. **Dynamic Map:** The [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194) integrates a dynamic object detector to represent both static and moving obstacles in dynamic environments. The following command will launch the dynamic map:
 
 
 ```
 roslaunch map_manager dynamic_map.launch
 ```
 
-The example of the dynamic map is shown below: 
+The example of the [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194) is shown below: 
 
 ![Screenshot from 2023-12-19 01-07-14](https://github.com/Zhefan-Xu/map_manager/assets/55560905/e9575308-c18f-49b0-9ed3-f5946478c8f5)
 
@@ -61,7 +61,7 @@ The related paper can be found on:
 All mapping parameters can be edited and modified in ```map_manager/cfg/***.yaml``` files.
 
 ## IV. ROS Topics
-- This package subscribes the following topics for occupancy, ESDF, and dynamic map:
+- This package subscribes the following topics for occupancy, ESDF, and [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194):
   - Localization topic: ```robot/odometry``` or ```robot/pose``` (please enter the name of your topic in the parameter files)
   - Depth camera topic: ```camera/depth``` (defined in the config file)
   
@@ -100,5 +100,17 @@ int main(){
 }
 ```
 
+## VI. Citation and Reference:
+If you find this work useful, please cite the paper:
+```
+@inproceedings{xu2023real,
+  title={A real-time dynamic obstacle tracking and mapping system for UAV navigation and collision avoidance with an RGB-D camera},
+  author={Xu, Zhefan and Zhan, Xiaoyang and Chen, Baihan and Xiu, Yumeng and Yang, Chenhao and Shimada, Kenji},
+  booktitle={2023 IEEE International Conference on Robotics and Automation (ICRA)},
+  pages={10645--10651},
+  year={2023},
+  organization={IEEE}
+}
+```
 
 
