@@ -37,6 +37,20 @@ The example screenshot of ESDF map is shown below which visualizes the distance 
 
 ![ESDF](https://github.com/Zhefan-Xu/map_manager/assets/55560905/e37243c6-eefe-4824-800d-1d8b35aaa74b)
 
+c. **Dynamic Map:** The dynamic map integrates a dynamic object detector to represent both static and moving obstacles in dynamic environments. The following command will launch the dynamic map:
+
+
+```
+roslaunch map_manager dynamic_map.launch
+```
+
+The example of the dynamic map is shown below: 
+
+![Screenshot from 2023-12-19 01-07-14](https://github.com/Zhefan-Xu/map_manager/assets/55560905/e9575308-c18f-49b0-9ed3-f5946478c8f5)
+
+The related paper can be found on:
+
+**Zhefan Xu\*, Xiaoyang Zhan\*, Baihan Chen, Yumeng Xiu, Chenhao Yang, and Kenji Shimada, "A real-time dynamic obstacle tracking and mapping system for UAV navigation and collision avoidance with an RGB-D camera”, IEEE International Conference on Robotics and Automation (ICRA), 2023.** [\[paper\]](https://ieeexplore.ieee.org/abstract/document/10161194) [\[video\]](https://youtu.be/u5zblVx8KRc?si=3c2AC9mc6pZBUypd).
 
 
 ### III. Parameters
