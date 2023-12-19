@@ -72,7 +72,7 @@ All mapping parameters can be edited and modified in ```map_manager/cfg/***.yaml
 
     
 ## V. Code Example & API
-Example code:
+The following example shows how to use our mapping code in C++/ROS. Please refer to the source code for more details.
 ```
 #include <map_manager/ESDFMap.h>
 #include <map_manager/dynamicMap.h>
