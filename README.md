@@ -16,7 +16,7 @@ cd ~/catkin_ws
 catkin_make
 ```
 ### II. Run DEMO 
-a. In case you do not have/want a hardware platform to play with this repo, we have provided a lightweight [simulator](https://github.com/Zhefan-Xu/uav_simulator.git) for testing. Run the following command to launch the occupancy voxel map:
+a. **Occupancy Map:** In case you do not have/want a hardware platform to play with this repo, we have provided a lightweight [simulator](https://github.com/Zhefan-Xu/uav_simulator.git) for testing. Run the following command to launch the occupancy voxel map:
 
 ```
 roslaunch uav_simulator start.launch
@@ -27,6 +27,17 @@ roslaunch map_manager rviz.launch
 The example of running occupancy map is shown as below (note that the robot is controlled by keyboard):
 
 https://github.com/Zhefan-Xu/map_manager/assets/55560905/499a84ad-105e-4907-b7d5-2d4fe59a0894
+
+b. **ESDF Map:** The ESDF map is built upon on the occupancy map. The following command will launch the ESDF map:
+
+```
+roslaunch map_manager ESDF_map.launch
+```
+The example screenshot of ESDF map is shown below which visualizes the distance field to obstacles:
+
+![ESDF](https://github.com/Zhefan-Xu/map_manager/assets/55560905/e37243c6-eefe-4824-800d-1d8b35aaa74b)
+
+
 
 ### III. Parameters
 Please find parameters in ```map_manager/cfg/***.yaml``` files.
