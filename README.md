@@ -24,7 +24,7 @@ roslaunch map_manager occupancy_map.launch # check the launch file for ESDF map 
 roslaunch map_manager rviz.launch
 ```
 
-The example of running occupancy map in simulation is shown as follow (note that we only visualize the local map area):
+The example of running occupancy map is shown as below (note that we only visualize the local map area):
 
 https://user-images.githubusercontent.com/55560905/180305608-402a8e33-f2d6-40fd-9c66-18e610a120ac.mp4
 
