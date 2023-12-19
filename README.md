@@ -28,7 +28,7 @@ roslaunch map_manager occupancy_map.launch # check the launch file for ESDF map 
 roslaunch map_manager rviz.launch
 ```
 
-The example of running occupancy map is shown as below (note that the robot is controlled by keyboard):
+The example of running occupancy map is shown as below (note that the robot is controlled by a keyboard):
 
 https://github.com/Zhefan-Xu/map_manager/assets/55560905/499a84ad-105e-4907-b7d5-2d4fe59a0894
 
