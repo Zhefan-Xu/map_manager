@@ -62,13 +62,13 @@ All mapping parameters can be edited and modified in ```map_manager/cfg/***.yaml
 
 ## IV. ROS Topics
 - This package subscribes the following topics for occupancy, ESDF, and [dynamic map](https://ieeexplore.ieee.org/abstract/document/10161194):
-  - Localization topic: ```robot/odometry``` or ```robot/pose``` (please enter the name of your topic in the parameter files)
-  - Depth camera topic: ```camera/depth``` (defined in the config file)
+  - Localization topic: ```robot/odometry``` or ```robot/pose```  (change the topic name in the config file).
+  - Depth camera topic: ```camera/depth``` (change the topic name in the config file).
   
 - This package publish the following topics:
-  - occupancy map visualization: ```occupancy_map/inflated_voxel_map```
-  - esdf map visualization: ```esdf_map/inflated_voxel_map``` and ```esdf_map/esdf```
-  - esdf map visualization: ```dynamic_map/inflated_voxel_map```
+  - occupancy map visualization: ```occupancy_map/inflated_voxel_map```.
+  - esdf map visualization: ```esdf_map/inflated_voxel_map``` and ```esdf_map/esdf```.
+  - esdf map visualization: ```dynamic_map/inflated_voxel_map```.
 
     
 ## V. Code Example & API
