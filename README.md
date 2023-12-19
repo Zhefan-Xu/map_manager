@@ -71,7 +71,7 @@ All mapping parameters can be edited and modified in ```map_manager/cfg/***.yaml
   - esdf map visualization: ```dynamic_map/inflated_voxel_map```
 
     
-## V. C++ Code API
+## V. Code Example & API
 Example code:
 ```
 #include <map_manager/ESDFMap.h>
