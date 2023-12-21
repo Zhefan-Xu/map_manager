@@ -32,7 +32,7 @@ The example of running occupancy map is shown as below (note that the robot is c
 
 https://github.com/Zhefan-Xu/map_manager/assets/55560905/40cca490-8613-4d12-ba4a-8b900d3e2cf0
 
-b. **ESDF Map:** The ESDF map is built upon on the occupancy map. The following command will launch the ESDF map:
+b. **ESDF Map:** The ESDF map is built upon on the occupancy map. The following command launches the ESDF map:
 
 ```
 roslaunch map_manager ESDF_map.launch
