@@ -829,12 +829,12 @@ namespace mapManager{
 			
 			// check whether the voxel has already been updated, so no raycasting needed
 			// rayendVoxelID = this->posToAddress(currPoint);
-			if (this->flagRayend_[rayendVoxelID] == this->raycastNum_){
-				continue; // skip
-			}
-			else{
-				this->flagRayend_[rayendVoxelID] = this->raycastNum_;
-			}
+			// if (this->flagRayend_[rayendVoxelID] == this->raycastNum_){
+			// 	continue; // skip
+			// }
+			// else{
+			// 	this->flagRayend_[rayendVoxelID] = this->raycastNum_;
+			// }
 
 
 
@@ -863,9 +863,9 @@ namespace mapManager{
 					this->flagTraverse_[raycastVoxelID] = this->raycastNum_;
 				}
 
-				// if(prevIdx(2) == idx(2) and this->isOccupied(idx)){
-				// 	continue;
-				// }
+				if(prevIdx(2) == idx(2) and this->isOccupied(idx)){
+					continue;
+				}
 
 				// if(this->isOccupied(idx)){
 				// 	continue;
