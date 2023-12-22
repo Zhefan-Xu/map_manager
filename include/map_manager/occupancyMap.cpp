@@ -287,7 +287,7 @@ namespace mapManager{
 			this->mapSize_(2) = mapSizeVec[2];
 
 			// init min max
-			this->mapSizeMin_(0) = -mapSizeVec[0]/2; this->mapSizeMax_(0) = mapSizeVec[0]/2;
+			this->mapSizeMin_(0) = -mapSizeVec[0]/2+9.5; this->mapSizeMax_(0) = mapSizeVec[0]/2;
 			this->mapSizeMin_(1) = -mapSizeVec[1]/2; this->mapSizeMax_(1) = mapSizeVec[1]/2;
 			this->mapSizeMin_(2) = this->groundHeight_; this->mapSizeMax_(2) = this->groundHeight_ + mapSizeVec[2];
 			
@@ -525,6 +525,7 @@ namespace mapManager{
 
 	void occMap::registerPub(){
 		this->depthCloudPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/depth_cloud", 10);
+		this->freeRegionPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/free_region", 10);
 		this->mapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/voxel_map", 10);
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
@@ -741,7 +742,7 @@ namespace mapManager{
 	void occMap::getPointcloud(){
 		// this->projPointsNum_ = this->pointcloud_.size();
 		// this->projPoints_.resize(this->projPointsNum_);
-
+		// ROS_INFO("=================================in get poiont cloud=========================");
 		this->projPointsNum_ = 0;
 		this->projPoints_.clear();
 		Eigen::Vector3d currPointCam, currPointMap;
@@ -758,6 +759,11 @@ namespace mapManager{
 				continue;
 			}
 
+			// remove lidar points out of raycasting range
+			// if ((currPointMap-this->position_).norm() > this->raycastMaxLength_){
+			// 	continue;
+			// }
+
 			// this->projPoints_[i] = currPointMap;
 			this->projPoints_.push_back(currPointMap);
 			this->projPointsNum_++;
@@ -766,6 +772,7 @@ namespace mapManager{
 			// if ((currPointMap-this->position_).norm()>=1.0){
 			// 	this->projPoints_[i] = currPointMap;
 			// }
+			// std::cout << currPointCam(0) << " " << currPointCam(1) << " " << currPointCam(2) << " " << (currPointMap-this->position_).norm() << std::endl;
 		}
 	}
 
@@ -797,6 +804,7 @@ namespace mapManager{
 			if (not this->isInMap(currPoint)){
 				currPoint = this->adjustPointInMap(currPoint);
 				pointAdjusted = true;
+				// continue;
 			}
 
 			// check whether the point exceeds the maximum raycasting length
@@ -804,6 +812,7 @@ namespace mapManager{
 			if (length > this->raycastMaxLength_){
 				currPoint = this->adjustPointRayLength(currPoint);
 				pointAdjusted = true;
+				// continue;
 			}
 
 
@@ -817,37 +826,56 @@ namespace mapManager{
 
 			// update occupancy itself update information
 			rayendVoxelID = this->updateOccupancyInfo(currPoint, not pointAdjusted); // point adjusted is free, not is occupied
-
+			
 			// check whether the voxel has already been updated, so no raycasting needed
 			// rayendVoxelID = this->posToAddress(currPoint);
-			if (this->flagRayend_[rayendVoxelID] == this->raycastNum_){
-				continue; // skip
-			}
-			else{
-				this->flagRayend_[rayendVoxelID] = this->raycastNum_;
-			}
+			// if (this->flagRayend_[rayendVoxelID] == this->raycastNum_){
+			// 	continue; // skip
+			// }
+			// else{
+			// 	this->flagRayend_[rayendVoxelID] = this->raycastNum_;
+			// }
 
 
 
 			// raycasting for update occupancy
 			this->raycaster_.setInput(currPoint/this->mapRes_, this->position_/this->mapRes_);
 			Eigen::Vector3d rayPoint, actualPoint;
+			Eigen::Vector3i prevIdx;
+			this->posToIndex(currPoint, prevIdx);
 			while (this->raycaster_.step(rayPoint)){
 				actualPoint = rayPoint;
+
 				actualPoint(0) += 0.5;
 				actualPoint(1) += 0.5;
 				actualPoint(2) += 0.5;
 				actualPoint *= this->mapRes_;
-				raycastVoxelID = this->updateOccupancyInfo(actualPoint, false);
+
+				Eigen::Vector3i idx;
+				this->posToIndex(actualPoint, idx);
+				int raycastVoxelID = this->indexToAddress(idx);
 
 				// raycastVoxelID = this->posToAddress(actualPoint);
 				if (this->flagTraverse_[raycastVoxelID] == this->raycastNum_){
-					break;
+					break; // skip
 				}
 				else{
 					this->flagTraverse_[raycastVoxelID] = this->raycastNum_;
 				}
 
+				if(prevIdx(2) == idx(2) and this->isOccupied(idx)){
+					continue;
+				}
+
+				// if(this->isOccupied(idx)){
+				// 	continue;
+				// }
+				// else{
+				// 	raycastVoxelID = this->updateOccupancyInfo(actualPoint, false);
+				// }
+				raycastVoxelID = this->updateOccupancyInfo(actualPoint, false);
+
+				prevIdx = idx;
 			}
 		}
 
@@ -863,7 +891,9 @@ namespace mapManager{
 		// update occupancy in the cache
 		double logUpdateValue;
 		int cacheAddress, hit, miss;
-		this->updateVoxelCacheCopy_ = this->updateVoxelCache_;
+		// this->updateVoxelCacheCopy_ = this->updateVoxelCache_;
+		std::queue<Eigen::Vector3i> empty;
+   		std::swap( this->updateVoxelCacheCopy_, empty );
 		while (not this->updateVoxelCache_.empty()){
 			Eigen::Vector3i cacheIdx = this->updateVoxelCache_.front();
 			this->updateVoxelCache_.pop();
@@ -908,6 +938,10 @@ namespace mapManager{
 			}
 
 			this->occupancy_[cacheAddress] = std::min(std::max(this->occupancy_[cacheAddress]+logUpdateValue, this->pMinLog_), this->pMaxLog_);
+
+			if (this->isFree(cacheIdx)){
+				this->updateVoxelCacheCopy_.push(cacheIdx);
+			}
 
 			// update the entire map range (if it is not unknown)
 			if (not this->isUnknown(cacheIdx)){
@@ -1047,14 +1081,15 @@ namespace mapManager{
 
 	void occMap::publishProjPoints(){
 		pcl::PointXYZ pt;
+		pcl::PointCloud<pcl::PointXYZ> freeRegionCloud;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 
-		// for (int i=0; i<this->projPointsNum_; ++i){
-		// 	pt.x = this->projPoints_[i](0);
-		// 	pt.y = this->projPoints_[i](1);
-		// 	pt.z = this->projPoints_[i](2);
-		// 	cloud.push_back(pt);
-		// }
+		for (int i=0; i<this->projPointsNum_; ++i){
+			pt.x = this->projPoints_[i](0);
+			pt.y = this->projPoints_[i](1);
+			pt.z = this->projPoints_[i](2);
+			cloud.push_back(pt);
+		}
 
 		while (not this->updateVoxelCacheCopy_.empty()){
 			Eigen::Vector3i ind = this->updateVoxelCacheCopy_.front();
@@ -1064,7 +1099,7 @@ namespace mapManager{
 			pt.x = pos(0);
 			pt.y = pos(1);
 			pt.z = pos(2);
-			cloud.push_back(pt);
+			freeRegionCloud.push_back(pt);
 		}
 
 		cloud.width = cloud.points.size();
@@ -1072,9 +1107,19 @@ namespace mapManager{
 		cloud.is_dense = true;
 		cloud.header.frame_id = "map";
 
+		freeRegionCloud.width = freeRegionCloud.points.size();
+		freeRegionCloud.height = 1;
+		freeRegionCloud.is_dense = true;
+		freeRegionCloud.header.frame_id = "map";
+
 		sensor_msgs::PointCloud2 cloudMsg;
 		pcl::toROSMsg(cloud, cloudMsg);
 		this->depthCloudPub_.publish(cloudMsg);
+
+		sensor_msgs::PointCloud2 freeRegionCloudMsg;
+		pcl::toROSMsg(freeRegionCloud, freeRegionCloudMsg);
+		this->freeRegionPub_.publish(freeRegionCloudMsg);
+		
 	}
 
 

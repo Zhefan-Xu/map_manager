@@ -1,0 +1,20 @@
+<launch>
+	<!-- robot 1 -->
+	<arg name="robot_ns" default="/ugv" />
+	<arg name="robot_id" default="1" />
+	<arg name="multiRoboOccMap_ns" default="multi_robo_occupancy_map" />
+	<rosparam file="$(find map_manager)/cfg/multi_robo_occ_map_param_ugv.yaml" ns="$(arg robot_ns)/$(arg multiRoboOccMap_ns)"  />
+	<remap from="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/shared_map" to= "/$(arg multiRoboOccMap_ns)/public_shared_map"/>
+	<remap from="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/robot_states" to="/$(arg multiRoboOccMap_ns)/robot_states" />
+	<remap from="/odom" to="/odom_$(arg robot_id)" />
+	<remap from="/point_cloud" to="/point_cloud_$(arg robot_id)" />
+	<remap from="/rgb" to="/rgb_$(arg robot_id)" />
+	<remap from="/depth" to="/depth_$(arg robot_id)" />
+	<remap from="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/voxel_map" to="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/voxel_map_$(arg robot_id)" />
+	<remap from="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/inflated_voxel_map" to="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/inflated_voxel_map_$(arg robot_id)" />
+	<remap from="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/2D_occupancy_map" to="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/2D_occupancy_map_$(arg robot_id)" />
+	<remap from="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/depth_cloud" to="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/depth_cloud_$(arg robot_id)" />
+	
+	<node pkg="map_manager" type="multi_robo_occupancy_map_node" name="multi_robo_occupancy_map_node" output="screen" ns="$(arg robot_ns)" />
+		<param name="$(arg robot_ns)/$(arg multiRoboOccMap_ns)/robot_id" value="$(arg robot_id)" />
+</launch>
