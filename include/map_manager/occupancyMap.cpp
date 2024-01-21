@@ -402,7 +402,7 @@ namespace mapManager{
 			cout << this->hint_ << ": No prebuilt map found/not using the prebuilt map." << endl;
 		}
 		else {
-			cout << this->hint_ << "Loaded " << cloud->width * cloud->height << " data points from test_pcd.pcd with the following fields: " << endl;
+			cout << this->hint_ << ": Loaded " << cloud->width * cloud->height << " data points from test_pcd.pcd with the following fields: " << endl;
 			int address;
 			Eigen::Vector3i pointIndex;
 			Eigen::Vector3d pointPos;
