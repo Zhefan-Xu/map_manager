@@ -528,8 +528,20 @@ namespace mapManager{
 		this->inflatedMapVisPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_ + "/inflated_voxel_map", 10);
 		this->map2DPub_ = this->nh_.advertise<nav_msgs::OccupancyGrid>(this->ns_ + "/2D_occupancy_map", 10);
 		this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
+		// publish service
+		this->collisionCheckServer_ = this->nh_.advertiseService(this->ns_ + "/check_pos_collision", &occMap::checkCollision, this);
 	}
 
+	bool occMap::checkCollision(map_manager::CheckPosCollision::Request& req, map_manager::CheckPosCollision::Response& res){
+		if (req.inflated){
+			res.occupied = this->isInflatedOccupied(Eigen::Vector3d (req.x, req.y, req.z));
+		}
+		else{
+			res.occupied = this->isOccupied(Eigen::Vector3d (req.x, req.y, req.z));
+		}
+
+		return true;
+	}
 
 	void occMap::depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose){
 		// store current depth image

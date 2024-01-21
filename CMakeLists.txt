@@ -62,9 +62,10 @@ find_package(PCL 1.7 REQUIRED)
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-# )
+add_service_files(
+  FILES
+  CheckPosCollision.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -74,10 +75,10 @@ find_package(PCL 1.7 REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
