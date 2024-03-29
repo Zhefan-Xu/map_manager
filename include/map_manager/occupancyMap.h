@@ -142,7 +142,7 @@ namespace mapManager{
 		// ------------------------------------------------------------------
 
 	public:
-		// std::thread visWorker_;
+		std::thread visWorker_;
 
 		occMap(); // empty constructor
 		occMap(const ros::NodeHandle& nh);
@@ -197,7 +197,7 @@ namespace mapManager{
 
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
-		// void startVisualization();
+		void startVisualization();
 		void publishProjPoints();
 		void publishMap();
 		void publishInflatedMap();

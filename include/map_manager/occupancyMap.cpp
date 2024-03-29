@@ -519,7 +519,9 @@ namespace mapManager{
 		this->inflateTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::inflateMapCB, this);
 
 		// visualization callback
-		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, this);
+		// this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, this);
+		this->visWorker_ = std::thread(&occMap::startVisualization, this);
+		this->visWorker_.detach();
 	}
 
 	void occMap::registerPub(){
@@ -1038,6 +1040,16 @@ namespace mapManager{
 		this->publish2DOccupancyGrid();
 	}
 
+	void occMap::startVisualization(){
+		ros::Rate r (20);
+		while (ros::ok()){
+			this->publishProjPoints();
+			this->publishMap();
+			this->publishInflatedMap();
+			this->publish2DOccupancyGrid();		
+			r.sleep();	
+		}
+	}
 
 	void occMap::publishProjPoints(){
 		pcl::PointXYZ pt;
