@@ -28,7 +28,7 @@ namespace mapManager{
 		this->registerCallback();
 		this->detector_.reset(new onboardDetector::dynamicDetector (this->nh_));
 		if (freeMap){
-        	this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicMap::freeMapCB, this);
+        	this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicMap::freeMapCB, this);
 		}
 	}
 

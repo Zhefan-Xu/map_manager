@@ -1041,7 +1041,7 @@ namespace mapManager{
 	}
 
 	void occMap::startVisualization(){
-		ros::Rate r (20);
+		ros::Rate r (10);
 		while (ros::ok()){
 			this->publishProjPoints();
 			this->publishMap();
