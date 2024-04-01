@@ -519,9 +519,9 @@ namespace mapManager{
 		this->inflateTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::inflateMapCB, this);
 
 		// visualization callback
-		// this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::visCB, this);
-		this->visWorker_ = std::thread(&occMap::startVisualization, this);
-		this->visWorker_.detach();
+		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::visCB, this);
+		// this->visWorker_ = std::thread(&occMap::startVisualization, this);
+		// this->visWorker_.detach();
 	}
 
 	void occMap::registerPub(){
