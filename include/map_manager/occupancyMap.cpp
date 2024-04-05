@@ -519,9 +519,13 @@ namespace mapManager{
 		this->inflateTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::inflateMapCB, this);
 
 		// visualization callback
-		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::visCB, this);
+		// this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::visCB, this);
 		// this->visWorker_ = std::thread(&occMap::startVisualization, this);
 		// this->visWorker_.detach();
+		this->projPointsVisTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::projPointsVisCB, this);
+		this->mapVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::mapVisCB, this);
+		this->inflatedMapVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::inflatedMapVisCB, this);
+		this->map2DVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::map2DVisCB, this);
 	}
 
 	void occMap::registerPub(){
@@ -1040,6 +1044,21 @@ namespace mapManager{
 		this->publish2DOccupancyGrid();
 	}
 
+	void occMap::projPointsVisCB(const ros::TimerEvent& ){
+		this->publishProjPoints();
+	}
+
+	void occMap::mapVisCB(const ros::TimerEvent& ){
+		this->publishMap();
+	}
+	void occMap::inflatedMapVisCB(const ros::TimerEvent& ){
+		this->publishInflatedMap();
+	}
+
+	void occMap::map2DVisCB(const ros::TimerEvent& ){
+		this->publish2DOccupancyGrid();
+	}
+	
 	void occMap::startVisualization(){
 		ros::Rate r (10);
 		while (ros::ok()){
@@ -1214,7 +1233,7 @@ namespace mapManager{
 		for (int x=minRangeIdx(0); x<=maxRangeIdx(0); ++x){
 			for (int y=minRangeIdx(1); y<=maxRangeIdx(1); ++y){
 				Eigen::Vector3i pointIdx (x, y, zIdx);
-				int map2DIdx = x + maxRangeIdx(1) * y;
+				int map2DIdx = x  +  y * maxRangeIdx(0);
 				if (this->isUnknown(pointIdx)){
 					mapMsg.data[map2DIdx] = -1;
 				}
@@ -1229,10 +1248,10 @@ namespace mapManager{
 		mapMsg.header.frame_id = "map";
 		mapMsg.header.stamp = ros::Time::now();
 		mapMsg.info.resolution = this->mapRes_;
-		mapMsg.info.width = maxRangeIdx(1);
-		mapMsg.info.height = maxRangeIdx(0);
-		mapMsg.info.origin.position.x = minRange(1);
-		mapMsg.info.origin.position.y = minRange(0);
+		mapMsg.info.width = maxRangeIdx(0);
+		mapMsg.info.height = maxRangeIdx(1);
+		mapMsg.info.origin.position.x = minRange(0);
+		mapMsg.info.origin.position.y = minRange(1);
 		this->map2DPub_.publish(mapMsg);		
 	}
 }

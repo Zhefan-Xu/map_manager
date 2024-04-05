@@ -50,7 +50,10 @@ namespace mapManager{
 		std::shared_ptr<message_filters::Synchronizer<pointcloudOdomSync>> pointcloudOdomSync_;	
 		ros::Timer occTimer_;
 		ros::Timer inflateTimer_;
-		ros::Timer visTimer_;
+		ros::Timer projPointsVisTimer_;
+		ros::Timer mapVisTimer_;
+		ros::Timer inflatedMapVisTimer_;
+		ros::Timer map2DVisTimer_;
 		ros::Publisher depthCloudPub_;
 		ros::Publisher mapVisPub_;
 		ros::Publisher inflatedMapVisPub_;
@@ -197,6 +200,10 @@ namespace mapManager{
 
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
+		void projPointsVisCB(const ros::TimerEvent& );
+		void mapVisCB(const ros::TimerEvent& );
+		void inflatedMapVisCB(const ros::TimerEvent& );
+		void map2DVisCB(const ros::TimerEvent& );
 		void startVisualization();
 		void publishProjPoints();
 		void publishMap();
