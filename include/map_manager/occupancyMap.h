@@ -51,6 +51,7 @@ namespace mapManager{
 		ros::Timer occTimer_;
 		ros::Timer inflateTimer_;
 		ros::Timer projPointsVisTimer_;
+		ros::Timer visTimer_;
 		ros::Timer mapVisTimer_;
 		ros::Timer inflatedMapVisTimer_;
 		ros::Timer map2DVisTimer_;
@@ -131,7 +132,6 @@ namespace mapManager{
 		Eigen::Vector3d currMapRangeMin_ = Eigen::Vector3d (0, 0, 0); 
 		Eigen::Vector3d currMapRangeMax_ = Eigen::Vector3d (0, 0, 0);
 		bool useFreeRegions_ = false;
-
 		
 
 		// STATUS
@@ -205,6 +205,7 @@ namespace mapManager{
 		void inflatedMapVisCB(const ros::TimerEvent& );
 		void map2DVisCB(const ros::TimerEvent& );
 		void startVisualization();
+		void getMapVisData(pcl::PointCloud<pcl::PointXYZ>& mapCloud, pcl::PointCloud<pcl::PointXYZ>& inflatedMapCloud, pcl::PointCloud<pcl::PointXYZ>& exploredMapCloud, pcl::PointCloud<pcl::PointXYZ>& depthCloud);
 		void publishProjPoints();
 		void publishMap();
 		void publishInflatedMap();

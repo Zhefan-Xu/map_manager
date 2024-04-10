@@ -519,7 +519,7 @@ namespace mapManager{
 		this->inflateTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::inflateMapCB, this);
 
 		// visualization callback
-		// this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::visCB, this);
+		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::visCB, this);
 		this->visWorker_ = std::thread(&occMap::startVisualization, this);
 		this->visWorker_.detach();
 		// this->projPointsVisTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::projPointsVisCB, this);
@@ -672,7 +672,7 @@ namespace mapManager{
 			this->cleanLocalMap();
 		}
 		
-		// infalte map
+		// inflate map
 		// this->inflateLocalMap();
 		endTime = ros::Time::now();
 		if (this->verbose_){
@@ -992,7 +992,7 @@ namespace mapManager{
 
 	void occMap::inflateLocalMap(){
 		Eigen::Vector3i clearIndex;
-		// clear previous data in current data range
+		// // clear previous data in current data range
 		for (int x=this->localBoundMin_(0); x<=this->localBoundMax_(0); ++x){
 			for (int y=this->localBoundMin_(1); y<=this->localBoundMax_(1); ++y){
 				for (int z=this->localBoundMin_(2); z<=this->localBoundMax_(2); ++z){
@@ -1038,10 +1038,10 @@ namespace mapManager{
 
 
 	void occMap::visCB(const ros::TimerEvent& ){
-		this->publishProjPoints();
-		this->publishMap();
+		// this->publishProjPoints();
+		// this->publishMap();
 		this->publishInflatedMap();
-		this->publish2DOccupancyGrid();
+		// this->publish2DOccupancyGrid();
 	}
 
 	void occMap::projPointsVisCB(const ros::TimerEvent& ){
@@ -1061,15 +1061,113 @@ namespace mapManager{
 	
 	void occMap::startVisualization(){
 		ros::Rate r (10);
-		std::mutex dataMutex;
 		while (ros::ok()){
-			std::lock_guard<std::mutex> lock(dataMutex);
+			// pcl::PointCloud<pcl::PointXYZ> mapCloud, inflatedMapCloud, exploredMapCloud, depthCloud;
+			// this->getMapVisData(mapCloud, inflatedMapCloud, exploredMapCloud, depthCloud);
+			// sensor_msgs::PointCloud2 mapCloudMsg,inflatedMapCloudMsg, exploredMapCloudMsg, depthCloudMsg;
+			// pcl::toROSMsg(mapCloud, mapCloudMsg);
+			// pcl::toROSMsg(inflatedMapCloud, inflatedMapCloudMsg);
+			// pcl::toROSMsg(exploredMapCloud, exploredMapCloudMsg);
+			// pcl::toROSMsg(depthCloud, depthCloudMsg);
+
+			// this->inflatedMapVisPub_.publish(inflatedMapCloudMsg);
+			// this->mapVisPub_.publish(mapCloudMsg);
+			// this->mapExploredPub_.publish(exploredMapCloudMsg);
+			// this->depthCloudPub_.publish(depthCloudMsg);
 			this->publishProjPoints();
 			this->publishMap();
-			this->publishInflatedMap();
-			this->publish2DOccupancyGrid();		
+			// this->publishInflatedMap();
+			this->publish2DOccupancyGrid();
 			r.sleep();	
 		}
+	}
+
+	void occMap::getMapVisData(pcl::PointCloud<pcl::PointXYZ>& mapCloud, pcl::PointCloud<pcl::PointXYZ>& inflatedMapCloud, pcl::PointCloud<pcl::PointXYZ>& exploredMapCloud, pcl::PointCloud<pcl::PointXYZ>& depthCloud){
+		pcl::PointXYZ pt;
+		Eigen::Vector3d minRange, maxRange;
+		if (this->visGlobalMap_){
+			// minRange = this->mapSizeMin_;
+			// maxRange = this->mapSizeMax_;
+			minRange = this->currMapRangeMin_;
+			maxRange = this->currMapRangeMax_;
+		}
+		else{
+			minRange = this->position_ - localMapSize_;
+			maxRange = this->position_ + localMapSize_;
+			minRange(2) = this->groundHeight_;
+		}
+		Eigen::Vector3i minRangeIdx, maxRangeIdx;
+		this->posToIndex(minRange, minRangeIdx);
+		this->posToIndex(maxRange, maxRangeIdx);
+		this->boundIndex(minRangeIdx);
+		this->boundIndex(maxRangeIdx);
+
+		for (int i=0; i<this->projPointsNum_; ++i){
+			pt.x = this->projPoints_[i](0);
+			pt.y = this->projPoints_[i](1);
+			pt.z = this->projPoints_[i](2);
+			depthCloud.push_back(pt);
+		}
+
+		depthCloud.width = depthCloud.points.size();
+		depthCloud.height = 1;
+		depthCloud.is_dense = true;
+		depthCloud.header.frame_id = "map";
+
+		for (int x=minRangeIdx(0); x<=maxRangeIdx(0); ++x){
+			for (int y=minRangeIdx(1); y<=maxRangeIdx(1); ++y){
+				for (int z=minRangeIdx(2); z<=maxRangeIdx(2); ++z){
+					Eigen::Vector3i pointIdx (x, y, z);
+
+					if (this->isOccupied(pointIdx)){
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						if (point(2) <= this->maxVisHeight_){
+							pt.x = point(0);
+							pt.y = point(1);
+							pt.z = point(2);
+							mapCloud.push_back(pt);
+						}
+					}
+					
+					if (this->isInflatedOccupied(pointIdx)){
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						if (point(2) <= this->maxVisHeight_){
+							pt.x = point(0);
+							pt.y = point(1);
+							pt.z = point(2);
+							inflatedMapCloud.push_back(pt);
+						}
+					}
+
+					// publish explored voxel map
+					if(!this->isUnknown(pointIdx)){
+						Eigen::Vector3d point;
+						this->indexToPos(pointIdx, point);
+						pt.x = point(0);
+						pt.y = point(1);
+						pt.z = point(2);
+						exploredMapCloud.push_back(pt);
+					}
+				}
+			}
+		}
+
+		mapCloud.width = mapCloud.points.size();
+		mapCloud.height = 1;
+		mapCloud.is_dense = true;
+		mapCloud.header.frame_id = "map";
+
+		inflatedMapCloud.width = inflatedMapCloud.points.size();
+		inflatedMapCloud.height = 1;
+		inflatedMapCloud.is_dense = true;
+		inflatedMapCloud.header.frame_id = "map";
+
+		exploredMapCloud.width = exploredMapCloud.points.size();
+		exploredMapCloud.height = 1;
+		exploredMapCloud.is_dense = true;
+		exploredMapCloud.header.frame_id = "map";
 	}
 
 	void occMap::publishProjPoints(){
@@ -1092,7 +1190,6 @@ namespace mapManager{
 		pcl::toROSMsg(cloud, cloudMsg);
 		this->depthCloudPub_.publish(cloudMsg);
 	}
-
 
 	void occMap::publishMap(){
 		pcl::PointXYZ pt;
