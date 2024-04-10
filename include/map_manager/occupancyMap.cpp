@@ -520,12 +520,12 @@ namespace mapManager{
 
 		// visualization callback
 		// this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::visCB, this);
-		// this->visWorker_ = std::thread(&occMap::startVisualization, this);
-		// this->visWorker_.detach();
-		this->projPointsVisTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::projPointsVisCB, this);
-		this->mapVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::mapVisCB, this);
-		this->inflatedMapVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::inflatedMapVisCB, this);
-		this->map2DVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::map2DVisCB, this);
+		this->visWorker_ = std::thread(&occMap::startVisualization, this);
+		this->visWorker_.detach();
+		// this->projPointsVisTimer_ = this->nh_.createTimer(ros::Duration(0.1), &occMap::projPointsVisCB, this);
+		// this->mapVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::mapVisCB, this);
+		// this->inflatedMapVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::inflatedMapVisCB, this);
+		// this->map2DVisTimer_ = this->nh_.createTimer(ros::Duration(0.15), &occMap::map2DVisCB, this);
 	}
 
 	void occMap::registerPub(){
@@ -1061,7 +1061,9 @@ namespace mapManager{
 	
 	void occMap::startVisualization(){
 		ros::Rate r (10);
+		std::mutex dataMutex;
 		while (ros::ok()){
+			std::lock_guard<std::mutex> lock(dataMutex);
 			this->publishProjPoints();
 			this->publishMap();
 			this->publishInflatedMap();
@@ -1099,8 +1101,10 @@ namespace mapManager{
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){
-			minRange = this->mapSizeMin_;
-			maxRange = this->mapSizeMax_;
+			// minRange = this->mapSizeMin_;
+			// maxRange = this->mapSizeMax_;
+			minRange = this->currMapRangeMin_;
+			maxRange = this->currMapRangeMax_;
 		}
 		else{
 			minRange = this->position_ - localMapSize_;
@@ -1167,8 +1171,10 @@ namespace mapManager{
 
 		Eigen::Vector3d minRange, maxRange;
 		if (this->visGlobalMap_){
-			minRange = this->mapSizeMin_;
-			maxRange = this->mapSizeMax_;
+			// minRange = this->mapSizeMin_;
+			// maxRange = this->mapSizeMax_;
+			minRange = this->currMapRangeMin_;
+			maxRange = this->currMapRangeMax_;
 		}
 		else{
 			minRange = this->position_ - localMapSize_;
