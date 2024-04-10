@@ -132,7 +132,6 @@ namespace mapManager{
 		Eigen::Vector3d currMapRangeMin_ = Eigen::Vector3d (0, 0, 0); 
 		Eigen::Vector3d currMapRangeMax_ = Eigen::Vector3d (0, 0, 0);
 		bool useFreeRegions_ = false;
-		bool inflateInProgress_ = false;
 		
 
 		// STATUS
