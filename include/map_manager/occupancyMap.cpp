@@ -549,7 +549,7 @@ namespace mapManager{
 		return true;
 	}
 
-	bool occMap::getRayCast(map_manager::RayCast::Request& req, map_manager::RayCast::& res){
+	bool occMap::getRayCast(map_manager::RayCast::Request& req, map_manager::RayCast::Response& res){
 		double hres = req.hres * M_PI/180.0;
 		int numHbeams = int(360/req.hres);
 		double vres = int(((req.vfov_max - req.vfov_min)* M_PI/180.0)/req.vbeams);
@@ -557,10 +557,10 @@ namespace mapManager{
 		int numVbeams = req.vbeams;
 		double range = req.range;
 		Eigen::Vector3d start (req.position.x, req.position.y, req.position.z);
-		for (int h=0; h<numHbeams; ++i){
+		for (int h=0; h<numHbeams; ++h){
 			double hAngle = double(h) * hres;
-			Eigen::Vector3d hdirection (cos(hangle), sin(hangle), 0.0); // horizontal direction 
-			for (int v=0; v<numVbeams; ++j){
+			Eigen::Vector3d hdirection (cos(hAngle), sin(hAngle), 0.0); // horizontal direction 
+			for (int v=0; v<numVbeams; ++v){
 				// get hit points
 				double vAngle = vStartAngle + double(v) * vres;
 				double vup = tan(vAngle);
@@ -571,8 +571,12 @@ namespace mapManager{
 				if (not success){
 					hitPoint = start + range * direction;
 				}
+				for (int i=0; i<3; ++i){
+					res.points.push_back(hitPoint(i));
+				}
 			}
 		}
+		return true;
 	}
 
 	void occMap::depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose){
