@@ -549,6 +549,32 @@ namespace mapManager{
 		return true;
 	}
 
+	bool occMap::getRayCast(map_manager::RayCast::Request& req, map_manager::RayCast::& res){
+		double hres = req.hres * M_PI/180.0;
+		int numHbeams = int(360/req.hres);
+		double vres = int(((req.vfov_max - req.vfov_min)* M_PI/180.0)/req.vbeams);
+		double vStartAngle = req.vfov_min * M_PI/180.0;
+		int numVbeams = req.vbeams;
+		double range = req.range;
+		Eigen::Vector3d start (req.position.x, req.position.y, req.position.z);
+		for (int h=0; h<numHbeams; ++i){
+			double hAngle = double(h) * hres;
+			Eigen::Vector3d hdirection (cos(hangle), sin(hangle), 0.0); // horizontal direction 
+			for (int v=0; v<numVbeams; ++j){
+				// get hit points
+				double vAngle = vStartAngle + double(v) * vres;
+				double vup = tan(vAngle);
+				Eigen::Vector3d direction = hdirection;
+				direction(2) += vup;
+				Eigen::Vector3d hitPoint;
+				bool success = this->castRay(start, direction, hitPoint, range, true);
+				if (not success){
+					hitPoint = start + range * direction;
+				}
+			}
+		}
+	}
+
 	void occMap::depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose){
 		// store current depth image
 		cv_bridge::CvImagePtr imgPtr = cv_bridge::toCvCopy(img, img->encoding);
