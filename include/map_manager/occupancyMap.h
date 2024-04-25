@@ -62,6 +62,7 @@ namespace mapManager{
 		ros::Publisher map2DPub_;
 		ros::Publisher mapExploredPub_;
 		ros::ServiceServer collisionCheckServer_;
+		ros::ServiceServer raycastServer_;
 
 		int sensorInputMode_;
 		int localizationMode_;

@@ -536,6 +536,7 @@ namespace mapManager{
 		this->mapExploredPub_ = this->nh_.advertise<sensor_msgs::PointCloud2>(this->ns_+"/explored_voxel_map",10);
 		// publish service
 		this->collisionCheckServer_ = this->nh_.advertiseService(this->ns_ + "/check_pos_collision", &occMap::checkCollision, this);
+		this->raycastServer_ = this->nh_.advertiseService(this->ns_ + "/raycast", &occMap::getRayCast, this);
 	}
 
 	bool occMap::checkCollision(map_manager::CheckPosCollision::Request& req, map_manager::CheckPosCollision::Response& res){
