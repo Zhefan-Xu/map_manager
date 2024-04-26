@@ -553,7 +553,7 @@ namespace mapManager{
 	bool occMap::getRayCast(map_manager::RayCast::Request& req, map_manager::RayCast::Response& res){
 		double hres = req.hres * M_PI/180.0;
 		int numHbeams = int(360/req.hres);
-		double vres = int(((req.vfov_max - req.vfov_min)* M_PI/180.0)/req.vbeams);
+		double vres = double(((req.vfov_max - req.vfov_min)* M_PI/180.0)/req.vbeams);
 		double vStartAngle = req.vfov_min * M_PI/180.0;
 		int numVbeams = req.vbeams;
 		double range = req.range;
