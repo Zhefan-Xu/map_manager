@@ -34,6 +34,7 @@ namespace mapManager{
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclePos, 
 								 std::vector<Eigen::Vector3d>& obstaclesVel, 
 			                     std::vector<Eigen::Vector3d>& obstacleSize);
+		void getDetector(std::shared_ptr<onboardDetector::dynamicDetector> &detector);
 	};
 
 }
