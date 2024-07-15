@@ -991,11 +991,17 @@ namespace mapManager{
 	}
 
 	void occMap::inflateLocalMap(){
+		int xmin = this->localBoundMin_(0);
+		int xmax = this->localBoundMax_(0);
+		int ymin = this->localBoundMin_(1);
+		int ymax = this->localBoundMax_(1);
+		int zmin = this->localBoundMin_(2);
+		int zmax = this->localBoundMax_(2);
 		Eigen::Vector3i clearIndex;
-		// // clear previous data in current data range
-		for (int x=this->localBoundMin_(0); x<=this->localBoundMax_(0); ++x){
-			for (int y=this->localBoundMin_(1); y<=this->localBoundMax_(1); ++y){
-				for (int z=this->localBoundMin_(2); z<=this->localBoundMax_(2); ++z){
+		// clear previous data in current data range
+		for (int x=xmin; x<=xmax; ++x){
+			for (int y=ymin; y<=ymax; ++y){
+				for (int z=zmin; z<=zmax; ++z){
 					clearIndex(0) = x; clearIndex(1) = y; clearIndex(2) = z;
 					this->occupancyInflated_[this->indexToAddress(clearIndex)] = false;
 				}
@@ -1010,9 +1016,9 @@ namespace mapManager{
 		Eigen::Vector3i pointIndex, inflateIndex;
 		int inflateAddress;
 		const int  maxIndex = this->mapVoxelMax_(0) * this->mapVoxelMax_(1) * this->mapVoxelMax_(2);
-		for (int x=this->localBoundMin_(0); x<=this->localBoundMax_(0); ++x){
-			for (int y=this->localBoundMin_(1); y<=this->localBoundMax_(1); ++y){
-				for (int z=this->localBoundMin_(2); z<=this->localBoundMax_(2); ++z){
+		for (int x=xmin; x<=xmax; ++x){
+			for (int y=ymin; y<=ymax; ++y){
+				for (int z=zmin; z<=zmax; ++z){
 					pointIndex(0) = x; pointIndex(1) = y; pointIndex(2) = z;
 					if (this->isOccupied(pointIndex)){
 						for (int ix=-xInflateSize; ix<=xInflateSize; ++ix){
