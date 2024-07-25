@@ -60,8 +60,10 @@ namespace mapManager{
 		}
 	}
 
-	void dynamicMap::getDetector(std::shared_ptr<onboardDetector::dynamicDetector> &detector){
+	std::shared_ptr<onboardDetector::dynamicDetector> dynamicMap::getDetector(){
+		std::shared_ptr<onboardDetector::dynamicDetector> detector;
 		detector = this->detector_;
+		return detector;
 	}
 
 }
