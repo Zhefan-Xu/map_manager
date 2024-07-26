@@ -1,7 +1,7 @@
 sensor_input_mode: 0 # 0 camera 1: lidar
 localization_mode: 1 # 0: pose (default) 1: odom
-depth_image_topic: /camera/depth/image_raw
-# depth_image_topic: /no_topic
+# depth_image_topic: /camera/depth/image_raw
+depth_image_topic: /no_topic
 pose_topic: /CERLAB/quadcopter/pose
 odom_topic: /CERLAB/quadcopter/odom
 # pose_topic: /mavros/local_position/pose
@@ -47,5 +47,5 @@ max_height_visualization: 2.5 # m
 visualize_global_map: true
 verbose: false
 
-prebuilt_map_directory: "No"
-# prebuilt_map_directory: "/home/cerlab/map/static_map.pcd"
+# prebuilt_map_directory: "No"
+prebuilt_map_directory: "/home/zhefan/catkin_ws/src/CERLAB-UAV-Autonomy-v2/uav_simulator/worlds/generated_env/generated_env.pcd"
