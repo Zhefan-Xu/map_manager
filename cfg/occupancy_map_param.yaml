@@ -48,4 +48,4 @@ visualize_global_map: true
 verbose: false
 
 prebuilt_map_directory: "No"
-# prebuilt_map_directory: "/home/jhy/catkin_ws/static_map.pcd"
+# prebuilt_map_directory: "/home/cerlab/catkin_ws/static_map.pcd"
