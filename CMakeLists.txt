@@ -65,6 +65,7 @@ find_package(PCL 1.7 REQUIRED)
 add_service_files(
   FILES
   CheckPosCollision.srv
+  RayCast.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -78,6 +79,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################

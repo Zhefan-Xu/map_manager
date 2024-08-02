@@ -23,6 +23,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <map_manager/raycast.h>
 #include <map_manager/CheckPosCollision.h>
+#include <map_manager/RayCast.h>
 #include <thread>
 
 using std::cout; using std::endl;
@@ -61,6 +62,7 @@ namespace mapManager{
 		ros::Publisher map2DPub_;
 		ros::Publisher mapExploredPub_;
 		ros::ServiceServer collisionCheckServer_;
+		ros::ServiceServer raycastServer_;
 
 		int sensorInputMode_;
 		int localizationMode_;
@@ -158,6 +160,7 @@ namespace mapManager{
 
 		// service
 		bool checkCollision(map_manager::CheckPosCollision::Request& req, map_manager::CheckPosCollision::Response& res);		
+		bool getRayCast(map_manager::RayCast::Request& req, map_manager::RayCast::Response& res);
 
 		// callback
 		void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
