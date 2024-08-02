@@ -49,7 +49,7 @@ namespace mapManager{
 										 std::vector<Eigen::Vector3d>& obstacleVel,
 										 std::vector<Eigen::Vector3d>& obstacleSize){
 		std::vector<onboardDetector::box3D> dynamicBBoxes;
-		this->detector_->getDynamicObstacles(dynamicBBoxes);
+		this->detector_->getDynamicObstacles(dynamicBBoxes, this->robotSize_);
 		for (size_t i=0 ; i<dynamicBBoxes.size() ; ++i){
 			Eigen::Vector3d pos(dynamicBBoxes[i].x, dynamicBBoxes[i].y, dynamicBBoxes[i].z);
 			Eigen::Vector3d vel(dynamicBBoxes[i].Vx, dynamicBBoxes[i].Vy, 0);
