@@ -1,4 +1,5 @@
 geometry_msgs/Point position
+float64 startAngle
 float64 range
 float64 vfov_min
 float64 vfov_max

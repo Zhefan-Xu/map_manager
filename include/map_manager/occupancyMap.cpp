@@ -558,8 +558,11 @@ namespace mapManager{
 		int numVbeams = req.vbeams;
 		double range = req.range;
 		Eigen::Vector3d start (req.position.x, req.position.y, req.position.z);
+
+
+		double starthAngle = req.startAngle;
 		for (int h=0; h<numHbeams; ++h){
-			double hAngle = double(h) * hres;
+			double hAngle = starthAngle + double(h) * hres;
 			Eigen::Vector3d hdirection (cos(hAngle), sin(hAngle), 0.0); // horizontal direction 
 			for (int v=0; v<numVbeams; ++v){
 				// get hit points
@@ -579,7 +582,7 @@ namespace mapManager{
 		}
 		return true;
 	}
-
+	
 	void occMap::depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose){
 		// store current depth image
 		cv_bridge::CvImagePtr imgPtr = cv_bridge::toCvCopy(img, img->encoding);
