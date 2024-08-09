@@ -199,7 +199,7 @@ namespace mapManager{
 		void getMapRange(Eigen::Vector3d& mapSizeMin, Eigen::Vector3d& mapSizeMax);
 		void getCurrMapRange(Eigen::Vector3d& currRangeMin, Eigen::Vector3d& currRangeMax);
 		bool castRay(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxLength=5.0, bool ignoreUnknown=true);
-
+		void getRobotSize(Eigen::Vector3d &robotSize);
 
 		// Visualziation
 		void visCB(const ros::TimerEvent& );
@@ -671,6 +671,10 @@ namespace mapManager{
 		map2body(3, 3) = 1.0;
 
 		camPoseMatrix = map2body * this->body2Cam_;
+	}
+
+	inline void occMap::getRobotSize(Eigen::Vector3d &robotSize){
+		robotSize = this->robotSize_;
 	}
 }
 
