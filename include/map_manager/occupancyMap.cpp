@@ -570,6 +570,7 @@ namespace mapManager{
 				double vup = tan(vAngle);
 				Eigen::Vector3d direction = hdirection;
 				direction(2) += vup;
+				direction /= direction.norm();
 				Eigen::Vector3d hitPoint;
 				bool success = this->castRay(start, direction, hitPoint, range, true);
 				if (not success){
