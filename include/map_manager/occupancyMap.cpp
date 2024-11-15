@@ -484,7 +484,7 @@ namespace mapManager{
 	}
 
 	void occMap::registerCallback(){
-		if (this->sensorInputMode_ == 0 or this->sensorInputMode_ == 2){
+		if (this->sensorInputMode_ == 0){
 			// depth pose callback
 			this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
 			if (this->localizationMode_ == 0){
@@ -502,7 +502,7 @@ namespace mapManager{
 				exit(0);
 			}
 		}
-		if (this->sensorInputMode_ == 1 or this->sensorInputMode_ == 2){
+		if (this->sensorInputMode_ == 1){
 			// pointcloud callback
 			this->pointcloudSub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(this->nh_, this->pointcloudTopicName_, 50));
 			if (this->localizationMode_ == 0){
