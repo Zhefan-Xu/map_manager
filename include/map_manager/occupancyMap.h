@@ -83,7 +83,7 @@ namespace mapManager{
 		int depthFilterMargin_, skipPixel_; // depth filter margin
 		int imgCols_, imgRows_;
 		Eigen::Matrix4d body2Cam_; // from body frame to camera frame
-
+		Eigen::Matrix4d body2Lid_;
 		// RAYCASTING
 		double raycastMaxLength_;
 		double pHitLog_, pMissLog_, pMinLog_, pMaxLog_, pOccLog_; 
@@ -114,14 +114,15 @@ namespace mapManager{
 		// SENSOR DATA
 		cv::Mat depthImage_;
 		pcl::PointCloud<pcl::PointXYZ> pointcloud_;
-		Eigen::Vector3d position_; // current position
-		Eigen::Matrix3d orientation_; // current orientation
+		Eigen::Vector3d position_, positionCam_, positionLid_; // current position
+		Eigen::Matrix3d orientation_, orientationCam_, orientationLid_; // current orientation
 		Eigen::Vector3i localBoundMin_, localBoundMax_; // sensor data range
 
 
 		// MAP DATA
-		int projPointsNum_ = 0;
-		std::vector<Eigen::Vector3d> projPoints_; // projected points from depth image
+		int projPointsNumCam_ = 0;
+		int projPointsNumLid_ = 0;
+		std::vector<Eigen::Vector3d> projPointsCam_, projPointsLid_; // projected points from depth image
 		std::vector<int> countHitMiss_;
 		std::vector<int> countHit_;
 		std::queue<Eigen::Vector3i> updateVoxelCache_;
@@ -236,6 +237,8 @@ namespace mapManager{
 		int updateOccupancyInfo(const Eigen::Vector3d& point, bool isOccupied);
 		void getCameraPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix);
 		void getCameraPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix);
+		void getLidarPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& lidPoseMatrix);
+		void getLidarPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& lidPoseMatrix);
 	};
 	// inline function
 	// user function
@@ -671,6 +674,38 @@ namespace mapManager{
 		map2body(3, 3) = 1.0;
 
 		camPoseMatrix = map2body * this->body2Cam_;
+	}
+
+	inline void occMap::getLidarPose(const geometry_msgs::PoseStampedConstPtr& pose, Eigen::Matrix4d& camPoseMatrix){
+		Eigen::Quaterniond quat;
+		quat = Eigen::Quaterniond(pose->pose.orientation.w, pose->pose.orientation.x, pose->pose.orientation.y, pose->pose.orientation.z);
+		Eigen::Matrix3d rot = quat.toRotationMatrix();
+
+		// convert body pose to camera pose
+		Eigen::Matrix4d map2body; map2body.setZero();
+		map2body.block<3, 3>(0, 0) = rot;
+		map2body(0, 3) = pose->pose.position.x; 
+		map2body(1, 3) = pose->pose.position.y;
+		map2body(2, 3) = pose->pose.position.z;
+		map2body(3, 3) = 1.0;
+
+		camPoseMatrix = map2body * this->body2Lid_;
+	}
+
+	inline void occMap::getLidarPose(const nav_msgs::OdometryConstPtr& odom, Eigen::Matrix4d& camPoseMatrix){
+		Eigen::Quaterniond quat;
+		quat = Eigen::Quaterniond(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x, odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
+		Eigen::Matrix3d rot = quat.toRotationMatrix();
+
+		// convert body pose to camera pose
+		Eigen::Matrix4d map2body; map2body.setZero();
+		map2body.block<3, 3>(0, 0) = rot;
+		map2body(0, 3) = odom->pose.pose.position.x; 
+		map2body(1, 3) = odom->pose.pose.position.y;
+		map2body(2, 3) = odom->pose.pose.position.z;
+		map2body(3, 3) = 1.0;
+
+		camPoseMatrix = map2body * this->body2Lid_;
 	}
 
 	inline void occMap::getRobotSize(Eigen::Vector3d &robotSize){
