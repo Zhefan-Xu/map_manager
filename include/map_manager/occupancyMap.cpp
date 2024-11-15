@@ -172,7 +172,7 @@ namespace mapManager{
 		else{
 			cout << this->hint_ << ": Depth image rows: " << this->imgRows_ << endl;
 		}
-		this->projPoints_.resize(this->imgCols_ * this->imgRows_ / (this->skipPixel_ * this->skipPixel_));
+		this->projPointsCam_.resize(this->imgCols_ * this->imgRows_ / (this->skipPixel_ * this->skipPixel_));
 		// ------------------------------------------------------------------------------------
 
 
@@ -189,6 +189,19 @@ namespace mapManager{
 			}
 			// cout << this->hint_ << ": from body to camera: " << endl;
 			// cout << this->body2Cam_ << endl;
+		}
+
+		// transform matrix: body to lidar
+		std::vector<double> body2LidVec (16);
+		if (not this->nh_.getParam(this->ns_ + "/body_to_lidar", body2LidVec)){
+			ROS_ERROR("[OccMap]: Please check body to lidar matrix!");
+		}
+		else{
+			for (int i=0; i<4; ++i){
+				for (int j=0; j<4; ++j){
+					this->body2Lid_(i, j) = body2LidVec[i * 4 + j];
+				}
+			}
 		}
 
 		// Raycast max length
@@ -507,10 +520,33 @@ namespace mapManager{
 				exit(0);
 			}
 		}
+		else if (this->sensorInputMode_ == 2){
+			this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
+			this->pointcloudSub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(this->nh_, this->pointcloudTopicName_, 50));
+			if (this->localizationMode_ == 0){
+				this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
+				this->depthPoseSync_.reset(new message_filters::Synchronizer<depthPoseSync>(depthPoseSync(100), *this->depthSub_, *this->poseSub_));
+				this->depthPoseSync_->registerCallback(boost::bind(&occMap::depthPoseCB, this, _1, _2));
+				this->pointcloudPoseSync_.reset(new message_filters::Synchronizer<pointcloudPoseSync>(pointcloudPoseSync(100), *this->pointcloudSub_, *this->poseSub_));
+				this->pointcloudPoseSync_->registerCallback(boost::bind(&occMap::pointcloudPoseCB, this, _1, _2));
+			}
+			else if (this->localizationMode_ == 1){
+				this->odomSub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(this->nh_, this->odomTopicName_, 25));
+				this->depthOdomSync_.reset(new message_filters::Synchronizer<depthOdomSync>(depthOdomSync(100), *this->depthSub_, *this->odomSub_));
+				this->depthOdomSync_->registerCallback(boost::bind(&occMap::depthOdomCB, this, _1, _2));
+				this->pointcloudOdomSync_.reset(new message_filters::Synchronizer<pointcloudOdomSync>(pointcloudOdomSync(100), *this->pointcloudSub_, *this->odomSub_));
+				this->pointcloudOdomSync_->registerCallback(boost::bind(&occMap::pointcloudOdomCB, this, _1, _2));
+			}
+			else{
+				ROS_ERROR("[OccMap]: Invalid localization mode!");
+				exit(0);
+			}
+		}
 		else{
 			ROS_ERROR("[OccMap]: Invalid sensor input mode!");
 			exit(0);
 		}
+
 
 		// occupancy update callback
 		this->occTimer_ = this->nh_.createTimer(ros::Duration(0.05), &occMap::updateOccupancyCB, this);
@@ -592,14 +628,20 @@ namespace mapManager{
 		}
 		imgPtr->image.copyTo(this->depthImage_);
 
+		this->position_(0) = pose->pose.position.x;
+		this->position_(1) = pose->pose.position.y;
+		this->position_(2) = pose->pose.position.z;
+      	Eigen::Quaterniond robotQuat = Eigen::Quaterniond(pose->pose.orientation.w, pose->pose.orientation.x, pose->pose.orientation.y, pose->pose.orientation.z);
+		this->orientation_ = robotQuat.toRotationMatrix();
+
 		// store current position and orientation (camera)
 		Eigen::Matrix4d camPoseMatrix;
 		this->getCameraPose(pose, camPoseMatrix);
 
-		this->position_(0) = camPoseMatrix(0, 3);
-		this->position_(1) = camPoseMatrix(1, 3);
-		this->position_(2) = camPoseMatrix(2, 3);
-		this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+		this->positionCam_(0) = camPoseMatrix(0, 3);
+		this->positionCam_(1) = camPoseMatrix(1, 3);
+		this->positionCam_(2) = camPoseMatrix(2, 3);
+		this->orientationCam_ = camPoseMatrix.block<3, 3>(0, 0);
 
 		if (this->isInMap(this->position_)){
 			this->occNeedUpdate_ = true;
@@ -617,14 +659,20 @@ namespace mapManager{
 		}
 		imgPtr->image.copyTo(this->depthImage_);
 
+		this->position_(0) = odom->pose.pose.position.x;
+		this->position_(1) = odom->pose.pose.position.y;
+		this->position_(2) = odom->pose.pose.position.z;
+      	Eigen::Quaterniond robotQuat = Eigen::Quaterniond(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x, odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
+		this->orientation_ = robotQuat.toRotationMatrix();
+
 		// store current position and orientation (camera)
 		Eigen::Matrix4d camPoseMatrix;
 		this->getCameraPose(odom, camPoseMatrix);
 
-		this->position_(0) = camPoseMatrix(0, 3);
-		this->position_(1) = camPoseMatrix(1, 3);
-		this->position_(2) = camPoseMatrix(2, 3);
-		this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+		this->positionCam_(0) = camPoseMatrix(0, 3);
+		this->positionCam_(1) = camPoseMatrix(1, 3);
+		this->positionCam_(2) = camPoseMatrix(2, 3);
+		this->orientationCam_ = camPoseMatrix.block<3, 3>(0, 0);
 
 		if (this->isInMap(this->position_)){
 			this->occNeedUpdate_ = true;
@@ -640,14 +688,20 @@ namespace mapManager{
 		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
 		pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
 
-		// store current position and orientation (camera)
-		Eigen::Matrix4d camPoseMatrix;
-		this->getCameraPose(pose, camPoseMatrix);
+		this->position_(0) = pose->pose.position.x;
+		this->position_(1) = pose->pose.position.y;
+		this->position_(2) = pose->pose.position.z;
+      	Eigen::Quaterniond robotQuat = Eigen::Quaterniond(pose->pose.orientation.w, pose->pose.orientation.x, pose->pose.orientation.y, pose->pose.orientation.z);
+		this->orientation_ = robotQuat.toRotationMatrix();
 
-		this->position_(0) = camPoseMatrix(0, 3);
-		this->position_(1) = camPoseMatrix(1, 3);
-		this->position_(2) = camPoseMatrix(2, 3);
-		this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+		// store current position and orientation (lidar)
+		Eigen::Matrix4d lidPoseMatrix;
+		this->getLidarPose(pose, lidPoseMatrix);
+
+		this->positionLid_(0) = lidPoseMatrix(0, 3);
+		this->positionLid_(1) = lidPoseMatrix(1, 3);
+		this->positionLid_(2) = lidPoseMatrix(2, 3);
+		this->orientationLid_ = lidPoseMatrix.block<3, 3>(0, 0);
 
 		if (this->isInMap(this->position_)){
 			this->occNeedUpdate_ = true;
@@ -663,15 +717,20 @@ namespace mapManager{
 		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
 		pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
 
+		this->position_(0) = odom->pose.pose.position.x;
+		this->position_(1) = odom->pose.pose.position.y;
+		this->position_(2) = odom->pose.pose.position.z;
+      	Eigen::Quaterniond robotQuat = Eigen::Quaterniond(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x, odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
+		this->orientation_ = robotQuat.toRotationMatrix();
 
-		// store current position and orientation (camera)
-		Eigen::Matrix4d camPoseMatrix;
-		this->getCameraPose(odom, camPoseMatrix);
+		// store current position and orientation (lidar)
+		Eigen::Matrix4d lidPoseMatrix;
+		this->getLidarPose(odom, lidPoseMatrix);
 
-		this->position_(0) = camPoseMatrix(0, 3);
-		this->position_(1) = camPoseMatrix(1, 3);
-		this->position_(2) = camPoseMatrix(2, 3);
-		this->orientation_ = camPoseMatrix.block<3, 3>(0, 0);
+		this->positionLid_(0) = lidPoseMatrix(0, 3);
+		this->positionLid_(1) = lidPoseMatrix(1, 3);
+		this->positionLid_(2) = lidPoseMatrix(2, 3);
+		this->orientationLid_ = lidPoseMatrix.block<3, 3>(0, 0);
 
 		if (this->isInMap(this->position_)){
 			this->occNeedUpdate_ = true;
@@ -689,11 +748,11 @@ namespace mapManager{
 		ros::Time startTime, endTime;
 		
 		startTime = ros::Time::now();
-		if (this->sensorInputMode_ == 0){
+		if (this->sensorInputMode_ == 0 or this->sensorInputMode_ == 2){
 			// project 3D points from depth map
 			this->projectDepthImage();
 		}
-		else if (this->sensorInputMode_ == 1){
+		if (this->sensorInputMode_ == 1 or this->sensorInputMode_ == 2){
 			// directly get pointcloud
 			this->getPointcloud();
 		}
@@ -728,7 +787,7 @@ namespace mapManager{
 
 
 	void occMap::projectDepthImage(){
-		this->projPointsNum_ = 0;
+		this->projPointsNumCam_ = 0;
 
 		int cols = this->depthImage_.cols;
 		int rows = this->depthImage_.rows;
@@ -775,7 +834,7 @@ namespace mapManager{
 				currPointCam(0) = (u - this->cx_) * depth * inv_fx;
 				currPointCam(1) = (v - this->cy_) * depth * inv_fy;
 				currPointCam(2) = depth;
-				currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
+				currPointMap = this->orientationCam_ * currPointCam + this->positionCam_; // transform to map coordinate
 
 				if (this->useFreeRegions_){ // this region will not be updated and directly set to free
 					if (this->isInHistFreeRegions(currPointMap)){
@@ -784,29 +843,29 @@ namespace mapManager{
 				}
 
 				// store current point
-				this->projPoints_[this->projPointsNum_] = currPointMap;
-				this->projPointsNum_ = this->projPointsNum_ + 1;
+				this->projPointsCam_[this->projPointsNumCam_] = currPointMap;
+				this->projPointsNumCam_ = this->projPointsNumCam_ + 1;
 			}
 		} 
 	}
 
 	void occMap::getPointcloud(){
-		this->projPointsNum_ = this->pointcloud_.size();
-		this->projPoints_.resize(this->projPointsNum_);
-		Eigen::Vector3d currPointCam, currPointMap;
-		for (int i=0; i<this->projPointsNum_; ++i){
-			currPointCam(0) = this->pointcloud_.points[i].x;
-			currPointCam(1) = this->pointcloud_.points[i].y;
-			currPointCam(2) = this->pointcloud_.points[i].z;
-			currPointMap = this->orientation_ * currPointCam + this->position_; // transform to map coordinate
-			if ((currPointMap-this->position_).norm()>=0.5){
-				this->projPoints_[i] = currPointMap;
+		this->projPointsNumLid_ = this->pointcloud_.size();
+		this->projPointsLid_.resize(this->projPointsNumLid_);
+		Eigen::Vector3d currPointLid, currPointMap;
+		for (int i=0; i<this->projPointsNumLid_; ++i){
+			currPointLid(0) = this->pointcloud_.points[i].x;
+			currPointLid(1) = this->pointcloud_.points[i].y;
+			currPointLid(2) = this->pointcloud_.points[i].z;
+			currPointMap = this->orientationLid_ * currPointLid + this->positionLid_; // transform to map coordinate
+			if ((currPointMap-this->positionLid_).norm()>=0.5){
+				this->projPointsLid_[i] = currPointMap;
 			}
 		}
 	}
 
 	void occMap::raycastUpdate(){
-		if (this->projPointsNum_ == 0){
+		if (this->projPointsNumCam_ == 0 and this->projPointsNumLid_ == 0){
 			return;
 		}
 		this->raycastNum_ += 1;
@@ -822,8 +881,13 @@ namespace mapManager{
 		bool pointAdjusted;
 		int rayendVoxelID, raycastVoxelID;
 		double length;
-		for (int i=0; i<this->projPointsNum_; ++i){
-			currPoint = this->projPoints_[i];
+		for (int i=0; i<this->projPointsNumCam_+this->projPointsNumLid_; ++i){
+			if (i<this->projPointsNumCam_){
+				currPoint = this->projPointsCam_[i];
+			}
+			else{
+				currPoint = this->projPointsLid_[i-this->projPointsNumCam_];
+			}
 			if (std::isnan(currPoint(0)) or std::isnan(currPoint(1)) or std::isnan(currPoint(2))){
 				continue; // nan points can happen when we are using pointcloud as input
 			}
@@ -975,7 +1039,7 @@ namespace mapManager{
 
 	void occMap::cleanLocalMap(){
 		Eigen::Vector3i posIndex;
-		this->posToIndex(this->position_, posIndex);
+		this->posToIndex(this->positionCam_, posIndex);
 		Eigen::Vector3i innerMinBBX = posIndex - this->localMapVoxel_;
 		Eigen::Vector3i innerMaxBBX = posIndex + this->localMapVoxel_;
 		Eigen::Vector3i outerMinBBX = innerMinBBX - Eigen::Vector3i(5, 5, 5);
@@ -1143,10 +1207,16 @@ namespace mapManager{
 		this->boundIndex(minRangeIdx);
 		this->boundIndex(maxRangeIdx);
 
-		for (int i=0; i<this->projPointsNum_; ++i){
-			pt.x = this->projPoints_[i](0);
-			pt.y = this->projPoints_[i](1);
-			pt.z = this->projPoints_[i](2);
+		for (int i=0; i<this->projPointsNumCam_; ++i){
+			pt.x = this->projPointsCam_[i](0);
+			pt.y = this->projPointsCam_[i](1);
+			pt.z = this->projPointsCam_[i](2);
+			depthCloud.push_back(pt);
+		}
+		for (int i=0; i<this->projPointsNumLid_; ++i){
+			pt.x = this->projPointsLid_[i](0);
+			pt.y = this->projPointsLid_[i](1);
+			pt.z = this->projPointsLid_[i](2);
 			depthCloud.push_back(pt);
 		}
 
@@ -1215,12 +1285,18 @@ namespace mapManager{
 		pcl::PointXYZ pt;
 		pcl::PointCloud<pcl::PointXYZ> cloud;
 
-		for (int i=0; i<this->projPointsNum_; ++i){
-			pt.x = this->projPoints_[i](0);
-			pt.y = this->projPoints_[i](1);
-			pt.z = this->projPoints_[i](2);
+		for (int i=0; i<this->projPointsNumCam_; ++i){
+			pt.x = this->projPointsCam_[i](0);
+			pt.y = this->projPointsCam_[i](1);
+			pt.z = this->projPointsCam_[i](2);
 			cloud.push_back(pt);
 		}
+		// for (int i=0; i<this->projPointsNumLid_; ++i){
+		// 	pt.x = this->projPointsLid_[i](0);
+		// 	pt.y = this->projPointsLid_[i](1);
+		// 	pt.z = this->projPointsLid_[i](2);
+		// 	cloud.push_back(pt);
+		// }
 
 		cloud.width = cloud.points.size();
 		cloud.height = 1;
