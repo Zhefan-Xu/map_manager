@@ -502,7 +502,7 @@ namespace mapManager{
 				exit(0);
 			}
 		}
-		if (this->sensorInputMode_ == 1){
+		else if (this->sensorInputMode_ == 1){
 			// pointcloud callback
 			this->pointcloudSub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(this->nh_, this->pointcloudTopicName_, 50));
 			if (this->localizationMode_ == 0){
