@@ -47,8 +47,8 @@ local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
 
 # visualziation
-local_map_size: [40, 40, 10] # meter. in x y z direction (only for visualization)
-max_height_visualization: 10 # m
+local_map_size: [40, 40, 6] # meter. in x y z direction (only for visualization)
+max_height_visualization: 5 # m
 visualize_global_map: true
 verbose: false
 

@@ -484,7 +484,7 @@ namespace mapManager{
 	}
 
 	void occMap::registerCallback(){
-		if (this->sensorInputMode_ == 0){
+		if (this->sensorInputMode_ == 0 or this->sensorInputMode_ == 2){
 			// depth pose callback
 			this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
 			if (this->localizationMode_ == 0){
@@ -502,7 +502,7 @@ namespace mapManager{
 				exit(0);
 			}
 		}
-		else if (this->sensorInputMode_ == 1){
+		if (this->sensorInputMode_ == 1 or this->sensorInputMode_ == 2){
 			// pointcloud callback
 			this->pointcloudSub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(this->nh_, this->pointcloudTopicName_, 50));
 			if (this->localizationMode_ == 0){
@@ -643,7 +643,7 @@ namespace mapManager{
 		this->positionCam_(2) = camPoseMatrix(2, 3);
 		this->orientationCam_ = camPoseMatrix.block<3, 3>(0, 0);
 
-		if (this->isInMap(this->position_)){
+		if (this->isInMap(this->positionCam_)){
 			this->occNeedUpdate_ = true;
 		}
 		else{
@@ -674,7 +674,7 @@ namespace mapManager{
 		this->positionCam_(2) = camPoseMatrix(2, 3);
 		this->orientationCam_ = camPoseMatrix.block<3, 3>(0, 0);
 
-		if (this->isInMap(this->position_)){
+		if (this->isInMap(this->positionCam_)){
 			this->occNeedUpdate_ = true;
 		}
 		else{
@@ -703,7 +703,7 @@ namespace mapManager{
 		this->positionLid_(2) = lidPoseMatrix(2, 3);
 		this->orientationLid_ = lidPoseMatrix.block<3, 3>(0, 0);
 
-		if (this->isInMap(this->position_)){
+		if (this->isInMap(this->positionLid_)){
 			this->occNeedUpdate_ = true;
 		}
 		else{
@@ -732,7 +732,7 @@ namespace mapManager{
 		this->positionLid_(2) = lidPoseMatrix(2, 3);
 		this->orientationLid_ = lidPoseMatrix.block<3, 3>(0, 0);
 
-		if (this->isInMap(this->position_)){
+		if (this->isInMap(this->positionLid_)){
 			this->occNeedUpdate_ = true;
 		}
 		else{
@@ -930,7 +930,71 @@ namespace mapManager{
 
 
 			// raycasting for update occupancy
-			this->raycaster_.setInput(currPoint/this->mapRes_, this->position_/this->mapRes_);
+			this->raycaster_.setInput(currPoint/this->mapRes_, this->positionCam_/this->mapRes_);
+			Eigen::Vector3d rayPoint, actualPoint;
+			while (this->raycaster_.step(rayPoint)){
+				actualPoint = rayPoint;
+				actualPoint(0) += 0.5;
+				actualPoint(1) += 0.5;
+				actualPoint(2) += 0.5;
+				actualPoint *= this->mapRes_;
+				raycastVoxelID = this->updateOccupancyInfo(actualPoint, false);
+
+				// raycastVoxelID = this->posToAddress(actualPoint);
+				if (this->flagTraverse_[raycastVoxelID] == this->raycastNum_){
+					break;
+				}
+				else{
+					this->flagTraverse_[raycastVoxelID] = this->raycastNum_;
+				}
+
+			}
+		}
+		for (int i=0; i<this->projPointsNumLid_; ++i){
+			currPoint = this->projPointsLid_[i];
+			if (std::isnan(currPoint(0)) or std::isnan(currPoint(1)) or std::isnan(currPoint(2))){
+				continue; // nan points can happen when we are using pointcloud as input
+			}
+
+			pointAdjusted = false;
+			// check whether the point is in reserved map range
+			if (not this->isInMap(currPoint)){
+				currPoint = this->adjustPointInMap(currPoint);
+				pointAdjusted = true;
+			}
+
+			// check whether the point exceeds the maximum raycasting length
+			length = (currPoint - this->positionLid_).norm();
+			if (length > this->raycastMaxLength_){
+				currPoint = this->adjustPointRayLength(currPoint);
+				pointAdjusted = true;
+			}
+
+
+			// update local bound
+			if (currPoint(0) < xmin){xmin = currPoint(0);}
+			if (currPoint(1) < ymin){ymin = currPoint(1);}
+			if (currPoint(2) < zmin){zmin = currPoint(2);}
+			if (currPoint(0) > xmax){xmax = currPoint(0);}
+			if (currPoint(1) > ymax){ymax = currPoint(1);}
+			if (currPoint(2) > zmax){zmax = currPoint(2);}
+
+			// update occupancy itself update information
+			rayendVoxelID = this->updateOccupancyInfo(currPoint, not pointAdjusted); // point adjusted is free, not is occupied
+
+			// check whether the voxel has already been updated, so no raycasting needed
+			// rayendVoxelID = this->posToAddress(currPoint);
+			if (this->flagRayend_[rayendVoxelID] == this->raycastNum_){
+				continue; // skip
+			}
+			else{
+				this->flagRayend_[rayendVoxelID] = this->raycastNum_;
+			}
+
+
+
+			// raycasting for update occupancy
+			this->raycaster_.setInput(currPoint/this->mapRes_, this->positionLid_/this->mapRes_);
 			Eigen::Vector3d rayPoint, actualPoint;
 			while (this->raycaster_.step(rayPoint)){
 				actualPoint = rayPoint;
@@ -1291,12 +1355,12 @@ namespace mapManager{
 			pt.z = this->projPointsCam_[i](2);
 			cloud.push_back(pt);
 		}
-		// for (int i=0; i<this->projPointsNumLid_; ++i){
-		// 	pt.x = this->projPointsLid_[i](0);
-		// 	pt.y = this->projPointsLid_[i](1);
-		// 	pt.z = this->projPointsLid_[i](2);
-		// 	cloud.push_back(pt);
-		// }
+		for (int i=0; i<this->projPointsNumLid_; ++i){
+			pt.x = this->projPointsLid_[i](0);
+			pt.y = this->projPointsLid_[i](1);
+			pt.z = this->projPointsLid_[i](2);
+			cloud.push_back(pt);
+		}
 
 		cloud.width = cloud.points.size();
 		cloud.height = 1;
