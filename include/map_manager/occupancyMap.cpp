@@ -504,7 +504,7 @@ namespace mapManager{
 		}
 		else if (this->sensorInputMode_ == 1){
 			// pointcloud callback
-			this->pointcloudSub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(this->nh_, this->pointcloudTopicName_, 50));
+			this->pointcloudSub_.reset(new message_filters::Subscriber<livox_ros_driver::CustomMsg>(this->nh_, this->pointcloudTopicName_, 50));
 			if (this->localizationMode_ == 0){
 				this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
 				this->pointcloudPoseSync_.reset(new message_filters::Synchronizer<pointcloudPoseSync>(pointcloudPoseSync(100), *this->pointcloudSub_, *this->poseSub_));
@@ -522,7 +522,7 @@ namespace mapManager{
 		}
 		else if (this->sensorInputMode_ == 2){
 			this->depthSub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(this->nh_, this->depthTopicName_, 50));
-			this->pointcloudSub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(this->nh_, this->pointcloudTopicName_, 50));
+			this->pointcloudSub_.reset(new message_filters::Subscriber<livox_ros_driver::CustomMsg>(this->nh_, this->pointcloudTopicName_, 50));
 			if (this->localizationMode_ == 0){
 				this->poseSub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(this->nh_, this->poseTopicName_, 25));
 				this->depthPoseSync_.reset(new message_filters::Synchronizer<depthPoseSync>(depthPoseSync(100), *this->depthSub_, *this->poseSub_));
@@ -682,11 +682,30 @@ namespace mapManager{
 		}
 	}
 
-	void occMap::pointcloudPoseCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const geometry_msgs::PoseStampedConstPtr& pose){
-		// directly get the point cloud
-		pcl::PCLPointCloud2 pclPC2;
-		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
-		pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
+	void occMap::pointcloudSub(const livox_ros_driver::CustomMsg::ConstPtr &msg){
+		int N_SCANS = 4;
+		pcl::PointCloud<pcl::PointXYZ> plFull;
+		plFull.clear();
+		int plsize = msg->point_num;
+
+		plFull.resize(plsize);
+		
+		for(uint i=1; i<plsize; i++){
+			if((msg->points[i].line < N_SCANS) && ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00)){
+				plFull[i].x = msg->points[i].x;
+				plFull[i].y = msg->points[i].y;
+				plFull[i].z = msg->points[i].z;
+			}
+		}
+		this->pointcloud_ = plFull;
+	}
+
+	void occMap::pointcloudPoseCB(const livox_ros_driver::CustomMsg::ConstPtr &msg, const geometry_msgs::PoseStampedConstPtr& pose){
+		this->pointcloudSub(msg);
+		// // directly get the point cloud
+		// pcl::PCLPointCloud2 pclPC2;
+		// pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
+		// pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
 
 		this->position_(0) = pose->pose.position.x;
 		this->position_(1) = pose->pose.position.y;
@@ -711,11 +730,12 @@ namespace mapManager{
 		}
 	}
 
-	void occMap::pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom){
-		// directly get the point cloud
-		pcl::PCLPointCloud2 pclPC2;
-		pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
-		pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
+	void occMap::pointcloudOdomCB(const livox_ros_driver::CustomMsg::ConstPtr &msg, const nav_msgs::OdometryConstPtr& odom){
+		this->pointcloudSub(msg);
+		// // directly get the point cloud
+		// pcl::PCLPointCloud2 pclPC2;
+		// pcl_conversions::toPCL(*pointcloud, pclPC2); // convert ros pointcloud2 to pcl pointcloud2
+		// pcl::fromPCLPointCloud2(pclPC2, this->pointcloud_);
 
 		this->position_(0) = odom->pose.pose.position.x;
 		this->position_(1) = odom->pose.pose.position.y;

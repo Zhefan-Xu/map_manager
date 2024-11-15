@@ -25,6 +25,7 @@
 #include <map_manager/CheckPosCollision.h>
 #include <map_manager/RayCast.h>
 #include <thread>
+#include <livox_ros_driver/CustomMsg.h>
 
 using std::cout; using std::endl;
 namespace mapManager{
@@ -38,16 +39,16 @@ namespace mapManager{
 		// ROS
 		ros::NodeHandle nh_;
 		std::shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> depthSub_;
-		std::shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> pointcloudSub_;
+		std::shared_ptr<message_filters::Subscriber<livox_ros_driver::CustomMsg>> pointcloudSub_;
 		std::shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> poseSub_;
 		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped> depthPoseSync;
 		std::shared_ptr<message_filters::Synchronizer<depthPoseSync>> depthPoseSync_;
 		std::shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odomSub_;
 		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry> depthOdomSync;
 		std::shared_ptr<message_filters::Synchronizer<depthOdomSync>> depthOdomSync_;
-		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, geometry_msgs::PoseStamped> pointcloudPoseSync;
+		typedef message_filters::sync_policies::ApproximateTime<livox_ros_driver::CustomMsg, geometry_msgs::PoseStamped> pointcloudPoseSync;
 		std::shared_ptr<message_filters::Synchronizer<pointcloudPoseSync>> pointcloudPoseSync_;
-		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry> pointcloudOdomSync;
+		typedef message_filters::sync_policies::ApproximateTime<livox_ros_driver::CustomMsg, nav_msgs::Odometry> pointcloudOdomSync;
 		std::shared_ptr<message_filters::Synchronizer<pointcloudOdomSync>> pointcloudOdomSync_;	
 		ros::Timer occTimer_;
 		ros::Timer inflateTimer_;
@@ -145,6 +146,9 @@ namespace mapManager{
 		// Raycaster
 		RayCaster raycaster_;
 
+		// lidar
+		pcl::PointCloud<pcl::PointXYZINormal> pl_full, pl_corn, pl_surf;
+		
 		// ------------------------------------------------------------------
 
 	public:
@@ -166,8 +170,9 @@ namespace mapManager{
 		// callback
 		void depthPoseCB(const sensor_msgs::ImageConstPtr& img, const geometry_msgs::PoseStampedConstPtr& pose);
 		void depthOdomCB(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
-		void pointcloudPoseCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const geometry_msgs::PoseStampedConstPtr& pose);
-		void pointcloudOdomCB(const sensor_msgs::PointCloud2ConstPtr& pointcloud, const nav_msgs::OdometryConstPtr& odom);
+		void pointcloudSub(const livox_ros_driver::CustomMsg::ConstPtr &msg);
+		void pointcloudPoseCB(const livox_ros_driver::CustomMsg::ConstPtr &msg, const geometry_msgs::PoseStampedConstPtr& pose);
+		void pointcloudOdomCB(const livox_ros_driver::CustomMsg::ConstPtr &msg, const nav_msgs::OdometryConstPtr& odom);
 		void updateOccupancyCB(const ros::TimerEvent& );
 		void inflateMapCB(const ros::TimerEvent& );
 

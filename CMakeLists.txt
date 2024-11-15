@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_filters
   image_transport
   onboard_detector
+  livox_ros_driver2
 )
 
 ## System dependencies are found with CMake's conventions
